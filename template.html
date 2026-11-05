@@ -213,6 +213,8 @@ a:hover{text-decoration:underline}
 .switch::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgb(0 0 0 / .2);transition:transform .15s}
 .switch[aria-checked="true"]{background:var(--primary)}
 .switch[aria-checked="true"]::after{transform:translateX(16px)}
+.switch[aria-disabled="true"]{opacity:.45;cursor:not-allowed}
+.sw.dis{cursor:not-allowed;color:var(--muted-foreground)}
 .reg-filters{display:flex;flex-wrap:wrap;gap:16px 24px;align-items:flex-end}
 .reg-filters>.ctl{flex:0 0 auto;min-width:0;max-width:100%}
 .reg-filters>.ctl.rf-type{flex:0 1 210px;min-width:150px}
@@ -1205,6 +1207,7 @@ body.ov-dragging .ovb-h{cursor:grabbing}
         <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="sr-only">Period</span><select id="lb-period"></select></label>
         <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5"/><path d="M3.5 13.5c.6-2.6 2.4-4 4.5-4s3.9 1.4 4.5 4"/></svg><span class="sr-only">Partner</span><select id="lb-partner"></select></label>
         <span class="sw"><button type="button" class="switch" role="switch" id="lb-add" aria-checked="true" aria-labelledby="lb-add-l"></button><span id="lb-add-l">Include stores added since the Oct 6 cut</span></span>
+        <span class="sw" id="lb-shop-w"><button type="button" class="switch" role="switch" id="lb-shop" aria-checked="true" aria-labelledby="lb-shop-l"></button><span id="lb-shop-l">Shopify payments</span></span>
       </div>
       <span class="dc-sum" id="lb-ctl-sub"></span>
       <button type="button" class="btn sm" id="lb-notes-btn" aria-haspopup="dialog"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="2.5" width="9" height="11" rx="1.5"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg>Notes and limits</button>
@@ -1648,7 +1651,8 @@ function ovCompute(periodKey,scope){
   const pdocs=scope==="active"?act:docs;
   const all=(D.stores||[]).filter(inScope),pay=all.filter(s=>s.scope!=="program");
   /* All time: lifetime.total (Stripe plus Shopify) over every snapshot store, payout list and program. A period: Stripe-rail paid invoices of payout-list stores. */
-  const rev=s=>per.months?storeEarned(s,per.months):storeLifetime(s,"total");
+  let shopOn=true;try{shopOn=LBS.shopify!==false;}catch(e){}
+  const rev=s=>per.months?storeEarned(s,per.months):storeLifetime(s,shopOn?"total":"stripe");
   const base=per.months?pay:all;
   let revenue=0,paying=0,newRev=0,newStores=0;const parts=new Set();
   const ltStripe=per.months?0:all.reduce((a,s)=>a+storeLifetime(s,"stripe"),0),ltShopify=per.months?0:all.reduce((a,s)=>a+storeLifetime(s,"shopify"),0);
@@ -1669,7 +1673,7 @@ function ovCompute(periodKey,scope){
   pdocs.forEach(d=>(d.history||[]).forEach(h=>{if(!h||h.status!=="paid"||h.payout==null||!isFinite(+h.payout))return;
     if(per.months&&!(h.paid_on&&per.months.includes(String(h.paid_on).slice(0,7))))return;paid+=+h.payout;paidN++;}));
   const won=all.filter(s=>s.lead_status==="won").length;
-  return{openP,netRev,netStores,curP,curRev,curPaying,ltStripe,ltShopify,period:per,scope,active:act.length,registry:docs.length,paying,partners:parts.size,revenue,newRev,newStores,pending,q3fin,paid,paidN,referred:all.length,won};
+  return{shopOn,openP,netRev,netStores,curP,curRev,curPaying,ltStripe,ltShopify,period:per,scope,active:act.length,registry:docs.length,paying,partners:parts.size,revenue,newRev,newStores,pending,q3fin,paid,paidN,referred:all.length,won};
 }
 function kpi(o){
   const go=o.to?`<button type="button" class="go" data-s="${o.to}" aria-label="Open ${esc(SEC[o.to].l)}" title="Open ${esc(SEC[o.to].l)}">${svg("arrow")}</button>`:"";
@@ -1698,8 +1702,8 @@ function renderOverview(){
       help:`Registry partners with agreement status "active" (${srcReg()}). Not filtered by period or scope.`},
     {k:"paying",icon:"store",label:"Paying stores",value:snap?fmtN(V.paying):"-",sub:snap?`${fmtN(V.partners)} partners with revenue`:"",to:"dashboard",
       help:P.months?`Payout-list stores with Stripe-rail paid revenue in ${perTxt}, from snapshots/latest (${srcDash()}).${scopeTxt}`:`All time: snapshot stores (payout list and program) with lifetime revenue above zero on either rail, Stripe to ${sAsof} plus Shopify to ${shAsof}, from snapshots/latest (${srcDash()}).${scopeTxt}`},
-    {k:"revenue",icon:"trend",label:"Revenue",value:snap?fmt$c(V.revenue):"-",sub:"",to:"dashboard",
-      help:P.months?`Paid invoices, Stripe rail, payout-list stores, ${perTxt}, from snapshots/latest (${srcDash()}).${scopeTxt}`:`All time: lifetime revenue on both rails, Stripe paid invoices to ${sAsof} plus Shopify billing to ${shAsof}, summed over every snapshot store (payout list and program), from snapshots/latest (${srcDash()}).${scopeTxt}`},
+    {k:"revenue",icon:"trend",label:"Revenue",value:snap?fmt$c(V.revenue):"-",sub:snap&&!P.months?(V.shopOn?`Stripe ${fmtM(V.ltStripe)}, Shopify ${fmtM(V.ltShopify)}`:`Stripe only, Shopify ${fmtM(V.ltShopify)} left out`):"",to:"dashboard",
+      help:P.months?`Paid invoices, Stripe rail, payout-list stores, ${perTxt}, from snapshots/latest (${srcDash()}).${scopeTxt}`:`All time: lifetime revenue, Stripe paid invoices to ${sAsof}${V.shopOn?` plus Shopify billing to ${shAsof}`:`; Shopify billing to ${shAsof} left out by the Shopify payments switch on the Dashboard`}, summed over every snapshot store (payout list and program), from snapshots/latest (${srcDash()}).${scopeTxt}`},
     {k:"newrev",icon:"spark",label:"Net-new revenue",value:snap&&V.openP?fmt$c(V.netRev):"-",sub:snap?(V.openP?(V.netStores>0?`${fmtN(V.netStores)} net-new paying stores, ${esc(V.openP.label)}`:`No net-new paying stores yet, ${esc(V.openP.label)}`):"No open period in the snapshot"):"",
       help:`Revenue so far in ${V.openP?V.openP.label:"the current period"} from stores whose first paid invoice fell inside it (snapshot store field paying_since), payout-list stores, Stripe rail, from snapshots/latest. Net-new paying stores = those stores with revenue above zero. Shown for the current period in every view.${scopeTxt}`},
     PS?{k:"pending",icon:"hourglass",label:"Commission pending",value:fmt$c(PS.owed),sub:PS.owedQ.length?PS.owedQ.map(p=>`${esc(payLabel(p))} ${esc((PST_L[p.status]||"").toLowerCase())}`).join(", "):"Nothing owed",to:"payouts",
@@ -5162,7 +5166,8 @@ const commOf=(s,m,P)=>{
   return g&&g.gm_source==="line_items"&&g.alerts_margin!=null?v*(+g.alerts_margin):v;};
 // lifetime split (All time): Stripe lines by product; the Shopify rail has no split
 const PK=["alerts","automation","prevent","other"];
-const ltProd=(s,P)=>{const l=s.lifetime;if(!l)return 0;if(P==="all")return +l.total||0;const x=l.products;return x?(+x[P]||0):0;};
+/* Shopify payments switch (S.shopify): All time "all" counts Stripe plus Shopify when on, Stripe alone when off */
+const ltProd=(s,P)=>{const l=s.lifetime;if(!l)return 0;if(P==="all")return +(S.shopify===false?l.stripe:l.total)||0;const x=l.products;return x?(+x[P]||0):0;};
 const ltShopU=s=>{const l=s.lifetime;if(!l)return 0;return +(l.shopify_unsplit!=null?l.shopify_unsplit:l.shopify)||0;};
 const partnerLtProd=(p,ps)=>{const lp=p.lifetime_products;if(lp)return Object.fromEntries(PK.map(k=>[k,+lp[k]||0]));
   const o={alerts:0,automation:0,prevent:0,other:0};ps.forEach(s=>{const x=s.lifetime&&s.lifetime.products;if(x)PK.forEach(k=>o[k]+=+x[k]||0);});return o;};
@@ -5235,9 +5240,9 @@ function compute(){
       const only25=!!(AT_DATA&&AT_DATA.payouts_pre_q1);
       parts={conf:noComm?0:((+pre.confirmed||0)+(only25?(+pre.computed||0):0))*sh,comp:noComm||only25?0:(+pre.computed||0)*sh,
         act,est:months.filter(m=>!actual[m]).reduce((a,m)=>a+sm[m],0)};
-      earned=PS==="all"?lt.total:ps.reduce((a,s)=>a+ltProd(s,PS),0);spend=parts.conf+parts.comp+Object.values(act).reduce((a,v)=>a+v,0)+parts.est;
+      earned=PS==="all"?(S.shopify===false?lt.stripe:lt.total):ps.reduce((a,s)=>a+ltProd(s,PS),0);spend=parts.conf+parts.comp+Object.values(act).reduce((a,v)=>a+v,0)+parts.est;
       earnedPay=ps.reduce((a,s)=>a+(s.scope==="program"?0:ltProd(s,PS)),0);
-      atProd={...lp,shopU:lt.shopU};
+      atProd={...lp,shopU:S.shopify===false?0:lt.shopU};
     }
     const inAct=actPeriods.filter(ap=>pm.some(m=>groupOf[m]===ap.key));
     if(!ps.length&&!inAct.some(ap=>actTot[ap.key]))return;
@@ -5316,6 +5321,7 @@ function fcModel(M){
 }
 function limits(){
   const EXTRA=[
+    "Shopify payments: Shopify Billing revenue is a lifetime total per store from the Aug 2, 2026 export, with no month detail, and never reaches HubSpot invoices. The Shopify payments switch adds it to All time or leaves it out; dated periods, the trend and the forecast are Stripe only.",
     "Joined is the HubSpot company create date (install or signup). Partner.io referral dates were lost in the Aug 2, 2026 import, so the referral date itself is not shown.",
     "Partner.io join dates for 49 partners are the Jun 8, 2026 migration stamp, so the table shows Active since (the first paid invoice across the partner's stores) and Signed on from the registry when filled.",
     "Product split comes from invoice line items, used as ratios on paid revenue; Won Cases and Under Review fees count as Automation. In the dated periods it covers payout-list stores, and a store-month without line items counts as Other. All time splits lifetime Stripe lines by product across all stores; the Shopify rail has no split, and payouts before the paid quarters (2025) go to Alerts and Automation by each partner's lifetime share."];
@@ -5347,11 +5353,11 @@ return{DATA,TREND,S,periods,months,actual,paidM,actPeriods,isActualP,groupOf,par
 
 /* ---- build 4: Dashboard cards on the ported math (lbBuild above). State per viewer in localStorage (period, additions, trend mode).
    Colors: one accent (--primary) and tints of it for the product split, --success for paid, --warning for estimates, muted for the forecast. */
-const LBS={period:null,partner:"",includeAdded:true,trendMode:"month",trendFc:true,sort:{key:"earned",dir:-1},all:false};
+const LBS={period:null,partner:"",includeAdded:true,shopify:true,trendMode:"month",trendFc:true,sort:{key:"earned",dir:-1},all:false};
 const LB_LS="partneros.dashboard";
 function lbLoad(){try{const v=JSON.parse(localStorage.getItem(LB_LS)||"null");if(v&&typeof v==="object"){if(typeof v.period==="string")LBS.period=v.period;
-  if(typeof v.add==="boolean")LBS.includeAdded=v.add;if(v.mode==="cum")LBS.trendMode="cum";if(v.fc===false)LBS.trendFc=false;}}catch(e){}}
-function lbSave(){try{localStorage.setItem(LB_LS,JSON.stringify({period:LBS.period,add:LBS.includeAdded,mode:LBS.trendMode,fc:LBS.trendFc}));}catch(e){}}
+  if(typeof v.add==="boolean")LBS.includeAdded=v.add;if(typeof v.shop==="boolean")LBS.shopify=v.shop;if(v.mode==="cum")LBS.trendMode="cum";if(v.fc===false)LBS.trendFc=false;}}catch(e){}}
+function lbSave(){try{localStorage.setItem(LB_LS,JSON.stringify({period:LBS.period,add:LBS.includeAdded,shop:LBS.shopify,mode:LBS.trendMode,fc:LBS.trendFc}));}catch(e){}}
 let LBX=null;
 function lbGet(){
   const D=ST.dash,T=ST.trend;if(!D||!Array.isArray(D.stores)||!Array.isArray(D.periods)||!D.periods.length)return null;
@@ -5411,9 +5417,13 @@ function renderLB(){
   $("lb-add").setAttribute("aria-checked",String(!!S.includeAdded));
   const cut=(L.DATA.cut_label)||"Oct 6";$("lb-add-l").textContent=`Include stores added since the ${cut} cut`;
   const c=L.compute();
+  {const sb=$("lb-shop"),sw=$("lb-shop-w"),shA=(ST.dash&&ST.dash.shopify_asof)?dShort(ST.dash.shopify_asof):"Aug 2";
+   sb.setAttribute("aria-checked",String(c.AT&&S.shopify!==false));sb.setAttribute("aria-disabled",String(!c.AT));sw.classList.toggle("dis",!c.AT);
+   $("lb-shop-l").textContent=c.AT?"Shopify payments":"Shopify payments, all time only";
+   sw.title=c.AT?`Shopify Billing revenue, a lifetime total per store to ${shA}, kept apart from Stripe invoices. Off shows Stripe only.`:`Shopify Billing revenue exists only as a lifetime total to ${shA}, with no month detail. This period is Stripe only. Pick All time to use the switch.`;}
   const nAdd=(L.DATA.stores||[]).filter(s=>s.added_since_cut&&(c.AT||s.scope!=="program")&&(!S.partner||s.partner===S.partner)).length;
   const sum=`${lbSel(L,c)}. ${fmtN(nAdd)} store${nAdd===1?"":"s"} added since the ${cut} cut ${S.includeAdded?"included":"left out"}. Snapshot ${ST.dash.generated?dShort(ST.dash.generated):""} (${srcDash()}).`;
-  $("lb-ctl-sub").textContent=`${lbSel(L,c)}, ${fmtN(nAdd)} added since the cut${S.includeAdded?"":", left out"}`;$("lb-ctl-sub").title=sum;
+  $("lb-ctl-sub").textContent=`${lbSel(L,c)}, ${fmtN(nAdd)} added since the cut${S.includeAdded?"":", left out"}${c.AT?(S.shopify===false?", Stripe only":", Shopify included"):""}`;$("lb-ctl-sub").title=sum;
   dbKpis(L,c);lbEarnPaid(L,c);lbTrend(L,c);lbProd(L,c);lbPayTable(L);lbTop(L,c);
   if(ST.dbopen)lbDrawer();
   host.querySelectorAll(".card-sub").forEach(x=>{x.title=x.dataset.full||x.textContent;});
@@ -5436,7 +5446,7 @@ function dbKpis(L,c){
     lbKt(prev?`Revenue, ${sp(prev.label)}`:"Previous period",prev?fmt$(prev.earned):"-",prev?`${fmtN(prev.paying)} paying stores${prevSt?", "+prevSt:""}`:"",`snapshots/latest, payout-list stores${prev?", "+prev.label+", status "+(prev.status||""):""} (${srcDash()})`),
     lbKt("Last full month",M&&Lf>=0?fmt$(M.e[Lf]):"-",M&&Lf>=0?`${lbMY(M.tm[Lf])}, ${L.fmtSP(M.mom[Lf])}${Lf>0?" vs "+L.mLabel(M.tm[Lf-1]):""}`:"",`snapshots/trend, the Trend and forecast series for ${L.S.partner?"the partner selected":"the selection"}; month over month against the month before (${tsrc})`),
     lbKt("Last 12 months",g&&g.t12_now!=null?fmt$(g.t12_now):"-",g&&g.span_now?g.span_now+(g.t12_multiple!=null?`, ${g.t12_multiple}x prior year`:""):"",`snapshots/trend growth, all referred stores, the last 12 full months against the 12 before (${tsrc})`),
-    lbKt(c.AT?"Earned, all time":`Earned, ${sp(c.per.label)}`,fmt$(c.tot.earned),`Paid ${fmt$(c.tot.spend)}, rate ${pct1(c.tot.spend,c.tot.earned)}`,"The dashboard's compute() for the period, partner and additions selected above; paid uses the payout figures on record, estimates otherwise; rate is paid over earned")
+    lbKt(c.AT?"Earned, all time":`Earned, ${sp(c.per.label)}`,fmt$(c.tot.earned),c.AT?(L.S.shopify===false?`Stripe only, Shopify ${fmtK(c.tot.shopify)} left out. Paid ${fmtK(c.tot.spend)}`:`Stripe ${fmtK(c.tot.stripe)}, Shopify ${fmtK(c.tot.shopify)}. Paid ${fmtK(c.tot.spend)}`):`Paid ${fmt$(c.tot.spend)}, rate ${pct1(c.tot.spend,c.tot.earned)}`,c.AT?"The dashboard's compute() for All time, partner and additions selected above. Stripe = paid invoices; Shopify = Shopify Billing lifetime total per store to the Aug 2 export, shown apart and added only when the Shopify payments switch is on. Paid uses the payout figures on record, estimates otherwise":"The dashboard's compute() for the period, partner and additions selected above; paid uses the payout figures on record, estimates otherwise; rate is paid over earned. Stripe rail only: Shopify Billing has no month detail")
   ].join("");
 }
 function lbShell(){
@@ -5464,6 +5474,7 @@ function lbBind(){
     if(t.id==="lb-notes-btn"){lbOpen("notes");return;}
     const L=lbGet();if(!L)return;
     if(t.id==="lb-add"){L.S.includeAdded=!L.S.includeAdded;lbSave();renderLB();}
+    else if(t.id==="lb-shop"){if(t.getAttribute("aria-disabled")==="true")return;L.S.shopify=!L.S.shopify;lbSave();renderLB();}
     else if(t.id==="lb-fc"){L.S.trendFc=!L.S.trendFc;lbSave();renderLB();}
     else if(t.closest("#lb-tmode")&&t.dataset.k){L.S.trendMode=t.dataset.k==="cum"?"cum":"month";lbSave();renderLB();}
     else if(t.dataset.sk){const k=t.dataset.sk;if(L.S.sort.key===k)L.S.sort.dir*=-1;else L.S.sort={key:k,dir:k==="name"?1:-1};lbTop(L,L.compute());if(ST.dbopen==="top")lbDrawer();}
@@ -5588,7 +5599,7 @@ function lbProd(L,c){
   else{tot={};K.forEach(k=>tot[k]=c.pm.reduce((a,m)=>a+c.byMonth[m].prod[k].earned,0));}
   const keys=Object.keys(tot).filter(k=>tot[k]>0),sum=keys.reduce((a,k)=>a+tot[k],0);
   const prFull=c.AT?"Lifetime revenue by product: Stripe invoice lines split by product, the Shopify rail not split.":`Payout-list revenue by product per month, ${c.per.label}, from invoice line items. A store-month without lines counts as Other.`;
-  $("lb-pr-sub").textContent=c.AT?"Lifetime, by product. Shopify not split.":`By product per month, ${c.per.label}.`;
+  $("lb-pr-sub").textContent=c.AT?(L.S.shopify===false?"Lifetime, by product. Stripe only, Shopify left out.":"Lifetime, by product. Shopify not split."):`By product per month, ${c.per.label}.`;
   const prh=$("lb-pr-help");prh.title=prFull;prh.setAttribute("aria-label","About this card: "+prFull);
   $("lb-pr-tot").innerHTML=sum>0?`<div class="lb-split" role="img" aria-label="${esc(keys.map(k=>`${LB_PL[k]} ${Math.round(tot[k]/sum*100)}%`).join(", "))}">${keys.map(k=>`<span style="flex:${(tot[k]/sum).toFixed(4)} 1 0;background:${LBC[k]}" title="${esc(LB_PL[k])}: ${fmt$(tot[k])}"></span>`).join("")}</div>
     <ul class="lgd lb-plg">${keys.map(k=>`<li data-p="${k}" title="${esc(LB_PL[k])}: ${fmt$(tot[k])}"><i style="background:${LBC[k]}"></i><span class="ll">${esc(LB_PL[k])}</span><span class="lv num">${fmt$(tot[k])}</span><span class="lp num">${Math.round(tot[k]/sum*100)}%</span></li>`).join("")}</ul>${lbProdTable(K,tot,sum)}`:`<div class="msg">No product revenue for this selection.</div>`;
