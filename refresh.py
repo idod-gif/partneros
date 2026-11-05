@@ -1283,7 +1283,7 @@ def cmd_make_config(a):
         'version': 1,
         'built_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
         'sensitive': 'payout and revenue data; never commit',
-        'portal': '22017851',
+        'portal': loc['hubspot_portal'],
         'from_month': '2026-01',
         'window': {'from': '2026-01-01'},
         'q3_months': ['2026-07', '2026-08', '2026-09'],

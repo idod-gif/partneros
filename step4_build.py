@@ -18,7 +18,7 @@ LEADS = f'{ROOT}/docs/projects/partner-leads-handoff/leads.json'
 MISSING = f'{ROOT}/docs/projects/partnerio-missing-deals-2026-10/leads.csv'
 PLAN = f'{ROOT}/docs/projects/partnerio-optimization/plan.md'
 NOW = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')
-TYPE_IDS = {'Agencies': 3077, 'Affiliates': 3075, 'Influencers': 3076, 'PSP': 3080, 'ISO': 3081}  # scripts/partner-activation/classify.py
+TYPE_IDS = shared.load_local()['partnerio_type_ids']  # Partner.io partner type ids, local data (see scripts/partner-activation/classify.py)
 norm = lambda s: (s or '').strip().lower()
 r2 = lambda x: round(x + 1e-9, 2)
 
