@@ -1,0 +1,7 @@
+#!/bin/sh
+# Refuses a commit when guard.py finds data (emails, figures, names, artifact URLs, fonts) in a staged file.
+top="$(git rev-parse --show-toplevel)"
+files="$(git diff --cached --name-only --diff-filter=ACM)"
+[ -z "$files" ] && exit 0
+cd "$top" || exit 1
+echo "$files" | tr '\n' '\0' | xargs -0 python3 "$top/guard.py"

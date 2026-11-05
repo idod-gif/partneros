@@ -1,0 +1,35 @@
+{
+  "voice": [
+    "Short plain sentences, roughly one per line, with a blank line between small groups.",
+    "Open with a specific scene or a fact about their company or a client, never a greeting speech or 'hope you are well'.",
+    "Say what we do in builder language, one line, no jargon-heavy explainers.",
+    "Low to medium energy and dry humor; never an exclamation mark.",
+    "No stats, percentages or claims beyond the 25% revenue share; no superlatives.",
+    "No hashtags, no emoji in outreach, no long dashes; use commas, periods or semicolons.",
+    "Never name the tool behind the referral flow; say 'unique referral link' if it comes up.",
+    "No booking links and no Calendly in DMs or emails; the ask is a reply or a 15-minute call.",
+    "One explicit ask per message, phrased as a plain question; yes or no is fine.",
+    "Never a hard sell or pressure; treat partners like VIPs and credit their work.",
+    "Sign off as Ido, Head of Partner Marketing at Chargeflow; email only, LinkedIn ends on the question.",
+    "Email stays under about 90 words; LinkedIn under 300 characters; English only."
+  ],
+  "about": "Ido Dori is Head of Partner Marketing at Chargeflow, running partnerships, affiliates and agencies. Chargeflow's partner program pays 25% of what Chargeflow earns from stores a partner refers (nothing to install), and the Connect play is for tech partners and agencies that serve many merchants and could offer chargeback automation to their base.",
+  "openers": {
+    "rev_share": {
+      "linkedin": "Hi {{first_name}}, {{fit_reason}}. I'm building a Chargeflow partner network; {{company}} would earn 25% of what we make from stores it refers, nothing to install. Want me to send a one-page dispute read on one of your {{type}} clients?",
+      "email_subject": "one client's disputes, in one page",
+      "email": "Hi {{first_name}}, {{fit_reason}}.\n\nThat is usually where a surprise charge turns into a dispute.\n\nI'm building a Chargeflow partner network. {{company}} would earn 25% of what we make from stores it refers, with nothing to pay or install. First, a one-page read of what one client loses to disputes and what is recoverable, under {{company}}'s name.\n\nWant me to run one? A short reply is enough.\n\nIdo\nHead of Partner Marketing at Chargeflow"
+    },
+    "connect": {
+      "linkedin": "Hi {{first_name}}, {{fit_reason}}. At Chargeflow we work with {{type}} partners that serve many merchants, so {{company}} could offer them chargeback automation. Open to a 15-minute call to see if it fits?",
+      "email_subject": "chargeback automation for {{company}}'s merchants",
+      "email": "Hi {{first_name}}, {{fit_reason}}.\n\n{{company}} serves a lot of merchants, and chargebacks land on all of them.\n\nChargeflow's Connect play lets {{type}} partners offer chargeback automation to that base, so it becomes something {{company}} gives its merchants rather than something they chase alone.\n\nOpen to a 15-minute call to see if it fits?\n\nIdo\nHead of Partner Marketing at Chargeflow"
+    }
+  },
+  "placeholders": [
+    "{{company}}",
+    "{{first_name}}",
+    "{{fit_reason}}",
+    "{{type}}"
+  ]
+}

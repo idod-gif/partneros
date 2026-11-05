@@ -1,0 +1,6 @@
+fonts/*.woff2
+_qa/
+__pycache__/
+*.pyc
+.DS_Store
+*.bak
