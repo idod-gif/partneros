@@ -5821,10 +5821,11 @@ async function connect(){
   renderHead();
   floOnUser();profLoad();
 
-  // snapshots: a db doc replaces the seed only when its generated stamp is newer
+  // snapshots: the db doc always replaces the build seed (the seed is only a fallback, and a rebuilt seed can carry a later stamp
+  // over older data); once live, a db update applies only when its generated stamp is newer
   const applySnap=(key,check)=>snap=>{try{
     if(!snap||!snap.exists)return;const d=snap.data();if(!d||typeof d!=="object"||!d.generated||!check(d))return;
-    const cur=String((ST[key]&&ST[key].generated)||"");if(String(d.generated)<=cur&&ST[key+"Src"]!=="none")return;
+    const cur=String((ST[key]&&ST[key].generated)||"");if(ST[key+"Src"]==="live"&&String(d.generated)<=cur)return;
     ST[key]=JSON.parse(JSON.stringify(d));ST[key+"Src"]="live";renderAll();if(ST.sec==="partners"){renderTable();if(ST.open&&!ST.edit)renderDrawer();}
   }catch(e){}};
   const aD0=applySnap("dash",d=>Array.isArray(d.periods)&&Array.isArray(d.stores));
@@ -5835,7 +5836,7 @@ async function connect(){
   const aD=async snap=>{const my=++dSeq;try{
     if(!snap||!snap.exists)return;const d=snap.data();if(!d||typeof d!=="object"||!d.generated)return;
     const n=+d.stores_shards;if(Array.isArray(d.stores)||!(n>0)){aD0(snap);return;}
-    if(String(d.generated)<=String((ST.dash&&ST.dash.generated)||"")&&ST.dashSrc!=="none")return;
+    if(ST.dashSrc==="live"&&String(d.generated)<=String((ST.dash&&ST.dash.generated)||""))return;
     const parts=await Promise.all(Array.from({length:n},(_,i)=>db.doc("snapshots/stores-"+i).get()));
     if(my!==dSeq)return;
     const stores=[];for(const p of parts){const x=p&&p.exists?p.data():null;if(!x||String(x.generated)!==String(d.generated)||!Array.isArray(x.stores))return;stores.push(...x.stores);}
