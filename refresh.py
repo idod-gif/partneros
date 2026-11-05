@@ -151,11 +151,19 @@ def order_leads(raw):
     return a + b
 
 
+def is_internal_test_lead(l):
+    """Drop internal test accounts: any contact email (contacts[].fields[] or data.email) ends with @chargeflow.io."""
+    d = l.get('data') if isinstance(l.get('data'), dict) else {}
+    vals = [d.get('email')] + [f.get('value') for c in (l.get('contacts') or []) if isinstance(c, dict)
+                               for f in (c.get('fields') or []) if isinstance(f, dict)]
+    return any(isinstance(v, str) and v.strip().lower().endswith('@chargeflow.io') for v in vals)
+
+
 def load_leads(path):
     raw = json.load(open(path))
     if isinstance(raw, dict):
         raw = raw.get('leads') or []
-    return [l for l in raw if isinstance(l, dict)]
+    return [l for l in raw if isinstance(l, dict) and not is_internal_test_lead(l)]
 
 
 def match_by_lead(cfg):
