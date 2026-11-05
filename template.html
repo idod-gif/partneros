@@ -1508,10 +1508,18 @@ function l12Of(D,T){
     if(pre.every(m=>TM.includes(m))){
       D.stores.forEach(st=>{const a=st.hs_id!=null?TS[String(st.hs_id)]:null;if(!Array.isArray(a)||!pre.length)return;const bm=st.by_month||(st.by_month={});
         pre.forEach(m=>{if(bm[m]==null){const v=+a[TM.indexOf(m)]||0;if(v)bm[m]=v;}});});
-      res={key:"l12",label:"Last 12 months",months:ms,pre,l12:true};}}
+      res={key:"l12",label:"Last 12 months",months:ms,pre,l12:true,xp:true};}}
   try{Object.defineProperty(D,"__l12",{value:res,writable:true,configurable:true,enumerable:false});Object.defineProperty(D,"__l12T",{value:T,writable:true,configurable:true,enumerable:false});}catch(e){}
   return res;
 }
+/* Year to date: the snapshot window's months in the current year, the partial month included (Jan 1 to the snapshot date) */
+function ytdOf(D){
+  if(!D||!Array.isArray(D.months)||!D.months.length)return null;
+  const cur=String((D.window&&(D.window.to||D.window.end))||D.generated||D.months[D.months.length-1]).slice(0,7),y=cur.slice(0,4);
+  const ms=D.months.filter(m=>m.slice(0,4)===y&&m<=cur);
+  return ms.length?{key:"ytd",label:"Year to date",months:ms,ytd:true,xp:true}:null;
+}
+const ytdTxt=p=>{const ms=p.months||[];if(!ms.length)return"year to date";const f=m=>MON[+m.slice(5,7)-1];return`year to date, ${f(ms[0])} to ${f(ms[ms.length-1])} ${ms[0].slice(0,4)}`;};
 const l12Txt=p=>{const ms=p.months||[];if(!ms.length)return"the last 12 full months";const f=m=>MON[+m.slice(5,7)-1]+" "+m.slice(0,4);return`the last 12 full months, ${f(ms[0])} to ${f(ms[ms.length-1])}`;};
 function periodInfo(){
   const D=ST.dash;
@@ -1650,7 +1658,8 @@ function ovPeriods(){
   const D=ST.dash;const out=[{key:"alltime",label:"All time",months:null}];
   if(!D||!Array.isArray(D.periods)||!D.periods.length)return out;
   const to=String((D.window&&D.window.to)||D.generated||"").slice(0,7);
-  const l12=l12Of(D,ST.trend);if(l12)out.push({key:l12.key,label:l12.label,months:l12.months,l12:true});
+  const ytd=ytdOf(D);if(ytd)out.push(ytd);
+  const l12=l12Of(D,ST.trend);if(l12)out.push({key:l12.key,label:l12.label,months:l12.months,l12:true,xp:true});
   let i=D.periods.findIndex(p=>(p.months||[]).includes(to));if(i<0)i=D.periods.length-1;
   [D.periods[i-1],D.periods[i]].forEach(p=>{if(p)out.push({key:p.key,label:p.label||p.key,months:p.months||[]});});
   return out;
@@ -1680,11 +1689,11 @@ function ovCompute(periodKey,scope){
     const isNew=per.months?!!(s.paying_since&&per.months.includes(String(s.paying_since).slice(0,7))):true;
     if(isNew){newRev+=v;if(per.months&&v>0)newStores++;}});
   /* All time view of the New revenue card: the current open period (last entry of ovPeriods, the same rule as periodInfo cur) over payout-list stores, as the Revenue card shows it for that period */
-  const curP=per.months?null:ovPeriods().slice(1).filter(p=>!p.l12).pop()||null;
+  const curP=per.months?null:ovPeriods().slice(1).filter(p=>!p.xp).pop()||null;
   let curRev=0,curPaying=0;
   if(curP)pay.forEach(s=>{const v=storeEarned(s,curP.months);curRev+=v;if(v>0)curPaying++;});
   /* Net-new revenue card: always the current open period, in every view. Payout-list stores whose paying_since month falls inside it; N = those with revenue above zero. */
-  const openP=ovPeriods().slice(1).filter(p=>!p.l12).pop()||null;
+  const openP=ovPeriods().slice(1).filter(p=>!p.xp).pop()||null;
   let netRev=0,netStores=0;
   if(openP)pay.forEach(s=>{if(!(s.paying_since&&openP.months.includes(String(s.paying_since).slice(0,7))))return;const v=storeEarned(s,openP.months);netRev+=v;if(v>0)netStores++;});
   const q3fin=pdocs.some(d=>d.payouts_summary&&d.payouts_summary.q3_final!=null);
@@ -1710,7 +1719,7 @@ function renderOverview(){
   const V=ovCompute(ST.ov.period,ST.ov.scope);const P=V.period;const snap=!!(ST.dash&&ST.dash.stores);
   const scopeTxt=ST.ov.scope==="active"?" Scope: stores and payouts of partners with an active agreement.":"";
   const sAsof=(ST.dash&&ST.dash.stripe_asof)||"",shAsof=(ST.dash&&ST.dash.shopify_asof)||"";
-  const perTxt=P.l12?l12Txt(P):P.months?`${P.label} (${P.months.map(m=>MON[+m.slice(5)-1]).join(", ")} 2026)`:`all time`;
+  const perTxt=P.l12?l12Txt(P):P.ytd?ytdTxt(P):P.months?`${P.label} (${P.months.map(m=>MON[+m.slice(5)-1]).join(", ")} 2026)`:`all time`;
   const nc=ST.camps.length,nq=ST.cands.filter(c=>(c.status||"new")==="new").length;
   const acc=ST.camps.reduce((a,c)=>a+(c.accepted!=null&&isFinite(+c.accepted)?+c.accepted:0),0);
   const outV=ST.cands.length?fmtN(nq):(ST.candState==="loading"&&ST.dbState!=="nodb")?"...":"-";
@@ -5166,7 +5175,8 @@ const unpaidNote=p=>p&&isActualP(p)&&p.status&&p.status!=="paid"&&p.status!=="ac
 const AT_DATA=DATA.alltime||null;
 if(AT_DATA)periods.unshift({key:"alltime",label:"All time",months:[]});
 /* Last 12 months goes after All time; it maps no month to a payout group, so groupOf, actual and paidM stay as the quarters set them */
-const L12P=l12Of(DATA,TREND);if(L12P)periods.splice(AT_DATA?1:0,0,Object.assign({},L12P));
+const L12P=l12Of(DATA,TREND),YTDP=ytdOf(DATA);
+periods.splice(AT_DATA?1:0,0,...[YTDP,L12P].filter(Boolean).map(p=>Object.assign({},p)));
 const preSet={};(L12P?L12P.pre:[]).forEach(m=>preSet[m]=true);
 const firstPaid=s=>{const f=s.lifetime&&s.lifetime.first_paid_invoice;return f?MON[+f.slice(5,7)-1]+" "+f.slice(0,4):null;};
 const lastMonth=months[months.length-1];
@@ -5348,6 +5358,7 @@ function fcModel(M){
 }
 function limits(){
   const EXTRA=[
+    "Year to date: January 1 to the snapshot date, the current partial month included, payout-list stores, Stripe rail; not a payout period.",
     "Last 12 months: the 12 full months before the snapshot month. Months before the snapshot window come from snapshots/trend per store (Stripe paid invoices by month, the Last 12 months tile's series): revenue only, counted as Other in the product split, with no monthly payout, so Paid and the rate cover the months from January 2026.",
     "Shopify payments: Shopify Billing revenue is a lifetime total per store from the Aug 2, 2026 export, with no month detail, and never reaches HubSpot invoices. The Shopify payments switch adds it to All time or leaves it out; dated periods, the trend and the forecast are Stripe only.",
     "Joined is the HubSpot company create date (install or signup). Partner.io referral dates were lost in the Aug 2, 2026 import, so the referral date itself is not shown.",
@@ -5428,7 +5439,7 @@ const lbFit=()=>{try{return !!(window.matchMedia&&window.matchMedia("(min-width:
 const lbH=(box,def)=>lbFit()?Math.max(120,Math.floor(box.getBoundingClientRect().height||0)):def;
 const lbHRO=window.ResizeObserver?new ResizeObserver(es=>{let ch=false;es.forEach(e=>{const h=Math.round(e.contentRect.height),t=e.target;if(Math.abs((t.__h||0)-h)>2){t.__h=h;ch=true;}});
   if(ch&&ST.sec==="dashboard"&&lbFit()&&!railAnim()){cancelAnimationFrame(lbRaf);lbRaf=requestAnimationFrame(()=>{if(lbGet())renderLB();});}}):null;
-const lbSel=(L,c)=>`${c.AT?"All time":c.per.label+(c.per.key==="oct"||c.per.l12?"":" 2026")}, ${L.S.partner?((L.pIndex[L.S.partner]&&L.pIndex[L.S.partner].display_name)||L.S.partner):"all partners"}`;
+const lbSel=(L,c)=>`${c.AT?"All time":c.per.label+(c.per.key==="oct"||c.per.xp?"":" 2026")}, ${L.S.partner?((L.pIndex[L.S.partner]&&L.pIndex[L.S.partner].display_name)||L.S.partner):"all partners"}`;
 function renderLB(){
   const host=$("lb-wrap");if(!host)return;
   const L=lbGet();
@@ -5474,7 +5485,7 @@ function dbKpis(L,c){
     lbKt(prev?`Revenue, ${sp(prev.label)}`:"Previous period",prev?fmt$(prev.earned):"-",prev?`${fmtN(prev.paying)} paying stores${prevSt?", "+prevSt:""}`:"",`snapshots/latest, payout-list stores${prev?", "+prev.label+", status "+(prev.status||""):""} (${srcDash()})`),
     lbKt("Last full month",M&&Lf>=0?fmt$(M.e[Lf]):"-",M&&Lf>=0?`${lbMY(M.tm[Lf])}, ${L.fmtSP(M.mom[Lf])}${Lf>0?" vs "+L.mLabel(M.tm[Lf-1]):""}`:"",`snapshots/trend, the Trend and forecast series for ${L.S.partner?"the partner selected":"the selection"}; month over month against the month before (${tsrc})`),
     lbKt("Last 12 months",g&&g.t12_now!=null?fmt$(g.t12_now):"-",g&&g.span_now?g.span_now+(g.t12_multiple!=null?`, ${g.t12_multiple}x prior year`:""):"",`snapshots/trend growth, all referred stores, the last 12 full months against the 12 before (${tsrc})`),
-    lbKt(c.AT?"Earned, all time":`Earned, ${sp(c.per.label)}`,fmt$(c.tot.earned),c.AT?(L.S.shopify===false?`Stripe only, Shopify ${fmtK(c.tot.shopify)} left out. Paid ${fmtK(c.tot.spend)}`:`Stripe ${fmtK(c.tot.stripe)}, Shopify ${fmtK(c.tot.shopify)}. Paid ${fmtK(c.tot.spend)}`):(c.pre&&c.pre.length?`Paid ${fmtK(c.tot.spend)} from ${L.mLabel(c.pm.find(m=>!L.preSet[m]))} ${String(c.pm.find(m=>!L.preSet[m])).slice(0,4)}, rate ${pct1(c.tot.spend,c.tot.earnedTracked)}`:`Paid ${fmt$(c.tot.spend)}, rate ${pct1(c.tot.spend,c.tot.earned)}`),c.AT?"The dashboard's compute() for All time, partner and additions selected above. Stripe = paid invoices; Shopify = Shopify Billing lifetime total per store to the Aug 2 export, shown apart and added only when the Shopify payments switch is on. Paid uses the payout figures on record, estimates otherwise":"The dashboard's compute() for the period, partner and additions selected above; paid uses the payout figures on record, estimates otherwise; rate is paid over earned. Stripe rail only: Shopify Billing has no month detail")
+    lbKt(c.AT?"Earned, all time":`Earned, ${c.per.xp?c.per.label.toLowerCase():sp(c.per.label)}`,fmt$(c.tot.earned),c.AT?(L.S.shopify===false?`Stripe only, Shopify ${fmtK(c.tot.shopify)} left out. Paid ${fmtK(c.tot.spend)}`:`Stripe ${fmtK(c.tot.stripe)}, Shopify ${fmtK(c.tot.shopify)}. Paid ${fmtK(c.tot.spend)}`):(c.pre&&c.pre.length?`Paid ${fmtK(c.tot.spend)} from ${L.mLabel(c.pm.find(m=>!L.preSet[m]))} ${String(c.pm.find(m=>!L.preSet[m])).slice(0,4)}, rate ${pct1(c.tot.spend,c.tot.earnedTracked)}`:`Paid ${fmt$(c.tot.spend)}, rate ${pct1(c.tot.spend,c.tot.earned)}`),c.AT?"The dashboard's compute() for All time, partner and additions selected above. Stripe = paid invoices; Shopify = Shopify Billing lifetime total per store to the Aug 2 export, shown apart and added only when the Shopify payments switch is on. Paid uses the payout figures on record, estimates otherwise":"The dashboard's compute() for the period, partner and additions selected above; paid uses the payout figures on record, estimates otherwise; rate is paid over earned. Stripe rail only: Shopify Billing has no month detail")
   ].join("");
 }
 function lbShell(){
@@ -5534,7 +5545,7 @@ function lbDrawer(){
 /* Earned vs paid: two bars per month; paid is --success when the period is paid, a success tint when final but unpaid, --warning when estimated */
 function lbEarnPaid(L,c){
   const box=$("lb-ep-box"),ms=c.pm,n=ms.length;
-  $("lb-ep-sub").textContent=c.AT?`Stripe revenue and partner spend per month, ${L.winRange()}. All-time totals are in the tables.`:c.pre&&c.pre.length?`Stripe revenue and partner spend per month, last 12 months. ${c.pre.map(m=>L.mLabel(m)).join(" and ")} ${c.pre[0].slice(0,4)} show revenue only.`:`Stripe revenue and partner spend per month, ${c.per.label}.`;
+  $("lb-ep-sub").textContent=c.AT?`Stripe revenue and partner spend per month, ${L.winRange()}. All-time totals are in the tables.`:c.pre&&c.pre.length?`Stripe revenue and partner spend per month, last 12 months. ${c.pre.map(m=>L.mLabel(m)).join(" and ")} ${c.pre[0].slice(0,4)} show revenue only.`:c.per.ytd?`Stripe revenue and partner spend per month, ${ytdTxt(c.per)}.`:`Stripe revenue and partner spend per month, ${c.per.label}.`;
   const W=Math.max(280,box.clientWidth||600),ph=W<500,H=lbH(box,ph?220:260),ml=ph?40:52,mr=8,mt=20,mb=40,ih=H-mt-mb,iw=W-ml-mr;
   const ymax=L.niceMax(Math.max(1,...ms.map(m=>Math.max(c.byMonth[m].earned,c.byMonth[m].spend)))),y=v=>mt+ih-(v/ymax)*ih,y0=y(0);
   const band=iw/Math.max(1,n),bw=Math.max(3,Math.min(22,band*.3));
@@ -5657,7 +5668,7 @@ function lbProdTable(K,tot,sum){
 /* Payout by period: compute() once per period with the same partner and additions; status and spend basis from the period doc */
 function lbPayRows(L){
   const S=L.S,keep=S.period,out=[];
-  L.periods.filter(p=>p.key!=="alltime"&&!p.l12).forEach(p=>{S.period=p.key;const c=L.compute();out.push({p,earned:c.tot.earned,paid:c.tot.spend,status:c.status});});
+  L.periods.filter(p=>p.key!=="alltime"&&!p.xp).forEach(p=>{S.period=p.key;const c=L.compute();out.push({p,earned:c.tot.earned,paid:c.tot.spend,status:c.status});});
   S.period=keep;return out;
 }
 function lbPayTable(L){
