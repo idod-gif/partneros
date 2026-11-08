@@ -15,7 +15,7 @@ Refreshes the snapshot PartnerOS's Dashboard reads; 1st and 15th. `TODAY` is the
 1. Read-only against Partner.io and HubSpot. Never call any update, create or delete tool.
 2. Never write any db doc other than the four above. No contact fields in any doc.
 3. Never paste raw rows or SQL results into the report.
-4. Never edit refresh.py, slim.py, local-data.json, config or SQL (except splitting id lists in step 2).
+4. Never edit refresh.py, slim.py, local-data.json, config or SQL (except splitting id lists in step 2). Step 3b rewrites `snapshot.json` and `slim.json` in WORK; that is part of the run.
 5. No Slack, no Gmail, no other writes anywhere.
 6. If a step fails, stop and report the step and the error text verbatim (step 4 failures write a `no-writes` run doc instead).
 
@@ -69,6 +69,21 @@ python3 /Users/idod/dev/scripts/partneros/refresh.py --config config.json --lead
 ```
 
 Outputs: `snapshot.json` (full, local only), `trend.json` next to it, `slim.json` (the `snapshots/latest` doc) and, only when the slim doc is over 240000 bytes, `slim-stores-<i>.json` shards (then `slim.json` has `stores_shards` and no `stores`). Exit 2 means truncation, a parse warning or no rows: stop and report stderr verbatim. Any other non-zero exit: same.
+
+
+## 3b. Ledger overlay (all time)
+
+All-time per store comes from BI's verified ledger, not from HubSpot lifetime or the Aug 2 `total_store_spent` export (Shopify rail). Run after step 3, before step 4:
+
+```
+python3 /Users/idod/dev/scripts/partneros/ledger_overlay.py apply --snapshot snapshot.json \
+  --ledger /Users/idod/dev/docs/finance/partneros/ledger-overlay-2026-11-08/ledger.json \
+  --leads /Users/idod/dev/docs/finance/partneros/referred-merchants-chargeflow-ids-2026-11-05.csv \
+  --config config.json --slim-dir /Users/idod/dev/scripts/partneros \
+  --out snapshot.json --slim-out slim.json --report overlay-report.json
+```
+
+Per store: `lifetime.stripe` = ledger Stripe collected, `lifetime.shopify` = ledger Shopify billed; a store with no ledger merchant keeps HubSpot Stripe and gets Shopify 0 (never the export figure). It sets `alltime.stripe_asof` and `shopify_asof` to the ledger date and replaces the all-time limits line. The export still decides which program stores exist in step 3 (refresh.py is unchanged), but none of its dollars survive this step. Report its summary line; any non-zero exit: stop and report stderr verbatim. Without this step, check 3 below fails against the overlaid baseline. When BI publishes a new ledger: `python3 -I ledger_overlay.py <new.xlsx> --json <dir>/ledger.json` and point `--ledger` at it.
 
 ## 4. Sanity thresholds
 
