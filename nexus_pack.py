@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Pack a PartnerOS refresh WORK dir into one Nexus admin-import file.
 
-Reads slim.json, slim-stores-<i>.json shards, trend.json and run.json from
-WORK and writes {"docs":[{"path","data"}]} for snapshots/latest,
+Reads slim.json, slim-stores-<i>.json shards, trend.json, run.json and any
+run-<YYYY-MM-DD>.json from WORK and writes {"docs":[{"path","data"}]} for snapshots/latest,
 snapshots/stores-<i>, snapshots/trend and runs/<today>. Exit 2 on refusal.
 Adds nothing beyond what the inputs hold.
 """
@@ -36,8 +36,8 @@ def main():
     if not os.path.isfile(slim_path):
         fail("slim.json missing in " + a.work)
     slim = load(slim_path)
-    if slim.get("generated") != a.today:
-        fail("slim.json generated %r is not %r" % (slim.get("generated"), a.today))
+    if str(slim.get("generated") or "")[:10] != a.today[:10]:   # generated is a UTC timestamp; compare its date
+        fail("slim.json generated %r is not on %r" % (slim.get("generated"), a.today))
 
     docs = [("snapshots/latest", slim)]
     i = 0
@@ -57,6 +57,13 @@ def main():
             docs.append((dest, load(p)))
         else:
             print("nexus_pack: warning: %s missing, skipping %s" % (name, dest), file=sys.stderr)
+
+    # extra run docs: run-<YYYY-MM-DD>.json -> runs/<YYYY-MM-DD> (e.g. the previous refresh's run doc)
+    for name in sorted(os.listdir(a.work)):
+        if name.startswith("run-") and name.endswith(".json") and len(name) == len("run-YYYY-MM-DD.json"):
+            dest = "runs/" + name[4:-5]
+            if all(p != dest for p, _ in docs):
+                docs.append((dest, load(os.path.join(a.work, name))))
 
     for path, data in docs:
         size = len(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
