@@ -4,7 +4,7 @@ Run by a Sonnet agent inside a Claude Code session started in `/Users/idod/dev`.
 
 Large tool results may be saved by the harness under a tool-results directory; read them in place (Read, offset and limit) or with read-only python3 or jq, never edit them.
 
-MODE: WRITE. The routine writes only `snapshots/latest`, `snapshots/stores-<i>` (only when sharded), `snapshots/trend` and `runs/<TODAY>`, and the snapshots only if the step 4 sanity checks pass. PartnerOS has no `cache/partnerio` collection: write no lead cache. Set MODE to REPORT-ONLY at the top of the run for a dry run: do steps 0 to 4, write no doc, report what would be written.
+MODE: WRITE. The routine writes only `snapshots/latest`, `snapshots/stores-<i>` (only when sharded), `snapshots/trend` and `runs/<TODAY>`, and the snapshots only if the step 4 sanity checks pass. It also builds a Nexus import pack in WORK (step 5.4), a local file only. PartnerOS has no `cache/partnerio` collection: write no lead cache. Set MODE to REPORT-ONLY at the top of the run for a dry run: do steps 0 to 4, write no doc, report what would be written.
 
 Tools: Partner.io MCP (`get-leads`, `get-partners`, `get-partner-reps`), HubSpot MCP (`query_crm_data`, `tool_guidance`), ArtifactData, ToolSearch, Read, Write, and Bash with Python. Missing tool: stop and report. The repo is present (cwd `/Users/idod/dev`); `.env` is not needed and is never read.
 
@@ -92,7 +92,7 @@ No `prev.json`: skip the checks, `sanity` = "pass", `previous` = null, and say "
 
 1. Sizes: every `slim*.json` under 240000 bytes (`wc -c`), else stop and report. Shards first: `set` each `snapshots/stores-<i>` with `file_path`, `if_version` when it existed. Then `set` `snapshots/latest` with `file_path` `slim.json` and `if_version` from step 0 (none if it did not exist). On a version conflict, re-read once; if it changed, stop and report.
 2. `set` `snapshots/trend` with `file_path` `trend.json` and `if_version` from step 0. Under 120 KB or skip it; `months` contiguous from 2024-08 to the current month, `forecast.months` the next 5 (report any `forecast.warning`). If only this write fails, report it and continue.
-3. `set` `runs/<TODAY>`:
+3. Write the run doc JSON to `WORK/run.json` with the Write tool, then `set` `runs/<TODAY>` with `file_path` `WORK/run.json` (no inline data). Shape:
 
 ```
 {routine: "dashboard-refresh", ran_at, today, leads_total, leads_linked, test_dropped, monthly_batches, lifetime_batches,
@@ -106,6 +106,8 @@ No `prev.json`: skip the checks, `sanity` = "pass", `previous` = null, and say "
 
 Then `get` `snapshots/latest`; if `generated` is not TODAY, stop and report.
 
+4. Nexus pack: `python3 /Users/idod/dev/scripts/partneros/nexus_pack.py --work WORK --today TODAY`. Report its summary line. Exit 2 means refusal: report stderr verbatim. The file `WORK/nexus-import.json` stays in WORK (gitignored, sensitive); never copy it elsewhere. Ido loads it on the Nexus import page by hand.
+
 ## 6. Report (final message)
 
 Under 15 lines:
@@ -115,3 +117,4 @@ Under 15 lines:
 - Totals: Q3, current month, all time, payout stores; each old to new (or "first run, no baseline"), and Q3 of new payout stores.
 - Sanity: the four checks, pass or fail with numbers.
 - `runs/<TODAY>` written.
+- Nexus pack: <n> docs, <bytes>, path
