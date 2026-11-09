@@ -1637,8 +1637,17 @@ function renderUser(){
   const shown=name||(ST.userState==="none"?"Local preview":ST.userState==="loading"?"Checking access":"You");
   $("u-name").textContent=shown;$("u-name").title=shown;
   $("u-role").textContent=ST.userState==="loading"?"":role;$("u-role").title=role;
-  const av=$("u-av");av.textContent="";
-  const url=me&&typeof me.avatarUrl==="string"&&/^(https:|data:image\/|blob:|\/)/.test(me.avatarUrl)?me.avatarUrl:"";
+  avFill($("u-av"),name);
+}
+/* avatar: the profile photo (data/users/<id>/profile avatar_url) first, then the platform's avatarUrl, else initials */
+function avUrl(){
+  const p=ST.prof&&typeof ST.prof.avatar_url==="string"?ST.prof.avatar_url:"";
+  if(p&&p.length<65536&&/^(https:\/\/|data:image\/)/.test(p))return p;
+  const me=ST.me,m=me&&typeof me.avatarUrl==="string"?me.avatarUrl:"";
+  return /^(https:|data:image\/|blob:|\/)/.test(m)?m:"";
+}
+function avFill(av,name){
+  if(!av)return;av.textContent="";const url=avUrl();
   if(url){const im=document.createElement("img");im.alt="";im.src=url;im.onerror=()=>{av.textContent=initials(name);};av.appendChild(im);}
   else av.textContent=initials(name);
 }
@@ -5040,18 +5049,30 @@ const canProf=()=>!!(ST.db&&ST.uid&&ST.canMine);
 function profRole(){const r=ST.prof&&typeof ST.prof.role==="string"?ST.prof.role.trim().replace(/\s+/g," ").slice(0,80):"";return r&&!PII_RX.test(r)?r:"";}
 async function profLoad(){
   if(!ST.db||!ST.uid)return;
-  try{const s=await ST.db.doc(profPath()).get();ST.prof=s&&s.exists?Object.assign({},s.data()||{}):null;}catch(e){}
+  let ok=false;
+  try{const s=await ST.db.doc(profPath()).get();ST.prof=s&&s.exists?Object.assign({},s.data()||{}):null;ok=true;}catch(e){}
+  renderUser();
   if(UM.open&&!UM.edit)umRender();
+  if(ok)avAuto();
 }
 function umRender(){
   const el=$("umenu"),role=profRole(),t=themeGet(),can=canProf();
   const form=`<div class="um-form"><label class="label" for="um-role">Your role</label><input class="txtin" id="um-role" maxlength="80" autocomplete="off" placeholder="For example, partner manager for EMEA" value="${esc(UM.val)}">
       <div class="notice" id="um-err" role="alert"${UM.err?"":" hidden"}>${esc(UM.err)}</div>
       <div class="um-acts"><button type="button" class="btn primary" data-um="save"${UM.busy?" disabled":""}>${UM.busy?"Saving":"Save"}</button><button type="button" class="btn" data-um="cancel">Cancel</button></div></div>`;
-  el.innerHTML=`<div class="um-h"><span class="av" aria-hidden="true">${$("u-av").innerHTML}</span><div class="um-t"><span class="um-n" id="um-name">${esc($("u-name").textContent||"You")}</span><span class="um-r" id="um-rl">${role?esc(role):"Set your role so Ask Ido knows you"}</span></div></div>
+  const hasAv=!!(ST.prof&&typeof ST.prof.avatar_url==="string"&&ST.prof.avatar_url),dis=can&&!PHOTO.busy?"":` aria-disabled="true"`;
+  const photo=UM.edit?"":`<button type="button" class="um-row" data-um="gphoto"${dis}>${svg("user")}<span>${PHOTO.busy?"Checking your photo":"Use my Google photo"}</span></button>
+    <button type="button" class="um-row" data-um="upload"${dis}>${svg("user")}<span>Upload a photo</span></button>
+    ${hasAv?`<button type="button" class="um-row" data-um="rmphoto"${dis}>${svg("user")}<span>Remove photo</span></button>`:""}
+    ${can?"":`<div class="um-note">${ST.dbState==="ready"?"Saving a photo needs edit access to this page.":"Saving a photo needs the published page."}</div>`}
+    <input type="file" id="um-file" accept="image/*" hidden tabindex="-1">`;
+  el.innerHTML=`<div class="um-h"><span class="av" aria-hidden="true"></span><div class="um-t"><span class="um-n" id="um-name">${esc($("u-name").textContent||"You")}</span><span class="um-r" id="um-rl">${role?esc(role):"Set your role so Ask Ido knows you"}</span></div></div>
     ${UM.edit?form:`<button type="button" class="um-row" data-um="profile"${can?"":` aria-disabled="true"`}>${svg("user")}<span>Edit my profile</span></button>${can?"":`<div class="um-note">${ST.dbState==="ready"?"Saving a role needs edit access to this page.":"Saving a role needs the published page."}</div>`}`}
+    ${photo}
     <button type="button" class="um-row" data-um="keys">${svg("keys")}<span>Keyboard shortcuts</span><kbd class="kh" aria-hidden="true">?</kbd></button>
     <div class="um-ap"><span class="label" id="um-apl">Appearance</span><div class="appr" role="radiogroup" aria-labelledby="um-apl">${["light","dark","system"].map(k=>`<button type="button" role="radio" data-th="${k}" aria-checked="${t===k}" tabindex="${t===k?0:-1}">${TH_L[k]}</button>`).join("")}</div></div>`;
+  avFill(el.querySelector(".um-h .av"),ST.me&&ST.me.name?String(ST.me.name).trim():"");
+  const f=$("um-file");if(f)f.onchange=avUpload;
 }
 function umPlace(){
   const r=$("ucard").getBoundingClientRect(),el=$("umenu"),w=Math.min(Math.max(264,r.width),window.innerWidth-16);
@@ -5073,11 +5094,115 @@ async function profSave(){
   if(PII_RX.test(v)){UM.err="Your role cannot hold emails, phone numbers or LinkedIn URLs.";umRender();umFocus("#um-role");return;}
   if(!canProf()){UM.err=ST.dbState==="ready"?"Saving a role needs edit access to this page.":"Saving a role needs the published page.";umRender();umFocus("#um-role");return;}
   UM.busy=true;UM.err="";umRender();
-  const payload={role:v,updated_at:new Date().toISOString()},ref=ST.db.doc(profPath());
+  const payload=Object.assign({},ST.prof||{},{role:v,updated_at:new Date().toISOString()}),ref=ST.db.doc(profPath());
   try{
     try{await ref.set(payload);}catch(e){if(e&&e.code==="unavailable"){await new Promise(r=>setTimeout(r,400+Math.random()*600));await ref.set(payload);}else throw e;}
     ST.prof=payload;UM.busy=false;UM.edit=false;if(UM.open){umRender();umFocus('[data-um="profile"]');}toast(v?"Role saved.":"Role cleared.");
   }catch(e){UM.busy=false;UM.err=writeErr(e);if(UM.open){umRender();umFocus("#um-role");}}
+}
+/* ---- profile photo: Google account photo through the Hub's Gmail/Google connector when it carries one, else an upload.
+   Stored on the own profile doc: avatar_url (https or a small JPEG data URL), avatar_source ("google" or "upload"), avatar_checked_at. */
+const PHOTO={busy:false};
+const AV_SERVERS=["gmail","google"],AV_TOOLS=["get_profile","whoami","get_me","get_user_profile","gmail_get_profile","get_user_info","userinfo"];
+const AV_KEYS=["photoUrl","photo_url","picture","photo","avatarUrl","avatar_url","thumbnailPhotoUrl"];
+const avOk=u=>typeof u==="string"&&u.length<2048&&/^https:\/\/[^\s"'<>]+$/.test(u);
+function avPick(o,d){
+  if(!o||typeof o!=="object"||(d=d||0)>4)return"";
+  if(Array.isArray(o)){for(const x of o.slice(0,5)){const u=avPick(x,d+1);if(u)return u;}return"";}
+  for(const k of AV_KEYS){const v=o[k];if(avOk(v))return v;if(v&&typeof v==="object"&&avOk(v.url))return v.url;}
+  if(o.image&&avOk(o.image.url))return o.image.url;
+  if(Array.isArray(o.photos)&&o.photos[0]&&avOk(o.photos[0].url))return o.photos[0].url;
+  for(const k of Object.keys(o).slice(0,40)){const v=o[k];if(v&&typeof v==="object"){const u=avPick(v,d+1);if(u)return u;}}
+  return"";
+}
+function avPickText(content){
+  for(const c of Array.isArray(content)?content:[]){const m=c&&typeof c.text==="string"?c.text.match(/https:\/\/[a-z0-9.-]*googleusercontent\.com\/[^\s"'<>)]+/i):null;if(m&&avOk(m[0]))return m[0];}
+  return"";
+}
+/* strict: auto mode runs only on a connector already granted (never prompts); manual mode tries anything not refused */
+async function avProbe(strict){
+  if(!window.claude||typeof window.claude.use!=="function")return"";
+  let m=null,perms=null;
+  try{m=await window.claude.use("mcp");}catch(e){m=null;}
+  if(!m||typeof m.callTool!=="function")return"";
+  try{perms=await window.claude.use("permissions");}catch(e){perms=null;}
+  if(strict&&!(perms&&typeof perms.state==="function"))return"";
+  let calls=0;
+  for(const server of AV_SERVERS){
+    if(perms&&typeof perms.state==="function"){
+      let s="unavailable";try{s=await perms.state("mcp:"+server);}catch(e){}
+      if(strict?s!=="granted":(s==="unavailable"||s==="denied"))continue;
+    }
+    for(const tool of AV_TOOLS){
+      if(++calls>10)return"";
+      try{const r=await m.callTool(server,tool,{});const u=avPick(r&&r.payload)||avPickText(r&&r.content);if(u)return u;break;}
+      catch(e){const c=e&&e.code;if(c==="server_not_connected")break;if(c==="needs_reauth"||c==="rate_limited"||c==="cancelled")return"";}
+    }
+  }
+  return"";
+}
+/* merge into the own profile doc; null removes a field */
+async function profPatch(patch){
+  const ref=ST.db.doc(profPath()),payload=Object.assign({},ST.prof||{},patch,{updated_at:new Date().toISOString()});
+  Object.keys(payload).forEach(k=>{if(payload[k]===null)delete payload[k];});
+  try{await ref.set(payload);}catch(e){if(e&&e.code==="unavailable"){await new Promise(r=>setTimeout(r,400+Math.random()*600));await ref.set(payload);}else throw e;}
+  ST.prof=payload;renderUser();if(UM.open&&!UM.edit)umRender();
+}
+const avDbg=e=>{try{console.debug("PartnerOS photo:",e&&e.message?e.message:e);}catch(x){}};
+async function avAuto(){
+  if(PHOTO.busy||!canProf())return;
+  const p=ST.prof||{};if((typeof p.avatar_url==="string"&&p.avatar_url)||p.avatar_removed_at)return;
+  const c=Date.parse(p.avatar_checked_at||"");if(c&&Date.now()-c<7*864e5)return;
+  PHOTO.busy=true;
+  try{const u=await avProbe(true),now=new Date().toISOString();
+    await profPatch(u?{avatar_url:u,avatar_source:"google",avatar_checked_at:now}:{avatar_checked_at:now});}
+  catch(e){avDbg(e);}
+  finally{PHOTO.busy=false;if(UM.open&&!UM.edit)umRender();}
+}
+async function avGoogle(){
+  if(PHOTO.busy||!canProf())return;
+  PHOTO.busy=true;if(UM.open&&!UM.edit)umRender();
+  try{const u=await avProbe(false),now=new Date().toISOString();
+    if(u){await profPatch({avatar_url:u,avatar_source:"google",avatar_checked_at:now,avatar_removed_at:null});toast("Photo set.");}
+    else{await profPatch({avatar_checked_at:now});toast("Your Google photo is not available here. Upload one instead.");}}
+  catch(e){avDbg(e);toast(writeErr(e));}
+  finally{PHOTO.busy=false;if(UM.open&&!UM.edit){umRender();umFocus('[data-um="gphoto"]');}}
+}
+/* browser-side resize: 128x128 cover crop, JPEG; quality, then size, steps down until the data URL is under 24 KB */
+function avShrink(file){
+  return new Promise(res=>{
+    let src="";try{src=URL.createObjectURL(file);}catch(e){res("");return;}
+    const im=new Image();
+    im.onload=()=>{try{
+      const w=im.naturalWidth,h=im.naturalHeight,s=Math.min(w,h);if(!s){res("");return;}
+      for(const [d,qs] of [[128,[.85,.75,.65,.55,.45]],[96,[.7,.55,.45]],[64,[.6,.45]]]){
+        const cv=document.createElement("canvas");cv.width=cv.height=d;const g=cv.getContext("2d");
+        g.fillStyle="#fff";g.fillRect(0,0,d,d);g.drawImage(im,(w-s)/2,(h-s)/2,s,s,0,0,d,d);
+        for(const q of qs){const u=cv.toDataURL("image/jpeg",q);if(u.indexOf("data:image/jpeg")===0&&u.length<24*1024){res(u);return;}}
+      }
+      res("");
+    }catch(e){res("");}finally{try{URL.revokeObjectURL(src);}catch(x){}}};
+    im.onerror=()=>{try{URL.revokeObjectURL(src);}catch(x){}res("");};
+    im.src=src;
+  });
+}
+async function avUpload(e){
+  const inp=e&&e.target,f=inp&&inp.files&&inp.files[0];if(inp)inp.value="";
+  if(!f||PHOTO.busy||!canProf())return;
+  if(!/^image\//.test(f.type||"")){toast("Pick an image file.");return;}
+  PHOTO.busy=true;if(UM.open&&!UM.edit)umRender();
+  try{const u=await avShrink(f);
+    if(!u)toast("That image could not be read. Try another one.");
+    else{await profPatch({avatar_url:u,avatar_source:"upload",avatar_removed_at:null});toast("Photo set.");}}
+  catch(x){avDbg(x);toast(writeErr(x));}
+  finally{PHOTO.busy=false;if(UM.open&&!UM.edit){umRender();umFocus('[data-um="upload"]');}}
+}
+async function avRemove(){
+  if(PHOTO.busy||!canProf())return;
+  PHOTO.busy=true;
+  try{await profPatch({avatar_url:null,avatar_source:null,avatar_removed_at:new Date().toISOString()});toast("Photo removed.");}
+  catch(e){avDbg(e);toast(writeErr(e));}
+  finally{PHOTO.busy=false;if(UM.open&&!UM.edit){umRender();umFocus('[data-um="upload"]');}}
 }
 function umClick(e){
   const b=e.target.closest("button");if(!b)return;
@@ -5087,6 +5212,10 @@ function umClick(e){
   else if(a==="cancel"){UM.edit=false;UM.err="";umRender();umFocus('[data-um="profile"]');}
   else if(a==="save")profSave();
   else if(a==="keys")ksOpen();
+  else if(a==="gphoto"||a==="upload"||a==="rmphoto"){
+    if(b.getAttribute("aria-disabled")==="true")return;
+    if(a==="gphoto")avGoogle();else if(a==="rmphoto")avRemove();else{const f=$("um-file");if(f)f.click();}
+  }
 }
 function umKey(e){
   const t=e.target;
