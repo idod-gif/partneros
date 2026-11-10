@@ -87,7 +87,9 @@ Per store: `lifetime.stripe` = ledger Stripe collected, `lifetime.shopify` = led
 
 ## 4. Sanity thresholds
 
-Compute from `snapshot.json` and from `prev.json` the same way (stores under `stores`; each has `scope`, `by_month` (a missing month is 0), `lifetime`):
+Do not do this arithmetic by hand. Run `python3 /Users/idod/dev/scripts/partneros/sanity.py snapshot.json prev.json --today TODAY --json-out sanity.json` (add `--first-run` and omit `prev.json` when there is no baseline; add `--prev-date <date of previous run>` when `prev.json` is a joined shard file). Exit 0: `sanity` = "pass". Exit 1: any FAIL line means write no snapshot doc, set `sanity` from the `sanity` field of `sanity.json`, write the run doc with status `no-writes` (5.3), and report "NO WRITES: <FAIL line>". Exit 2: stop and report stderr. Use the totals and previous objects in `sanity.json` for the run doc. The rest of this section describes what the script checks.
+
+Computed from `snapshot.json` and from `prev.json` the same way (stores under `stores`; each has `scope`, `by_month` (a missing month is 0), `lifetime`):
 
 - `payout_stores` = stores with `scope` "payout".
 - `q3_earned` = sum over payout stores of `by_month` for 2026-07, 2026-08, 2026-09.

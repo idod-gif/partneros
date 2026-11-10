@@ -141,6 +141,7 @@ a:hover{text-decoration:underline}
 .pill.blue{background:var(--pill-blue-bg);color:var(--pill-blue-fg)}
 .pill.outline{background:transparent;box-shadow:inset 0 0 0 1px var(--border);color:var(--muted-foreground)}
 .pill.danger{background:color-mix(in srgb,var(--destructive) 14%,transparent);color:var(--destructive)}
+button.pill{border:0;font-family:inherit;cursor:pointer}
 .btn{font:inherit;font-size:13px;font-weight:500;height:32px;padding:0 12px;border-radius:9px;border:1px solid var(--input);background:var(--card);color:var(--foreground);cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;text-decoration:none}
 .btn:hover{text-decoration:none;background:var(--accent)}
 .btn.primary{background:var(--primary);border-color:var(--primary);color:var(--primary-foreground)}
@@ -1407,7 +1408,7 @@ const SEC=Object.fromEntries(SECTIONS.map(s=>[s.k,s]));
 const SECTION_HELP={
   overview:"Program status on one screen: Needs attention, Top partners and Recent leads, the KPI cards with Period and Scope chips, Targets, This week's decisions and the section map. Numbers come from snapshots/latest, the partner registry and the live database (leads, candidates, payouts); each card's ? names its source. Customize reorders or hides blocks, for you only.",
   dashboard:"The revenue layer for leadership: revenue, paying stores, earned vs paid, the trend and forecast, payout by period, top partners by revenue and the product split. Data is snapshots/latest and snapshots/trend, written by the PartnerOS refresh routine on the 1st and 15th. Leadership and My view are the two views; Notes and limits holds the caveats.",
-  partners:"Every partner with its agreement, portal status, rate, stores, Q3 earned and payouts. Data is the partner registry, plus the agreements collection. Registry and Agreements are the two views; click a row to open the partner and edit it.",
+  partners:"Every partner with its agreement, portal status, rate, stores, earned in the latest closed quarter and payouts. Data is the partner registry, plus the agreements collection. Registry and Agreements are the two views; click a row to open the partner and edit it.",
   outreach:"Who to recruit next. Queue lists suggested partners by fit, with status, reply and next due from the Monday run; Campaigns shows each outreach campaign as a tile. Open a candidate to log contact, notes and the next step.",
   events:"The 2027 partner-events plan: the journey map from the Affiliate Summits 2027 project. It is a copy taken at build time, so a map change needs a rebuild and republish. The old outreach tracker is gone; its data stays in the database.",
   payouts:"One row per payout quarter, newest first, under owed now, paid to date and the next due date. Data is the payouts collection in the live database. Open a quarter to check its totals and record status, amount paid, paid date and payer.",
@@ -1475,7 +1476,7 @@ const ST={sec:"overview",
   trend:SEED_TREND,trendSrc:SEED_TREND?"seed":"none",
   docs:(SEED_REG&&Array.isArray(SEED_REG.partners))?SEED_REG.partners.map(d=>Object.assign({},d,{id:String(d.id)})):[],
   regSrc:SEED_REG?"seed":"none",regBuilt:SEED_REG&&SEED_REG.built,meta:SEED_REG&&SEED_REG.meta,
-  runs:[],runsState:"loading",db:null,dbState:"loading",canEdit:false,capped:false,me:null,userState:"loading",
+  runs:[],runsState:"loading",db:null,dbState:"loading",canEdit:false,isOwner:false,liveDead:new Set(),capped:false,runsCapped:false,me:null,userState:"loading",
   ov:{period:"alltime",scope:"all"},
   f:{status:"all",portal:"all",type:"",q:"",payout:false},sort:{key:"name",dir:1},
   open:null,edit:false,draft:null,busy:false,err:"",
@@ -1537,7 +1538,19 @@ function periodInfo(){
     return{key:p.key,label:p.label||p.key,status:p.status,months:p.months||[],earned:e,paying:pay,partners:parts.size};};
   return{cur:calc(D.periods[i]),prev:calc(D.periods[i-1]),generated:D.generated,to:D.window&&D.window.to};
 }
-const Q3=["2026-07","2026-08","2026-09"];
+/* calendar year(s) of a month list, for labels: "2026", or "2025 to 2026" across a year end */
+const yrsOf=ms=>{const y=[...new Set((ms||[]).map(m=>String(m).slice(0,4)))].sort();return y.length>1?`${y[0]} to ${y[y.length-1]}`:y[0]||"";};
+const perYr=p=>{const l=String(p.label||p.key||"");return/\b\d{4}\b/.test(l)?l:`${l} ${yrsOf(p.months)}`.trim();};
+/* the latest closed payout quarter: the snapshot period with actual spend (paid, or approved and unpaid) whose last month is latest.
+   Falls back to the legacy Q3 months when the snapshot carries no such period. Drives the registry "earned" column and the drawer store table. */
+const Q3_LEGACY=["2026-07","2026-08","2026-09"];
+function closedQ(){
+  const D=ST.dash,P=(D&&Array.isArray(D.periods)?D.periods:[]).filter(p=>p&&Array.isArray(p.months)&&p.months.length&&(p.spend_basis==="actual"||p.status==="paid"||p.status==="actual"));
+  const p=P.slice().sort((a,b)=>String(a.months[a.months.length-1]).localeCompare(String(b.months[b.months.length-1]))).pop();
+  return p?{months:p.months.slice(),label:perYr(p)}:{months:Q3_LEGACY,label:`Q3 ${yrsOf(Q3_LEGACY)}`};
+}
+/* label for the run doc's q3_* totals: the fields are named for Q3, so the label says Q3 and its year from the snapshot's q3 period */
+const q3Lbl=()=>{const D=ST.dash,p=D&&Array.isArray(D.periods)?D.periods.find(x=>x&&x.key==="q3"&&Array.isArray(x.months)&&x.months.length):null;return p?perYr(p):`Q3 ${yrsOf(Q3_LEGACY)}`;};
 function storeEarned(s,months){const bm=(s&&s.by_month)||{};return months.reduce((a,m)=>a+(+bm[m]||0),0);}
 
 /* ---- source labels */
@@ -1633,7 +1646,7 @@ function renderTitle(){
 /* user card: display name from the user capability (empty unless the profile scope is granted), initials or avatar, role by canEdit */
 function renderUser(){
   const me=ST.me,name=me&&me.name?String(me.name).trim():"";
-  const role=ST.canEdit?"Head of Partner Marketing \u00b7 Chargeflow":"Viewer \u00b7 Chargeflow";
+  const role=ST.canEdit?(ST.isOwner?"Head of Partner Marketing \u00b7 Chargeflow":"Editor \u00b7 Chargeflow"):"Viewer \u00b7 Chargeflow";
   const shown=name||(ST.userState==="none"?"Local preview":ST.userState==="loading"?"Checking access":"You");
   $("u-name").textContent=shown;$("u-name").title=shown;
   $("u-role").textContent=ST.userState==="loading"?"":role;$("u-role").title=role;
@@ -1653,11 +1666,18 @@ function avFill(av,name){
 }
 function initials(n){const p=String(n||"").trim().split(/\s+/).filter(Boolean);return p.length?(p[0][0]+(p.length>1?p[p.length-1][0]:"")).toUpperCase():"P";}
 
-/* ---- header meta */
+/* ---- header meta. Snapshot age from its own generated stamp; stale past 17 days (the refresh runs on the 1st and 15th).
+   Live state: a listener whose error handler fired is in ST.liveDead until it delivers again; any dead listener turns the pill red. */
+const SNAP_STALE_D=17;
+function snapAge(){const t=tsMs(ST.dash&&ST.dash.generated);return t==null?null:Math.max(0,(Date.now()-t)/DAY);}
+function liveErr(k){return()=>{if(ST.liveDead.has(k))return;ST.liveDead.add(k);renderHead();};}
+function liveOk(k){if(ST.liveDead.delete(k))renderHead();}
 function renderHead(){
-  const g=ST.dash&&ST.dash.generated;
-  $("head-meta").innerHTML=(g?`<span class="pill outline">Data as of ${esc(dShort(g))}</span>`:"")+
-    `<span class="pill ${ST.dbState==="ready"?"actual":"outline"}">${ST.dbState==="ready"?"Live database":ST.dbState==="nodb"?"Offline copy":"Connecting"}</span>`;
+  const g=ST.dash&&ST.dash.generated,age=snapAge(),old=age!=null&&age>SNAP_STALE_D;
+  const dead=ST.dbState==="ready"&&ST.liveDead.size>0;
+  $("head-meta").innerHTML=(g?`<span class="pill ${old?"danger":"outline"}" title="${esc(old?`Snapshot is ${fmtN(Math.floor(age))} days old. The refresh runs on the 1st and 15th.`:"Revenue snapshot date. The refresh runs on the 1st and 15th.")}">Data as of ${esc(dShort(g))}${old?", stale":""}</span>`:"")+
+    (dead?`<button type="button" class="pill danger" data-reload title="A live listener stopped. Reload to reconnect.">Live updates stopped, reload</button>`:
+    `<span class="pill ${ST.dbState==="ready"?"actual":"outline"}">${ST.dbState==="ready"?"Live database":ST.dbState==="nodb"?"Offline copy":"Connecting"}</span>`);
   const hm=$("ov-meta");if(hm)hm.innerHTML=$("head-meta").innerHTML;
   renderUser();
 }
@@ -1734,7 +1754,7 @@ function renderOverview(){
   const V=ovCompute(ST.ov.period,ST.ov.scope);const P=V.period;const snap=!!(ST.dash&&ST.dash.stores);
   const scopeTxt=ST.ov.scope==="active"?" Scope: stores and payouts of partners with an active agreement.":"";
   const sAsof=(ST.dash&&ST.dash.stripe_asof)||"",shAsof=(ST.dash&&ST.dash.shopify_asof)||"";
-  const perTxt=P.l12?l12Txt(P):P.ytd?ytdTxt(P):P.months?`${P.label} (${P.months.map(m=>MON[+m.slice(5)-1]).join(", ")} 2026)`:`all time`;
+  const perTxt=P.l12?l12Txt(P):P.ytd?ytdTxt(P):P.months?`${P.label} (${P.months.map(m=>MON[+m.slice(5)-1]).join(", ")} ${yrsOf(P.months)})`:`all time`;
   const nc=ST.camps.length,nq=ST.cands.filter(c=>(c.status||"new")==="new").length;
   const acc=ST.camps.reduce((a,c)=>a+(c.accepted!=null&&isFinite(+c.accepted)?+c.accepted:0),0);
   const outV=ST.cands.length?fmtN(nq):(ST.candState==="loading"&&ST.dbState!=="nodb")?"...":"-";
@@ -1761,6 +1781,9 @@ function renderOverview(){
     {k:"leads",icon:"target",label:"Leads referred",value:snap?fmtN(V.referred):"-",sub:snap?`${fmtN(V.won)} won${V.referred?` (${Math.round(100*V.won/V.referred)}%)`:""}`:"",to:"leads",gauge:snap&&V.referred?V.won/V.referred:null,
       help:leadsSrc+(scopeTxt?scopeTxt:"")}
   ];
+  /* capped collections: the cards that count over them say so */
+  const capP=ST.capped?"First 1,000 partners only":"",capC=ST.candCapped?"First 1,000 candidates by fit only":"";
+  cards.forEach(o=>{const t=["active","paid"].includes(o.k)||(o.k==="pending"&&!PS)?capP:o.k==="outreach"?capC:"";if(t&&!o.sub2)o.sub2=t;});
   $("ov-kpis").innerHTML=cards.map(kpi).join("")+countdownCard();
   const cdb=$("cd-open");if(cdb)cdb.onclick=openPlan;
   renderHero();
@@ -1837,10 +1860,10 @@ const isPayout=h=>!!(h&&h.quarter&&h.payout!=null&&h.payout!=="");
 const payoutRows=d=>(Array.isArray(d.history)?d.history:[]).filter(isPayout);
 const paidTotal=d=>{const s=d.payouts_summary;return s&&s.paid_total!=null&&s.paid_total!==""&&isFinite(+s.paid_total)&&+s.paid_total!==0?+s.paid_total:null;};
 function rowsAll(){
-  const ix=storeMaps();
+  const ix=storeMaps(),CQ=closedQ().months;
   return ST.docs.map(d=>{
     const a=d.agreement||{},fl=d.flags||{};const st=(d.stores||[]).map(String);
-    let q3=0,inPay=false;st.forEach(id=>{const s=ix[id];if(s&&s.scope!=="program"){inPay=true;q3+=storeEarned(s,Q3);}});
+    let q3=0,inPay=false;st.forEach(id=>{const s=ix[id];if(s&&s.scope!=="program"){inPay=true;q3+=storeEarned(s,CQ);}});
     return{id:String(d.id),d,name:String(d.name||d.id),aliases:Array.isArray(d.aliases)?d.aliases.map(String):[],
       type:d.partner_type||"",tier:d.tier==null?"":String(d.tier),status:a.status||"none",
       rate:a.rate==null||a.rate===""?null:+a.rate,basis:a.basis||"",signed:a.signed_on||"",
@@ -1870,7 +1893,7 @@ function filtered(){
     (!q||r.name.toLowerCase().includes(q)||r.aliases.some(a=>a.toLowerCase().includes(q))));
 }
 const COLS=[["name","Partner"],["type","Type"],["tier","Tier"],["status","Agreement"],["portal","Portal"],["rate","Rate","r"],["basis","Basis"],
-  ["signed","Signed on"],["stores","Stores","r"],["q3","Q3 earned","r"],["paid","Payouts","r"],["flags","Flags"],["updated","Updated"]];
+  ["signed","Signed on"],["stores","Stores","r"],["q3","Earned, latest closed quarter","r"],["paid","Payouts","r"],["flags","Flags"],["updated","Updated"]];
 const flagCount=r=>(r.flags.no_commission?1:0)+(r.flags.vip?1:0)+(r.flags.kill_switch?1:0);
 function statusPill(s){const cls=s==="active"?"actual":s==="expired"?"estimate":"outline";return`<span class="pill sm ${cls}">${esc(s||"none")}</span>`;}
 function flagPills(fl){
@@ -1910,7 +1933,8 @@ function renderPartners(){
 function renderTable(){
   renderPVCounts();
   const head=$("r-head"),tb=$("r-body");if(!head||!tb)return;
-  head.innerHTML=COLS.map(([k,l,al])=>{const on=ST.sort.key===k;
+  const cqL=closedQ().label;
+  head.innerHTML=COLS.map(([k,l,al])=>{const on=ST.sort.key===k;if(k==="q3")l=`${esc(cqL)} earned`;
     return`<th class="${al||""}" ${on?`aria-sort="${ST.sort.dir>0?"ascending":"descending"}"`:""}><button data-k="${k}">${l}<span class="arr">${on?(ST.sort.dir>0?"&#9650;":"&#9660;"):"&#9660;"}</span></button></th>`;}).join("");
   head.querySelectorAll("button").forEach(b=>b.onclick=()=>{const k=b.dataset.k;
     if(ST.sort.key===k)ST.sort.dir*=-1;else ST.sort={key:k,dir:["name","type","tier","status","basis"].includes(k)?1:-1};renderTable();});
@@ -2011,10 +2035,10 @@ function renderDrawer(){
       kv("Portal terms",portalKv(d))+kv("Source",a.source?esc(a.source):dash)+(ST.err?`<span class="notice" role="alert">${esc(ST.err)}</span>`:"");
   }
   const editBtn=canWrite()&&!ST.edit?`<button type="button" class="btn" id="dr-edit">Edit</button>`:"";
-  const ix=storeMaps();const P=periodInfo();const curM=P&&P.cur?P.cur.months:[];
+  const ix=storeMaps();const P=periodInfo();const curM=P&&P.cur?P.cur.months:[];const CQ=closedQ();
   const stores=(d.stores||[]).map(String);
   const srows=stores.map(id=>{const s=ix[id];
-    return s?`<tr><td>${esc(s.company||s.handle||id)}<span class="subnote">Lead ${esc(id)}${s.scope==="program"?", outside payout list":""}</span></td><td>${esc(s.lead_status||"")}</td><td class="num">${s.scope==="program"?dash:fmt$(storeEarned(s,Q3))}</td><td class="num">${s.scope==="program"?dash:fmt$(storeEarned(s,curM))}</td></tr>`
+    return s?`<tr><td>${esc(s.company||s.handle||id)}<span class="subnote">Lead ${esc(id)}${s.scope==="program"?", outside payout list":""}</span></td><td>${esc(s.lead_status||"")}</td><td class="num">${s.scope==="program"?dash:fmt$(storeEarned(s,CQ.months))}</td><td class="num">${s.scope==="program"?dash:fmt$(storeEarned(s,curM))}</td></tr>`
       :`<tr><td><span class="num">Lead ${esc(id)}</span><span class="subnote">No revenue in the snapshot</span></td><td>${dash}</td><td>${dash}</td><td>${dash}</td></tr>`;});
   const hist=(Array.isArray(d.history)?d.history.filter(h=>!isPayout(h)):[]).reverse();
   const ow=d.owed||null;
@@ -2056,7 +2080,7 @@ function renderDrawer(){
     ${ST.edit?"":`<div class="dr-sec"><span class="label">Flags</span><div>${flagPills({no_commission:!!fl.no_commission,vip:!!fl.vip,kill_switch:!!fl.kill_switch})}</div></div>`}
     <div class="dr-sec"><span class="label">Contact on file</span><div>${d.has_contact?"Yes":"No"}<span class="subnote">Contacts stay in the local registry file and never enter this database.</span></div></div>
     ${ow?`<div class="dr-sec"><span class="label">Owed</span>${kv("Quarter",esc(ow.quarter||"-"))}${kv("Amount",ow.amount==null?`<span class="muted">Not computed</span>`:fmt$(ow.amount))}${kv("Status",esc(ow.status||"-"))}</div>`:""}
-    <div class="dr-sec"><span class="label">Stores (${stores.length})</span>${stores.length?`<div style="overflow-x:auto"><table class="sgrid"><thead><tr><th>Store</th><th>Lead status</th><th>Q3 earned</th><th>${esc(P&&P.cur?P.cur.label:"Current")}</th></tr></thead><tbody>${srows.join("")}</tbody></table></div>`:`<div class="muted">No Partner.io leads under this partner.</div>`}</div>
+    <div class="dr-sec"><span class="label">Stores (${stores.length})</span>${stores.length?`<div style="overflow-x:auto"><table class="sgrid"><thead><tr><th>Store</th><th>Lead status</th><th>${esc(CQ.label)} earned</th><th>${esc(P&&P.cur?P.cur.label:"Current")}</th></tr></thead><tbody>${srows.join("")}</tbody></table></div>`:`<div class="muted">No Partner.io leads under this partner.</div>`}</div>
     ${payBlock}
     ${pageBlock}
     ${connBlock}
@@ -3088,7 +3112,7 @@ function refreshCardHTML(){
   return`<section class="card" aria-label="Refresh routine"><div class="card-head"><div><h2>Refresh routine</h2><div class="card-sub">Refreshes the revenue snapshot and trend this page's Revenue section reads (snapshots/latest, snapshots/trend) from Partner.io leads and HubSpot paid invoices. Read-only against both.</div></div></div>
     ${kvRow("Schedule",esc(REFRESH_SCHEDULE))}${kvRow("Routine",httpsUrl(REFRESH_ROUTINE_URL)?extLink(REFRESH_ROUTINE_URL,"Open routine"):`<span class="muted">Link not set yet</span>`)}
     ${kvRow("Snapshot shown",ST.dash?`${esc(dShort(ST.dash.generated))} <span class="muted">(${esc(srcDash())})</span>`:notRec)}
-    ${kvRow("Last run",last)}${r?kvRow("Status",stP)+kvRow("Sanity",sanP)+kvRow("Q3 earned",`<span class="num">${fmt$(t.q3_earned)}</span>`)+kvRow("Current month",`<span class="num">${fmt$(t.current_month_earned)}</span>`)+kvRow("All time",`<span class="num">${fmt$(t.alltime_earned)}</span>`)+kvRow("Payout stores",`<span class="num">${fmtN(t.payout_stores)}</span>`):""}
+    ${kvRow("Last run",last)}${r?kvRow("Status",stP)+kvRow("Sanity",sanP)+kvRow(`${esc(q3Lbl())} earned`,`<span class="num">${fmt$(t.q3_earned)}</span>`)+kvRow("Current month",`<span class="num">${fmt$(t.current_month_earned)}</span>`)+kvRow("All time",`<span class="num">${fmt$(t.alltime_earned)}</span>`)+kvRow("Payout stores",`<span class="num">${fmtN(t.payout_stores)}</span>`):""}
     ${r&&r.error?`<div class="notice" role="alert">${esc(String(r.error).slice(0,300))}</div>`:""}</section>`;
 }
 function renderSettings(){
@@ -3219,11 +3243,11 @@ function renderRuns(){
       const dec=Array.isArray(r.decisions)?r.decisions.length:null;
       return`<tr><td class="num">${esc(dShort(r.today||r.id)||r.id)}</td><td>${modeP(r.mode)}</td><td>${sp(r.status)}${r.error?`<span class="subnote">${esc(String(r.error).slice(0,140))}</span>`:""}</td><td>${cleanCell(r)}</td>
         <td class="r num">${pair(co.staged,co.topped_up)}</td><td class="r num">${pair(ca.picked,ca.topped_up)}</td><td class="r num">${rp.length?fmtN(rp.reduce((a,v)=>a+v,0)):dash}</td><td class="r num">${dec==null?dash:fmtN(dec)}</td></tr>`;}).join("")}</tbody></table></div>`:"";
-  const dHtml=Dr.length?`<div class="runs-h">Dashboard refresh (PartnerOS routine)</div><div class="tscroll"><table class="ptable runs"><thead><tr><th>Date</th><th>Status</th><th>Sanity</th><th class="r">Q3 earned</th><th class="r">Current month</th><th class="r">All time</th><th class="r">Payout stores</th><th class="r">Leads linked</th></tr></thead><tbody>${
+  const dHtml=Dr.length?`<div class="runs-h">Dashboard refresh (PartnerOS routine)</div><div class="tscroll"><table class="ptable runs"><thead><tr><th>Date</th><th>Status</th><th>Sanity</th><th class="r">${esc(q3Lbl())} earned</th><th class="r">Current month</th><th class="r">All time</th><th class="r">Payout stores</th><th class="r">Leads linked</th></tr></thead><tbody>${
     Dr.map(r=>{const t=tt(r.totals);const san=String(r.sanity||"");
       return`<tr><td class="num">${esc(dShort(r.today||r.id)||r.id)}</td><td>${sp(r.status)}</td><td style="white-space:normal;max-width:260px">${san==="pass"?`<span class="pill sm actual">pass</span>`:san?`<span class="pill sm danger">fail</span><span class="subnote">${esc(san.replace(/^fail:\s*/,""))}</span>`:dash}</td>
         <td class="r num">${fmt$(t.q3_earned)}</td><td class="r num">${fmt$(t.current_month_earned)}</td><td class="r num">${fmt$(t.alltime_earned)}</td><td class="r num">${fmtN(t.payout_stores)}</td><td class="r num">${fmtN(r.leads_linked)}</td></tr>`;}).join("")}</tbody></table></div>`:"";
-  b.innerHTML=mHtml+dHtml;
+  b.innerHTML=(ST.runsCapped?`<div class="notice">Showing first 200 runs; the log has more.</div>`:"")+mHtml+dHtml;
 }
 
 /* ---- build 1: motion, Overview hero and countdown, sources, drawer jump bar.
@@ -3366,7 +3390,7 @@ function renderHero(){
   el.innerHTML=`<div class="hero-top"><div><h2 id="ov-greet">${esc(greetWord(d.getHours()))}${fn?`, ${esc(fn)}`:""}<button type="button" class="help" id="ov-help" data-help="${esc(SECTION_HELP.overview)}" aria-label="About Dashboard">${svg("help")}</button></h2>
       <div class="hl" id="ov-line">${esc(date)}${x?` · ${esc(daysTo(x))}`:""}</div>
       <div class="hero-acts"><div class="hero-ask flo-only"${FLO.avail?"":" hidden"}><button type="button" class="pchip" id="ov-ask">${avHTML(20)}Ask Ido what to do this week</button></div><button type="button" class="pchip pick" id="ov-pick" title="Opens a random high-fit candidate with status new"${ready?"":" disabled"}>${ES.dice}<span class="pl">Pick one for me</span><span class="pick-reel" aria-live="polite"></span></button></div></div><div class="hero-r"><div class="head-meta" id="ov-meta">${$("head-meta").innerHTML}</div><div class="ov-cz">${ovCustHTML()}</div></div></div>
-    <div class="hero-ns">${n("replied",S&&S.rep,"Replies this week","Candidates whose outreach replied_at falls in the last 7 days. Opens the queue filtered to replied.")}${n("signed",S&&S.sig,"Signed this month","Candidates with status signed whose history sets signed this month. Opens the queue filtered to signed.")}${n("touched",S&&S.tou,"Touched this week","Candidates whose last touch or last update falls in the last 7 days. Opens the queue.")}</div>${ovHeroEyes()}`;
+    <div class="hero-ns">${n("replied",S&&S.rep,"Replies this week","Candidates whose outreach replied_at falls in the last 7 days. Opens the queue filtered to replied.")}${n("signed",S&&S.sig,"Signed this month","Candidates with status signed whose history sets signed this month. Opens the queue filtered to signed.")}${n("touched",S&&S.tou,"Touched this week","Candidates whose last touch or last update falls in the last 7 days. Opens the queue.")}</div>${S?capNote(["cands"]):""}${ovHeroEyes()}`;
   el.querySelectorAll(".hero-n").forEach(b=>b.onclick=()=>heroGo(b.dataset.go));
   $("ov-ask").onclick=()=>floSend("What should I do this week");
   $("ov-pick").onclick=e=>pickOne(e.currentTarget);
@@ -3570,9 +3594,12 @@ function attnGo(k,id){
 }
 /* one delegated click handler per container (Overview card or widget grid) */
 function attnClick(e){const r=e.target.closest(".attn-row,.attn-all");if(!r)return false;attnGo(r.dataset.g,r.classList.contains("attn-row")?r.dataset.id:null);return true;}
+/* collections read with a cap (partners, candidates, leads at 1,000): cards that count over them say so once a cap is hit */
+function capNote(keys){const M={cands:[ST.candCapped,"1,000 candidates by fit score"],leads:[ST.leadCapped,"1,000 leads"],partners:[ST.capped,"1,000 partners"]};
+  const a=keys.filter(k=>M[k]&&M[k][0]).map(k=>M[k][1]);return a.length?`<div class="notice">Showing first ${a.join(" and ")}. Counts here cover only those.</div>`:"";}
 function renderAttnOv(){
   const el=$("ov-attn");if(!el)return;const A=attnCompute(),n=attnTotal(A);
-  el.innerHTML=`<div class="card-head"><div><h2>Needs attention</h2><div class="card-sub">Today's work list from the queue. Click a row to open it.</div></div><div class="acts">${ST.candState==="ready"?`<span class="pill ${n?"blue":"outline"} num" title="${fmtN(n)} item${n===1?"":"s"}">${fmtN(n)}</span>`:""}<button type="button" class="btn sm flo-only" id="ov-attn-flo"${FLO.avail?"":" hidden"}>Ask Ido to prioritise</button></div></div>${attnHTML(A)}`;
+  el.innerHTML=`<div class="card-head"><div><h2>Needs attention</h2><div class="card-sub">Today's work list from the queue. Click a row to open it.</div></div><div class="acts">${ST.candState==="ready"?`<span class="pill ${n?"blue":"outline"} num" title="${fmtN(n)} item${n===1?"":"s"}">${fmtN(n)}</span>`:""}<button type="button" class="btn sm flo-only" id="ov-attn-flo"${FLO.avail?"":" hidden"}>Ask Ido to prioritise</button></div></div>${capNote(["cands"])}${attnHTML(A)}`;
   el.onclick=attnClick;$("ov-attn-flo").onclick=()=>floSend("Prioritise my Needs attention list for today: what do I do first, and why?");
 }
 
@@ -3608,7 +3635,7 @@ function renderOvTop(){
   const msg=rows?"":(by==="revenue"?"The revenue snapshot is not loaded.":ovLeadMsg());
   el.innerHTML=`<div class="card-head"><div class="tp-t"><span class="tp-ic" aria-hidden="true">${svg("partners")}</span><div><h2>Top partners<button type="button" class="help" data-help="${esc(help)}" aria-label="About this card">${svg("help")}</button></h2><div class="card-sub">All time</div></div></div>
     <div class="acts"><label class="chip nosvg"><span class="sr-only">Rank by</span><select id="ov-top-by">${opts}</select></label><button type="button" class="tp-all" data-go="partners">View all &#8594;</button></div></div>
-    ${msg?`<div class="msg">${esc(msg)}</div>`:!top.length?`<div class="msg">${by==="paying"?"No paying leads yet.":"No partners to rank yet."}</div>`:
+    ${!msg&&by!=="revenue"?capNote(["leads"]):""}${msg?`<div class="msg">${esc(msg)}</div>`:!top.length?`<div class="msg">${by==="paying"?"No paying leads yet.":"No partners to rank yet."}</div>`:
     `<ol class="tp-list">${top.map((r,i)=>`<li class="${i===0?"one":""}"><span class="tp-rk${i===0?" one":""}">${i+1}</span><span class="tp-av" aria-hidden="true">${esc(ovInit(r.name))}</span>
       <div class="tp-m">${r.id?`<button type="button" class="tp-n" data-id="${esc(r.id)}" title="Open ${esc(r.name)}"><span>${esc(r.name)}</span>${ovArrow}</button>`:`<span class="tp-n plain"><span>${esc(r.name)}</span></span>`}
       <span class="tp-bar" aria-hidden="true"><i style="width:${max>0?Math.max(2,Math.round(r.v/max*100)):0}%"></i></span></div>
@@ -3622,7 +3649,7 @@ function renderOvRecent(){
   const L=msg?[]:ST.leads.slice().sort((a,b)=>String(b.referred_at||"").localeCompare(String(a.referred_at||""))||(+b.lead_id||0)-(+a.lead_id||0)).slice(0,8);
   el.innerHTML=`<div class="card-head"><div class="tp-t"><span class="tp-ic" aria-hidden="true">${svg("leads")}</span><div><h2>Recent leads<button type="button" class="help" data-help="Newest 8 by referred date, from the leads collection. Click a row to open the lead in Leads." aria-label="About this card">${svg("help")}</button></h2><div class="card-sub">Newest referred first</div></div></div>
     <div class="acts"><button type="button" class="tp-all" data-go="leads">View all &#8594;</button></div></div>
-    ${msg?`<div class="msg">${esc(msg)}</div>`:!L.length?`<div class="msg">No leads yet.</div>`:`<ul class="rl-list">${L.map(l=>{const n=leadName(l),d=l.referred_at?dShort(String(l.referred_at).slice(0,10)).replace(/, \d{4}$/,""):"-";
+    ${msg?"":capNote(["leads"])}${msg?`<div class="msg">${esc(msg)}</div>`:!L.length?`<div class="msg">No leads yet.</div>`:`<ul class="rl-list">${L.map(l=>{const n=leadName(l),d=l.referred_at?dShort(String(l.referred_at).slice(0,10)).replace(/, \d{4}$/,""):"-";
       return`<li><button type="button" class="rl-row" data-id="${esc(l.id)}"><span class="tp-av" aria-hidden="true">${esc(ovInit(n))}</span><span class="rl-m"><span class="rl-n">${esc(n)}</span><span class="rl-p">${esc(leadPartnerName(l))}</span></span>
         <span class="rl-ps">${leadPill(l.status)}${l.paying===true?`<span class="pill sm actual">Paying</span>`:""}</span><span class="rl-d num">${esc(d)}</span></button></li>`;}).join("")}</ul>`}`;
   el.querySelector(".tp-all").onclick=()=>setSection("leads",true);
@@ -3691,7 +3718,7 @@ function goalsHTML(){
 function goTargets(){setSection("settings",true);setTimeout(()=>{const f=$("set-tgt");if(f){try{f.scrollIntoView({block:"start"});}catch(e){}const i=$("tg-period");if(i)try{i.focus();}catch(e){}}},0);}
 function renderGoalsOv(){
   const el=$("ov-goals");if(!el)return;
-  el.innerHTML=`<div class="card-head"><div><h2>Targets</h2><div class="card-sub">Recruited and activated partners against this period's targets.</div></div></div>${goalsHTML()}`;
+  el.innerHTML=`<div class="card-head"><div><h2>Targets</h2><div class="card-sub">Recruited and activated partners against this period's targets.</div></div></div>${capNote(["cands","partners"])}${goalsHTML()}`;
   el.onclick=e=>{if(e.target.closest(".go-tgt"))goTargets();};
 }
 
@@ -4951,15 +4978,15 @@ function palWorkCmds(){
 }
 /* ---- build 9b/9c: one keymap for the palette chips, the shortcuts sheet, the rail titles and the global keys, so a chip and its
    binding cannot disagree. m: Mod+letter (Cmd on macOS, Ctrl elsewhere, IS_MAC), matched on e.code so Shift and layouts do not matter;
-   these work with focus anywhere, inputs included, and always preventDefault so the browser's open, print, save, reload, bookmark and
-   view-source actions never fire (while the palette or the shortcuts sheet is open they are swallowed and do nothing).
-   Mod+L belongs to the browser's address bar, so Leads is Mod+Shift+L. k: a single key (sh: with Shift); drawer: only while the candidate
+   these work with focus anywhere, inputs included, and preventDefault (while the palette or the shortcuts sheet is open they are
+   swallowed and do nothing). Mod+P, Mod+R and Mod+S stay with the browser (print, reload, save), so Partners, Revenue and Settings
+   are the single keys Shift+P, Shift+V and Shift+S. Mod+L belongs to the browser's address bar, so Leads is Mod+Shift+L. k: a single key (sh: with Shift); drawer: only while the candidate
    drawer is open. A key works exactly when its palette row exists in that state (palResolve, no picker step): the admin-gated rows are
    absent for viewers, so their keys do nothing and their chips are hidden. Single keys never fire in an input, textarea, select,
    contenteditable or the Ask Ido panel, or with a modifier held. Existing bindings (/, Mod+J, Mod+K, [, ?, 1 to 5, j, k, arrows) stay. */
 const KEYS={
-  "s:overview":{m:"D"},"s:dashboard":{m:"R"},"s:partners":{m:"P"},"s:outreach":{m:"U"},"s:events":{m:"E"},
-  "s:payouts":{m:"Y"},"s:leads":{m:"L",sh:1},"s:settings":{m:"S"},"s:runs":{m:"R",sh:1},
+  "s:overview":{m:"D"},"s:dashboard":{k:"V",sh:1},"s:partners":{k:"P",sh:1},"s:outreach":{m:"U"},"s:events":{m:"E"},
+  "s:payouts":{m:"Y"},"s:leads":{m:"L",sh:1},"s:settings":{k:"S",sh:1},"s:runs":{m:"R",sh:1},
   /* build 10: silent alias, no chip and no sheet row: Mod+O still opens Dashboard (the section was Overview) */
   "a:overview":{m:"O",alias:"s:overview"},
   "x:theme":{k:"t",l:"Cycle theme: light, dark, system"},"x:pick":{k:"p",l:"Pick one for me"},"x:o:queue":{k:"q",l:"Open outreach queue"},
@@ -4980,7 +5007,8 @@ function ksCmdRows(){
   return Object.keys(KEYS).filter(id=>!KEYS[id].alias).map(id=>{const d=KEYS[id],l=d.l||("Go to "+(SEC[id.slice(2)]||{}).l);
     return[kbdH(keyCaps(id)),l+(d.drawer?" (drawer open)":"")];});
 }
-const ksNote=()=>`${modTxt(0,"L")} is taken by the browser, so Leads is ${modTxt(1,"L")}.`;
+const ksNote=()=>{const t=id=>keyText(id).replace(/^ \((.*)\)$/,"$1");
+  return`${modTxt(0,"L")}, ${modTxt(0,"P")}, ${modTxt(0,"R")} and ${modTxt(0,"S")} stay with the browser, so Leads is ${t("s:leads")}, Partners ${t("s:partners")}, Revenue ${t("s:dashboard")} and Settings ${t("s:settings")}.`;};
 /* the Mod+letter section binding for this event, or null */
 function modSec(e){
   if(e.altKey||!(IS_MAC?e.metaKey&&!e.ctrlKey:e.ctrlKey&&!e.metaKey))return null;
@@ -4993,7 +5021,8 @@ function kmKeys(e){
   if(PAL.open||KS.open||UM.open)return;
   if(e.defaultPrevented||e.metaKey||e.ctrlKey||e.altKey||e.isComposing)return;
   const t=e.target;if(inText(t)||inText(document.activeElement)||(t&&t.closest&&t.closest("#flo")))return;
-  const id=Object.keys(KEYS).find(i=>KEYS[i].k===k&&!!KEYS[i].sh===e.shiftKey);if(!id)return;
+  /* Shift bindings match case-insensitively (Caps Lock flips e.key); unshifted keys match exactly, so a plain letter never fires a Shift binding */
+  const id=Object.keys(KEYS).find(i=>{const d=KEYS[i];if(d.k==null||!!d.sh!==e.shiftKey)return false;return d.sh?String(d.k).toLowerCase()===String(k).toLowerCase():d.k===k;});if(!id)return;
   const r=keyRow(id);if(!r)return;e.preventDefault();e.stopImmediatePropagation();try{r.run();}catch(x){}
 }
 window.addEventListener("keydown",kmKeys,true);
@@ -5053,7 +5082,6 @@ async function profLoad(){
   try{const s=await ST.db.doc(profPath()).get();ST.prof=s&&s.exists?Object.assign({},s.data()||{}):null;ok=true;}catch(e){}
   renderUser();
   if(UM.open&&!UM.edit)umRender();
-  if(ok)avAuto();
 }
 function umRender(){
   const el=$("umenu"),role=profRole(),t=themeGet(),can=canProf();
@@ -5119,19 +5147,18 @@ function avPickText(content){
   for(const c of Array.isArray(content)?content:[]){const m=c&&typeof c.text==="string"?c.text.match(/https:\/\/[a-z0-9.-]*googleusercontent\.com\/[^\s"'<>)]+/i):null;if(m&&avOk(m[0]))return m[0];}
   return"";
 }
-/* strict: auto mode runs only on a connector already granted (never prompts); manual mode tries anything not refused */
-async function avProbe(strict){
+/* tries each connector not refused (state unavailable or denied is skipped); called only from the "Use my Google photo" click */
+async function avProbe(){
   if(!window.claude||typeof window.claude.use!=="function")return"";
   let m=null,perms=null;
   try{m=await window.claude.use("mcp");}catch(e){m=null;}
   if(!m||typeof m.callTool!=="function")return"";
   try{perms=await window.claude.use("permissions");}catch(e){perms=null;}
-  if(strict&&!(perms&&typeof perms.state==="function"))return"";
   let calls=0;
   for(const server of AV_SERVERS){
     if(perms&&typeof perms.state==="function"){
       let s="unavailable";try{s=await perms.state("mcp:"+server);}catch(e){}
-      if(strict?s!=="granted":(s==="unavailable"||s==="denied"))continue;
+      if(s==="unavailable"||s==="denied")continue;
     }
     for(const tool of AV_TOOLS){
       if(++calls>10)return"";
@@ -5149,20 +5176,11 @@ async function profPatch(patch){
   ST.prof=payload;renderUser();if(UM.open&&!UM.edit)umRender();
 }
 const avDbg=e=>{try{console.debug("PartnerOS photo:",e&&e.message?e.message:e);}catch(x){}};
-async function avAuto(){
-  if(PHOTO.busy||!canProf())return;
-  const p=ST.prof||{};if((typeof p.avatar_url==="string"&&p.avatar_url)||p.avatar_removed_at)return;
-  const c=Date.parse(p.avatar_checked_at||"");if(c&&Date.now()-c<7*864e5)return;
-  PHOTO.busy=true;
-  try{const u=await avProbe(true),now=new Date().toISOString();
-    await profPatch(u?{avatar_url:u,avatar_source:"google",avatar_checked_at:now}:{avatar_checked_at:now});}
-  catch(e){avDbg(e);}
-  finally{PHOTO.busy=false;if(UM.open&&!UM.edit)umRender();}
-}
+/* the Google photo probe runs only from an explicit click on "Use my Google photo" (avGoogle); nothing calls a connector on load */
 async function avGoogle(){
   if(PHOTO.busy||!canProf())return;
   PHOTO.busy=true;if(UM.open&&!UM.edit)umRender();
-  try{const u=await avProbe(false),now=new Date().toISOString();
+  try{const u=await avProbe(),now=new Date().toISOString();
     if(u){await profPatch({avatar_url:u,avatar_source:"google",avatar_checked_at:now,avatar_removed_at:null});toast("Photo set.");}
     else{await profPatch({avatar_checked_at:now});toast("Your Google photo is not available here. Upload one instead.");}}
   catch(e){avDbg(e);toast(writeErr(e));}
@@ -5574,7 +5592,7 @@ const lbFit=()=>{try{return !!(window.matchMedia&&window.matchMedia("(min-width:
 const lbH=(box,def)=>lbFit()?Math.max(120,Math.floor(box.getBoundingClientRect().height||0)):def;
 const lbHRO=window.ResizeObserver?new ResizeObserver(es=>{let ch=false;es.forEach(e=>{const h=Math.round(e.contentRect.height),t=e.target;if(Math.abs((t.__h||0)-h)>2){t.__h=h;ch=true;}});
   if(ch&&ST.sec==="dashboard"&&lbFit()&&!railAnim()){cancelAnimationFrame(lbRaf);lbRaf=requestAnimationFrame(()=>{if(lbGet())renderLB();});}}):null;
-const lbSel=(L,c)=>`${c.AT?"All time":c.per.label+(c.per.key==="oct"||c.per.xp?"":" 2026")}, ${L.S.partner?((L.pIndex[L.S.partner]&&L.pIndex[L.S.partner].display_name)||L.S.partner):"all partners"}`;
+const lbSel=(L,c)=>`${c.AT?"All time":c.per.label+(c.per.key==="oct"||c.per.status==="open"||c.per.xp||/\b\d{4}\b/.test(String(c.per.label))||!Array.isArray(c.per.months)||!c.per.months.length?"":" "+yrsOf(c.per.months))},${L.S.partner?((L.pIndex[L.S.partner]&&L.pIndex[L.S.partner].display_name)||L.S.partner):"all partners"}`;
 function renderLB(){
   const host=$("lb-wrap");if(!host)return;
   const L=lbGet();
@@ -5719,10 +5737,12 @@ function lbTrend(L,c){
   const tl=[];
   if(CUM){const n1=M.n-1;tl.push(["Stripe lifetime to date",cum[n1]!=null?fmt$(cum[n1]):"-",lbMY(M.tm[n1])+(n1===M.pIdx?", partial":"")]);
     if(showF&&!FC.warn&&FC.cb[K-1]!=null)tl.push([`Projected by ${lbMY(FC.fm[K-1])}`,fmt$(FC.cb[K-1]),FC.cl[K-1]!=null?`${fmt$(FC.cl[K-1])} to ${fmt$(FC.ch[K-1])}`:"base"]);}
-  else{const fq=FC&&FC.warn?/forecast quarter (\S+) to (\S+) is ([\d.]+)x the previous quarter/.exec(String(FC.warn)):null,fok=!!(showF&&!FC.warn&&FC.base[0]!=null);
+  else{/* quarter ratio: forecast.quarter_ratio (with quarter_months) when the pipeline writes it, else the ratio named in the warning */
+    const qr=FC&&FC.F.quarter_ratio!=null&&FC.F.quarter_ratio!==""&&isFinite(+FC.F.quarter_ratio)?+FC.F.quarter_ratio:null,qm=FC&&Array.isArray(FC.F.quarter_months)?FC.F.quarter_months:[];
+    const fq=qr!=null?[null,qm[0]||"",qm[qm.length-1]||"",qr.toFixed(2)]:FC&&FC.warn?/forecast quarter (\S+) to (\S+) is ([\d.]+)x the previous quarter/.exec(String(FC.warn)):null,fok=!!(showF&&!FC.warn&&FC.base[0]!=null);
     tl.push(["Month over month",L.fmtSP(Lf>=0?M.mom[Lf]:null),Lf>0?`${L.mLabel(M.tm[Lf])} vs ${L.mLabel(M.tm[Lf-1])}`:""]);
     tl.push(["Next month forecast",fok?fmt$(FC.base[0]):"-",fok?`${lbMY(FC.fm[0])}, base${FC.low[0]!=null?`, ${fmt$(FC.low[0])} to ${fmt$(FC.high[0])}`:""}`:FC&&FC.warn?"held back while the forecast is flagged; see the note":"no forecast for this selection"]);
-    tl.push(["Forecast quarter",fq?`${fq[3]}x`:"-",fq?`${fq[1]} to ${fq[2]} against the quarter before, from the forecast note`:"no quarter ratio in the forecast note"]);}
+    tl.push(["Forecast quarter",fq?`${fq[3]}x`:"-",fq?`${fq[1]&&fq[2]?`${fq[1]} to ${fq[2]} `:""}against the quarter before${qr!=null?"":", from the forecast note"}`:"no quarter ratio in the forecast"]);}
   if(CUM&&showF&&!FC.warn){tl.push([`${lbMY(FC.fm[0])} forecast`,fmt$(FC.base[0]),FC.low[0]!=null?`${fmt$(FC.low[0])} to ${fmt$(FC.high[0])}`:"base"]);
     tl.push([`Payout, ${lbMY(FC.fm[0])}`,FC.pay[0]!=null?fmt$(FC.pay[0]):"-",`${S.rate}% of ${FC.ceil?"revenue (ceiling)":"commissionable revenue"}`]);}
   $("lb-tr-tiles").innerHTML=tl.map(([l,v,s],i)=>`<span class="tst${l==="Month over month"?" mom":""}" data-k="lbt${i}" title="${esc(l)}: ${esc(v)}${s?`, ${esc(s)}`:""}"><span class="tl">${esc(l)}</span> <b class="num">${v}</b>${s?` <span class="ts">${esc(s)}</span>`:""}</span>`).join("");
@@ -5946,6 +5966,7 @@ async function connect(){
   if(!db){ST.dbState="nodb";ST.userState="none";ST.myd.state="none";ST.runsState="nodb";ST.candState="nodb";ST.campState="nodb";ST.agrState="nodb";ST.payState="nodb";ST.leadState="nodb";ST.setState="nodb";renderAll();renderPartners();renderOutreach();renderAgreements();renderPayouts();renderLeads();renderSettings();return;}
   ST.db=db;ST.dbState="ready";
   try{const user=await window.claude.use("user");ST.canEdit=!!(user&&typeof user.canEdit==="function"&&await user.canEdit());
+    try{ST.isOwner=!!(user&&typeof user.isOwner==="function"&&await user.isOwner());}catch(e){ST.isOwner=false;}
     if(user&&typeof user.me==="function"){try{ST.me=await user.me();}catch(e){ST.me=null;}}ST.userState=user?"ready":"none";
     ST.uid=ST.me&&typeof ST.me.id==="string"&&ST.me.id?ST.me.id:null;
     if(!ST.uid&&user&&typeof user.id==="function"){try{const u=await user.id();ST.uid=typeof u==="string"&&u?u:null;}catch(e){}}
@@ -5980,9 +6001,9 @@ async function connect(){
     aD0({exists:true,data:()=>full});
   }catch(e){}};
   try{await aD(await db.doc("snapshots/latest").get());}catch(e){}
-  try{db.doc("snapshots/latest").onSnapshot(aD,function(){});}catch(e){}
+  try{db.doc("snapshots/latest").onSnapshot(s=>{liveOk("latest");return aD(s);},liveErr("latest"));}catch(e){}
   try{aT(await db.doc("snapshots/trend").get());}catch(e){}
-  try{db.doc("snapshots/trend").onSnapshot(aT,function(){});}catch(e){}
+  try{db.doc("snapshots/trend").onSnapshot(s=>{liveOk("trend");aT(s);},liveErr("trend"));}catch(e){}
   try{const m=await db.doc("registry/meta").get();if(m&&m.exists){ST.meta=m.data();renderOverview();}}catch(e){}
 
   // partners: live collection; an empty collection keeps the seed (read-only)
@@ -5999,13 +6020,15 @@ async function connect(){
   };
   const q=db.collection("partners").limit(1000);
   try{const s=await q.get();ingest(s);renderPartners();}catch(e){renderPartners();}
-  try{if(typeof q.onSnapshot==="function")q.onSnapshot(ingest,function(){});}catch(e){}
+  try{if(typeof q.onSnapshot==="function")q.onSnapshot(s=>{liveOk("partners");ingest(s);},liveErr("partners"));}catch(e){}
 
   // runs
+  /* unordered capped reads (both backends); sorted client-side by a stamp, newest first, docs without it last, never dropped */
+  const byDesc=k=>(a,b)=>{const x=a&&a[k]!=null&&a[k]!==""?String(a[k]):"",y=b&&b[k]!=null&&b[k]!==""?String(b[k]):"";return x&&y?y.localeCompare(x):x?-1:y?1:0;};
   const rq=db.collection("runs").limit(200);
-  const ingRuns=snap=>{if(!snap||!Array.isArray(snap.docs))return;ST.runs=snap.docs.filter(s=>s&&s.exists).map(s=>Object.assign({id:s.id},s.data()||{}));ST.runsState="ready";renderRuns();renderBadges();renderDecisions();if(ST.sec==="settings"&&!ST.sedit)renderSettings();};
+  const ingRuns=snap=>{if(!snap||!Array.isArray(snap.docs))return;ST.runs=snap.docs.filter(s=>s&&s.exists).map(s=>Object.assign({id:s.id},s.data()||{})).sort(byDesc("ran_at"));ST.runsState="ready";ST.runsCapped=(snap.size||ST.runs.length)>=200;renderRuns();renderBadges();renderDecisions();if(ST.sec==="settings"&&!ST.sedit)renderSettings();};
   try{ingRuns(await rq.get());}catch(e){ST.runsState="error";renderRuns();}
-  try{if(typeof rq.onSnapshot==="function")rq.onSnapshot(ingRuns,function(){});}catch(e){}
+  try{if(typeof rq.onSnapshot==="function")rq.onSnapshot(s=>{liveOk("runs");ingRuns(s);},liveErr("runs"));}catch(e){}
 
   // agreements: db-only (agreements_build.py writes them); no seed, so the local file shows the "open the published page" state
   const aq=db.collection("agreements").limit(1000);
@@ -6019,14 +6042,14 @@ async function connect(){
     if(ST.open&&!ST.edit&&!ST.busy)renderDrawer();
     if(ST.apending){const p=ST.apending;ST.apending=null;if(findAgr(p)&&ST.sec==="partners"&&ST.pview==="agreements"&&!ST.open&&!ST.copen)openAgr(p);}};
   try{ingAgrs(await aq.get());}catch(e){ST.agrState="error";ST.apending=null;renderAgreements();}
-  try{if(typeof aq.onSnapshot==="function")aq.onSnapshot(ingAgrs,function(){});}catch(e){}
+  try{if(typeof aq.onSnapshot==="function")aq.onSnapshot(s=>{liveOk("agreements");ingAgrs(s);},liveErr("agreements"));}catch(e){}
 
   // outreach: campaigns (all) and candidates (top 1,000 by fit score)
   const cmq=db.collection("campaigns").limit(200);
   const ingCamps=snap=>{if(!snap||!Array.isArray(snap.docs))return;
     ST.camps=snap.docs.filter(s=>s&&s.exists).map(s=>Object.assign({},s.data()||{},{id:String(s.id)}));ST.campState="ready";renderCamps();renderOverview();};
   try{ingCamps(await cmq.get());}catch(e){ST.campState="error";renderCamps();renderOverview();}
-  try{if(typeof cmq.onSnapshot==="function")cmq.onSnapshot(ingCamps,function(){});}catch(e){}
+  try{if(typeof cmq.onSnapshot==="function")cmq.onSnapshot(s=>{liveOk("campaigns");ingCamps(s);},liveErr("campaigns"));}catch(e){}
   const cq=db.collection("candidates").orderBy("fit_score","desc").limit(1000);
   const ingCands=snap=>{if(!snap||!Array.isArray(snap.docs))return;
     const had=ST.cands.length>0&&ST.candState==="ready";
@@ -6038,7 +6061,7 @@ async function connect(){
       if(candNotesDirty()||document.activeElement===$("c-notes"))refreshCand();else{ST.cdraft=candDraftOf(findCand(ST.copen));renderCandDrawer();}}
     renderOverview();};
   try{ingCands(await cq.get());}catch(e){ST.candState="error";renderOutreach();renderOverview();}
-  try{if(typeof cq.onSnapshot==="function")cq.onSnapshot(ingCands,function(){});}catch(e){}
+  try{if(typeof cq.onSnapshot==="function")cq.onSnapshot(s=>{liveOk("candidates");ingCands(s);},liveErr("candidates"));}catch(e){}
 
   // Step 4: payouts (one doc per quarter), leads (one read, under the 1,000 cap), settings/program and settings/roadmap
   const pq=db.collection("payouts").limit(100);
@@ -6047,27 +6070,27 @@ async function connect(){
     if(ST.popen&&!findPay(ST.popen)){ST.pbusy=false;closeDrawer();}
     renderPayouts();if(ST.popen&&!ST.pbusy){if(!payDirty())ST.pdraft=payDraftOf(findPay(ST.popen));renderPayDrawer();}renderOverview();};
   try{ingPays(await pq.get());}catch(e){ST.payState="error";renderPayouts();}
-  try{if(typeof pq.onSnapshot==="function")pq.onSnapshot(ingPays,function(){});}catch(e){}
+  try{if(typeof pq.onSnapshot==="function")pq.onSnapshot(s=>{liveOk("payouts");ingPays(s);},liveErr("payouts"));}catch(e){}
   const lq=db.collection("leads").limit(1000);
   const ingLeads=snap=>{if(!snap||!Array.isArray(snap.docs))return;
     const had=ST.leads.length>0&&ST.leadState==="ready";
-    ST.leads=snap.docs.filter(s=>s&&s.exists).map(s=>Object.assign({},s.data()||{},{id:String(s.id)}));ST.leadState="ready";ST.leadCapped=(snap.size||ST.leads.length)>=1000;srcSoon();
+    ST.leads=snap.docs.filter(s=>s&&s.exists).map(s=>Object.assign({},s.data()||{},{id:String(s.id)})).sort(byDesc("updated_at"));ST.leadState="ready";ST.leadCapped=(snap.size||ST.leads.length)>=1000;srcSoon();
     if(ST.lopen&&!findLead(ST.lopen)){ST.lbusy=false;closeDrawer();}
     if(had&&ST.leads.length&&$("l-body")){renderLeadTiles();renderLeadTable();}else renderLeads();renderOvLeads();
     if(ST.lopen&&!ST.lbusy){if(!leadDirty())ST.ldraft=leadDraftOf(findLead(ST.lopen));renderLeadDrawer();}};
   try{ingLeads(await lq.get());}catch(e){ST.leadState="error";renderLeads();renderOvLeads();}
-  try{if(typeof lq.onSnapshot==="function")lq.onSnapshot(ingLeads,function(){});}catch(e){}
+  try{if(typeof lq.onSnapshot==="function")lq.onSnapshot(s=>{liveOk("leads");ingLeads(s);},liveErr("leads"));}catch(e){}
   const ingSet=key=>snap=>{try{ST[key]=snap&&snap.exists?Object.assign({},snap.data()||{}):null;}catch(e){ST[key]=null;}
     ST.setLoaded[key]=true;if(ST.setLoaded.prog&&ST.setLoaded.road)ST.setState="ready";if(!ST.sbusy&&!ST.sedit)renderSettings();if(key==="prog")renderOverview();};
   for(const [key,path] of [["prog","settings/program"],["road","settings/roadmap"]]){
     try{ingSet(key)(await db.doc(path).get());}catch(e){ST.setState="error";renderSettings();continue;}
-    try{db.doc(path).onSnapshot(ingSet(key),function(){});}catch(e){}
+    try{db.doc(path).onSnapshot((f=>s=>{liveOk(path);f(s);})(ingSet(key)),liveErr(path));}catch(e){}
   }
   // build 2: the viewer's own dashboard doc (layout and private note); no id means the default layout and no edit controls
   if(ST.uid){let ref=null;try{ref=db.doc(myPath());}catch(e){ref=null;}
     if(ref){const ingMy=snap=>{if(mydW||OVS.pend)return;try{ST.myd.doc=snap&&snap.exists?Object.assign({},snap.data()||{}):null;}catch(e){ST.myd.doc=null;}ST.myd.state="ready";renderMyDash();ovApply();if(OVS.edit)renderHero();};
       try{ingMy(await ref.get());}catch(e){ST.myd.state="error";renderMyDash();}
-      try{if(typeof ref.onSnapshot==="function")ref.onSnapshot(ingMy,function(){});}catch(e){}}
+      try{if(typeof ref.onSnapshot==="function")ref.onSnapshot(s=>{liveOk("mine");ingMy(s);},liveErr("mine"));}catch(e){}}
     else{ST.myd.state="none";renderMyDash();}}
   else{ST.myd.state="none";renderMyDash();}
 }
@@ -6245,6 +6268,9 @@ $("p-overview").addEventListener("pointerdown",e=>{const h=e.target.closest(".ov
 $("p-overview").addEventListener("click",e=>{const a=e.target.closest(".ovb-bar [data-act]");if(!a||!OVS.edit)return;const id=a.closest(".ovb").dataset.b;
   if(a.dataset.act==="eye")ovToggle(id);else if(a.dataset.act==="up")ovMoveKey(id,-1,"up");else if(a.dataset.act==="down")ovMoveKey(id,1,"down");});
 
+/* the "Live updates stopped" pill (header and Dashboard hero) reloads the page */
+document.addEventListener("click",e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-reload]");if(!b)return;e.preventDefault();
+  let p;try{p=flushCandNotes();}catch(x){p=null;}Promise.resolve(p).catch(()=>{}).then(()=>location.reload());});
 /* ---- boot: render the seed first, then connect */
 ovLoad();
 $("ov-period").onchange=e=>{ST.ov.period=e.target.value;ovSave();renderOverview();};
