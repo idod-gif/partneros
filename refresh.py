@@ -850,6 +850,38 @@ def load_registry(path):
     return [d for d in raw if isinstance(d, dict) and d.get('name')]
 
 
+def build_periods(months, today, q3m, q3, cfg):
+    """Dated periods from the months present and the run date (was: fixed 2026 quarters plus an 'Oct to date' bucket for every
+    month from 2026-10 on). Calendar quarters of the months present, in order. The base year is the year of months[0]: its quarters
+    keep the keys q1..q4 and the labels Q1..Q4; another year's get q1_2027 and 'Q1 2027'. Rules, in order:
+      - a quarter holding a config q3_months month is the legacy 'q3' (paid with actuals when cfg q3 is present, else in progress);
+      - the quarter of `today` is the open period: key = lowercase first month of the quarter ('oct'), label '<Mon> to date',
+        status open, estimate basis (for Q4 this is the old 'Oct to date');
+      - an earlier quarter is paid/actual for the base year's q1 and q2 (legacy) or when cfg has actuals under its key,
+        else in progress/estimate."""
+    base = int(months[0][:4])
+    cur = (int(today[:4]), (int(today[5:7]) - 1) // 3 + 1)
+    groups = OrderedDict()
+    for m in months:
+        groups.setdefault((int(m[:4]), (int(m[5:7]) - 1) // 3 + 1), []).append(m)
+    out = []
+    for (y, n), ms in groups.items():
+        key, label = (f'q{n}', f'Q{n}') if y == base else (f'q{n}_{y}', f'Q{n} {y}')
+        if any(m in q3m for m in ms):
+            per = {'key': 'q3', 'label': 'Q3', 'months': [m for m in ms if m in q3m],
+                   **({'status': 'paid', 'spend_basis': 'actual', 'source': load_local()['q3_period_source']} if q3
+                      else {'status': 'in progress', 'spend_basis': 'estimate'})}
+        elif (y, n) == cur:
+            mon = _MONTH_NAMES[(n - 1) * 3]
+            per = {'key': mon.lower(), 'label': f'{mon} to date', 'months': ms, 'status': 'open', 'spend_basis': 'estimate'}
+        elif (y == base and n in (1, 2)) or cfg.get(key):
+            per = {'key': key, 'label': label, 'months': ms, 'status': 'paid', 'spend_basis': 'actual'}
+        else:
+            per = {'key': key, 'label': label, 'months': ms, 'status': 'in progress', 'spend_basis': 'estimate'}
+        out.append(per)
+    return out
+
+
 def build(cfg, raw_leads, pull, life, today, registry=None, company_dates=None):
     months = month_range(cfg['from_month'], today[:7])
     nc = set(cfg['no_commission_partners'])
@@ -888,17 +920,7 @@ def build(cfg, raw_leads, pull, life, today, registry=None, company_dates=None):
             'rate_override': None,
             **({'no_commission': True} if name in nc else {}),
         })
-    q3m = cfg['q3_months']
-    periods = [
-        {'key': 'q1', 'label': 'Q1', 'months': [m for m in months if '2026-01' <= m <= '2026-03'],
-         'status': 'paid', 'spend_basis': 'actual'},
-        {'key': 'q2', 'label': 'Q2', 'months': [m for m in months if '2026-04' <= m <= '2026-06'],
-         'status': 'paid', 'spend_basis': 'actual'},
-        {'key': 'q3', 'label': 'Q3', 'months': [m for m in months if m in q3m],
-         **({'status': 'paid', 'spend_basis': 'actual', 'source': load_local()['q3_period_source']} if q3 else {'status': 'in progress', 'spend_basis': 'estimate'})},
-        {'key': 'oct', 'label': 'Oct to date', 'months': [m for m in months if m >= '2026-10'],
-         'status': 'open', 'spend_basis': 'estimate'},
-    ]
+    periods = build_periods(months, today, cfg['q3_months'], q3, cfg)
     shop = cfg['shopify_lifetime']
     # lifetime: every linked id has an entry (a paid-invoice-less id is absent from a grouped SUM and means 0)
     ids_all = set(linked_ids(cfg, raw_leads)) | set(life)
