@@ -1073,6 +1073,16 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .um-t{min-width:0;display:flex;flex-direction:column}
 .um-n{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .um-r{font-size:12px;line-height:16px;color:var(--muted-foreground);overflow-wrap:anywhere}
+.um-h .av-btn{all:unset;box-sizing:border-box;position:relative;flex:none;width:36px;height:36px;border-radius:50%;cursor:pointer}
+.um-h .av-btn:focus-visible{outline:2px solid color-mix(in srgb,var(--ring) 45%,transparent);outline-offset:2px}
+.um-h .av-btn[aria-disabled="true"]{cursor:default}
+.av-b{position:absolute;right:-3px;bottom:-3px;width:16px;height:16px;border-radius:50%;display:grid;place-items:center;background:var(--card);color:var(--foreground);box-shadow:0 0 0 1px var(--border);opacity:0;transition:opacity .12s}
+.av-b svg{width:10px;height:10px}
+.av-btn:hover .av-b,.av-btn:focus-visible .av-b{opacity:1}
+.av-btn[aria-disabled="true"]:hover .av-b{opacity:0}
+.um-pv{display:flex;justify-content:center;padding:10px 8px 12px;margin-bottom:4px;border-bottom:1px solid var(--border)}
+.um-pv .av{width:64px;height:64px;border-radius:50%;display:grid;place-items:center;overflow:hidden;background:var(--foreground);color:var(--background);font-size:20px;font-weight:600;letter-spacing:.3px}
+.um-pv .av img{width:100%;height:100%;object-fit:cover;display:block}
 .um-row{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;width:100%;height:36px;padding:0 10px;border-radius:9px;cursor:pointer;font-size:13px;font-weight:500;color:var(--foreground)}
 .um-row:hover{background:var(--accent)}
 .um-row svg{width:16px;height:16px;flex:none;color:var(--muted-foreground)}
@@ -4724,20 +4734,25 @@ const lsSet=(k,v)=>{try{localStorage.setItem(k,v);}catch(e){}};
 const shown=el=>{try{return !!(el&&el.isConnected&&el!==document.body&&el.getClientRects().length);}catch(e){return false;}};
 const PAL={open:false,inv:null,q:"",rows:[],sel:0};
 const KS={open:false,inv:null};
-const UM={open:false,edit:false,err:"",busy:false,val:""};
+const UM={open:false,edit:false,photo:false,err:"",busy:false,val:""};
 ST.prof=null;
 Object.assign(IC,{
   search:'<circle cx="7" cy="7" r="4.5"/><path d="m10.5 10.5 3 3"/>',
   panel:'<rect x="2" y="2.5" width="12" height="11" rx="2"/><path d="M6.5 2.5v11"/>',
   user:'<circle cx="8" cy="5.5" r="2.5"/><path d="M3.5 13.5c.6-2.6 2.4-4 4.5-4s3.9 1.4 4.5 4"/>',
-  keys:'<rect x="1.5" y="4" width="13" height="8.5" rx="1.6"/><path d="M4.5 7h.1M7 7h.1M9.5 7h.1M12 7h.1M5.5 9.8h5"/>'});
+  keys:'<rect x="1.5" y="4" width="13" height="8.5" rx="1.6"/><path d="M4.5 7h.1M7 7h.1M9.5 7h.1M12 7h.1M5.5 9.8h5"/>',
+  camera:'<path d="M2 5.5a1 1 0 0 1 1-1h1.6l1-1.5h4.8l1 1.5H13a1 1 0 0 1 1 1V12a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1z"/><circle cx="8" cy="8.5" r="2.3"/>',
+  upload:'<path d="M8 10.5V2.5M4.8 5.5 8 2.3l3.2 3.2M2.5 10v2.5a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1V10"/>',
+  image:'<rect x="2" y="2.5" width="12" height="11" rx="1.8"/><circle cx="5.8" cy="6" r="1.1"/><path d="m2.5 12 3.6-3.4 2.6 2.4 2-1.8 2.8 2.8"/>',
+  trash:'<path d="M2.5 4.5h11M6 4.5V3a.8.8 0 0 1 .8-.8h2.4a.8.8 0 0 1 .8.8v1.5M4 4.5l.6 8.2a1 1 0 0 0 1 .9h4.8a1 1 0 0 0 1-.9l.6-8.2M6.6 7v4M9.4 7v4"/>',
+  back:'<path d="M13 8H3M7 4 3 8l4 4"/>'});
 window.addEventListener("keydown",b5Keys,true);
 function b5Keys(e){
   const k=e.key;
   if(k==="Escape"){
     if(PAL.open){e.preventDefault();e.stopImmediatePropagation();if(PAL.mode)palMode(null);else palClose(true);return;}
     if(KS.open){e.preventDefault();e.stopImmediatePropagation();ksClose(true);return;}
-    if(UM.open){e.preventDefault();e.stopImmediatePropagation();umClose(true);return;}
+    if(UM.open){e.preventDefault();e.stopImmediatePropagation();if(UM.photo){UM.photo=false;umRender();umFocus('.um-row[data-um="photo"]');}else umClose(true);return;}
     return;
   }
   if((e.metaKey||e.ctrlKey)&&!e.altKey&&!e.shiftKey&&(k==="k"||k==="K")){e.preventDefault();e.stopImmediatePropagation();if(PAL.open)palClose(true);else palOpen();return;}
@@ -5089,12 +5104,23 @@ function umRender(){
       <div class="notice" id="um-err" role="alert"${UM.err?"":" hidden"}>${esc(UM.err)}</div>
       <div class="um-acts"><button type="button" class="btn primary" data-um="save"${UM.busy?" disabled":""}>${UM.busy?"Saving":"Save"}</button><button type="button" class="btn" data-um="cancel">Cancel</button></div></div>`;
   const hasAv=!!(ST.prof&&typeof ST.prof.avatar_url==="string"&&ST.prof.avatar_url),dis=can&&!PHOTO.busy?"":` aria-disabled="true"`;
-  const photo=UM.edit?"":`<button type="button" class="um-row" data-um="gphoto"${dis}>${svg("user")}<span>${PHOTO.busy?"Checking your photo":"Use my Google photo"}</span></button>
-    <button type="button" class="um-row" data-um="upload"${dis}>${svg("user")}<span>Upload a photo</span></button>
-    ${hasAv?`<button type="button" class="um-row" data-um="rmphoto"${dis}>${svg("user")}<span>Remove photo</span></button>`:""}
-    ${can?"":`<div class="um-note">${ST.dbState==="ready"?"Saving a photo needs edit access to this page.":"Saving a photo needs the published page."}</div>`}
-    <input type="file" id="um-file" accept="image/*" hidden tabindex="-1">`;
-  el.innerHTML=`<div class="um-h"><span class="av" aria-hidden="true"></span><div class="um-t"><span class="um-n" id="um-name">${esc($("u-name").textContent||"You")}</span><span class="um-r" id="um-rl">${role?esc(role):"Set your role so Ask Ido knows you"}</span></div></div>
+  const pnote=can?"":`<div class="um-note">${ST.dbState==="ready"?"Saving a photo needs edit access to this page.":"Saving a photo needs the published page."}</div>`;
+  const pfile=`<input type="file" id="um-file" accept="image/*" hidden tabindex="-1">`;
+  const nm=esc($("u-name").textContent||"You");
+  if(UM.photo&&!UM.edit){
+    el.innerHTML=`<div class="um-pv"><span class="av" aria-hidden="true"></span></div>
+    <button type="button" class="um-row" data-um="upload"${dis}>${svg("upload")}<span>Upload a photo</span></button>
+    <button type="button" class="um-row" data-um="gphoto"${dis}>${svg("image")}<span>${PHOTO.busy?"Checking your photo":"Use my Google photo"}</span></button>
+    ${hasAv?`<button type="button" class="um-row" data-um="rmphoto"${dis}>${svg("trash")}<span>Remove photo</span></button>`:""}
+    ${pnote}${pfile}
+    <button type="button" class="um-row" data-um="back">${svg("back")}<span>Back</span></button>`;
+    avFill(el.querySelector(".um-pv .av"),ST.me&&ST.me.name?String(ST.me.name).trim():"");
+    const f=$("um-file");if(f)f.onchange=avUpload;
+    return;
+  }
+  const photo=UM.edit?"":`<button type="button" class="um-row" data-um="photo"${can?"":` aria-disabled="true"`}>${svg("camera")}<span>Change your picture</span></button>
+    ${pnote}${pfile}`;
+  el.innerHTML=`<div class="um-h"><button type="button" class="av-btn" data-um="photo" aria-label="Change your picture"${can?"":` aria-disabled="true"`}><span class="av" aria-hidden="true"></span><span class="av-b" aria-hidden="true">${svg("camera")}</span></button><div class="um-t"><span class="um-n" id="um-name">${nm}</span><span class="um-r" id="um-rl">${role?esc(role):"Set your role so Ask Ido knows you"}</span></div></div>
     ${UM.edit?form:`<button type="button" class="um-row" data-um="profile"${can?"":` aria-disabled="true"`}>${svg("user")}<span>Edit my profile</span></button>${can?"":`<div class="um-note">${ST.dbState==="ready"?"Saving a role needs edit access to this page.":"Saving a role needs the published page."}</div>`}`}
     ${photo}
     <button type="button" class="um-row" data-um="keys">${svg("keys")}<span>Keyboard shortcuts</span><kbd class="kh" aria-hidden="true">?</kbd></button>
@@ -5108,11 +5134,11 @@ function umPlace(){
 }
 function umOpen(){
   if(UM.open)return;if(KS.open)ksClose(false);
-  UM.open=true;UM.edit=false;UM.err="";UM.busy=false;umRender();$("umenu").hidden=false;umPlace();$("ucard").setAttribute("aria-expanded","true");
+  UM.open=true;UM.edit=false;UM.photo=false;UM.err="";UM.busy=false;umRender();$("umenu").hidden=false;umPlace();$("ucard").setAttribute("aria-expanded","true");
   try{$("umenu").querySelector(".um-row:not([aria-disabled])").focus();}catch(e){}
 }
 function umClose(restore){
-  if(!UM.open)return;UM.open=false;UM.edit=false;$("umenu").hidden=true;$("ucard").setAttribute("aria-expanded","false");
+  if(!UM.open)return;UM.open=false;UM.edit=false;UM.photo=false;$("umenu").hidden=true;$("ucard").setAttribute("aria-expanded","false");
   if(restore!==false){try{$("ucard").focus();}catch(e){}}
 }
 function umFocus(sel){setTimeout(()=>{try{const e=$("umenu").querySelector(sel);if(e)e.focus();}catch(x){}},0);}
@@ -5226,7 +5252,9 @@ function umClick(e){
   const b=e.target.closest("button");if(!b)return;
   if(b.dataset.th){themeSet(b.dataset.th);return;}
   const a=b.dataset.um;
-  if(a==="profile"){if(b.getAttribute("aria-disabled")==="true")return;UM.edit=true;UM.err="";UM.val=profRole();umRender();umFocus("#um-role");}
+  if(a==="photo"){if(b.getAttribute("aria-disabled")==="true")return;UM.edit=false;UM.err="";UM.photo=true;umRender();umFocus('.um-row:not([aria-disabled])');}
+  else if(a==="back"){UM.photo=false;umRender();umFocus('.um-row[data-um="photo"]');}
+  else if(a==="profile"){if(b.getAttribute("aria-disabled")==="true")return;UM.edit=true;UM.err="";UM.val=profRole();umRender();umFocus("#um-role");}
   else if(a==="cancel"){UM.edit=false;UM.err="";umRender();umFocus('[data-um="profile"]');}
   else if(a==="save")profSave();
   else if(a==="keys")ksOpen();
