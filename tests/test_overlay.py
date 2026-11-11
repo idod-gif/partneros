@@ -48,6 +48,28 @@ class ApplyOverlay(unittest.TestCase):
         self.assertEqual(len(rep['matched']), 1)
         self.assertEqual(sn['alltime']['stripe_asof'], '2026-11-08')
 
+    def test_v4_rails_use_collected_gross_and_carry_fees_and_net(self):
+        sn = self.snap(snap_store(stripe=10.0, shopify=5.0), snap_store(lead='L9', hs='1000009', stripe=7.0))
+        m = merchant('c1', 'L1', collected=300.0, shopify=40.0)
+        m.update({'stripe_rail_collected': 200.0, 'shopify_gross_collected': 150.0, 'shopify_fees': 12.5, 'shopify_net_received': 137.5})
+        led = ledger(m)
+        led['rail_mode'] = 'collected'
+        led['version'], led['label'] = 'v4', 'BI ledger v4, 2026-11-08'
+        rep = lo.apply_overlay(sn, led)
+        lt = sn['stores'][0]['lifetime']
+        self.assertEqual((lt['stripe'], lt['shopify'], lt['total'], lt['shopify_unsplit']), (200.0, 150.0, 350.0, 150.0))
+        self.assertEqual((lt['shopify_fees'], lt['shopify_net']), (12.5, 137.5))
+        fb = sn['stores'][1]['lifetime']
+        self.assertEqual((fb['stripe'], fb['shopify'], fb.get('shopify_fees')), (7.0, 0.0, None))
+        self.assertEqual(sn['alltime']['shopify_basis'], 'collected gross (BI ledger)')
+        self.assertEqual((sn['alltime']['shopify_fees'], sn['alltime']['shopify_net']), (12.5, 137.5))
+        self.assertTrue(any('gross' in t for t in sn['limits']))
+        n = len(sn['limits'])
+        lo.apply_overlay(sn, led)
+        self.assertEqual(len(sn['limits']), n)
+        self.assertEqual(sn['stores'][0]['lifetime']['total'], 350.0)
+        self.assertEqual(len(rep['matched']), 1)
+
     def test_no_ledger_merchant_keeps_hubspot_stripe_and_zero_shopify(self):
         sn = self.snap(snap_store(lead='L9', stripe=10.0, shopify=99.0))
         rep = lo.apply_overlay(sn, ledger(merchant('c1', 'L1', collected=200.0)))
