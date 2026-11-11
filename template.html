@@ -1085,6 +1085,7 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .adj-fr.drag{cursor:grabbing}
 .adj-fr:focus-visible{outline:2px solid color-mix(in srgb,var(--ring) 45%,transparent);outline-offset:2px}
 .adj-fr img{position:absolute;left:0;top:0;max-width:none;display:block;pointer-events:none;transform-origin:0 0}
+.adj .adj-hint{padding:0;text-align:center;align-self:stretch;margin-top:-2px}
 .adj .label{align-self:flex-start}
 .adj-z{width:100%;margin:0;accent-color:var(--primary)}
 .adj .um-acts{align-self:stretch}
@@ -5116,8 +5117,9 @@ function umRender(){
   const pfile=`<input type="file" id="um-file" accept="image/*" hidden tabindex="-1">`;
   const nm=esc($("u-name").textContent||"You");
   if(UM.photo&&!UM.edit&&ADJ.a){
-    const a=ADJ.a,bz=PHOTO.busy?" disabled":"";
-    el.innerHTML=`<div class="adj"><div class="adj-fr" id="adj-fr" tabindex="0" role="group" aria-label="Picture position"><img id="adj-im" alt="" src="${a.url}" draggable="false"></div>
+    const a=ADJ.a,bz=PHOTO.busy?" disabled":"";const mv=a.max>1||Math.abs(a.w-a.h)>=1;/* the hint shows unless the picture cannot move at all */
+    el.innerHTML=`<div class="adj"><div class="adj-fr" id="adj-fr" tabindex="0" role="group" aria-label="Picture position"${mv?` aria-describedby="adj-hint"`:""}><img id="adj-im" alt="" src="${a.url}" draggable="false"></div>
+      ${mv?`<div class="um-note adj-hint" id="adj-hint">Drag to reposition</div>`:""}
       <label class="label" for="adj-z">Zoom</label><input type="range" class="adj-z" id="adj-z" min="1" max="${a.max}" step="0.01" value="${a.z}"${a.max<=1?" disabled":""}>
       <div class="um-acts"><button type="button" class="btn primary" id="adj-save" data-um="asave"${bz}>${PHOTO.busy?"Saving":"Save"}</button><button type="button" class="btn" data-um="acancel"${bz}>Cancel</button></div></div>${pfile}`;
     const fr=$("adj-fr");fr.onpointerdown=adjDown;fr.onpointermove=adjMove;fr.onpointerup=fr.onpointercancel=adjUp;fr.onkeydown=adjKey;fr.addEventListener("wheel",adjWheel,{passive:false});
