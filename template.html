@@ -10,6 +10,7 @@ try{var t=localStorage.getItem("partneros.theme");if(t==="light"||t==="dark")doc
    Tokens and components are copied from the Affiliate Revenue Dashboard (chargeflow-ui). */
 :root{
   --background:#f6f8fa;--foreground:#000000;--card:#ffffff;--card-foreground:#000000;
+  --av-disc:color-mix(in srgb,var(--primary) 13%,var(--card));
   --primary:#3448ff;--primary-foreground:#ffffff;--secondary:#f0f3f5;--secondary-foreground:#3c4553;
   --muted:#f6f8fa;--muted-foreground:#677489;--accent:#f0f3f5;--accent-foreground:#21252e;
   --destructive:#d12626;--border:#e6ebf0;--input:#e6ebf0;--ring:#3448ff;
@@ -34,6 +35,7 @@ try{var t=localStorage.getItem("partneros.theme");if(t==="light"||t==="dark")doc
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --background:#21252e;--foreground:#f6f8fa;--card:#2a2f3a;--card-foreground:#f6f8fa;
+    --av-disc:color-mix(in srgb,var(--primary) 20%,var(--card));
     --primary:#828eff;--primary-foreground:#0c1038;--secondary:#3c4553;--secondary-foreground:#f0f3f5;
     --muted:#2a2f3a;--muted-foreground:#97a3b6;--accent:#3c4553;--accent-foreground:#f6f8fa;
     --destructive:#f23c3c;--border:rgb(255 255 255 / 10%);--input:rgb(255 255 255 / 15%);--ring:#828eff;
@@ -54,6 +56,7 @@ try{var t=localStorage.getItem("partneros.theme");if(t==="light"||t==="dark")doc
 }
 :root[data-theme="dark"]{
     --background:#21252e;--foreground:#f6f8fa;--card:#2a2f3a;--card-foreground:#f6f8fa;
+    --av-disc:color-mix(in srgb,var(--primary) 20%,var(--card));
     --primary:#828eff;--primary-foreground:#0c1038;--secondary:#3c4553;--secondary-foreground:#f0f3f5;
     --muted:#2a2f3a;--muted-foreground:#97a3b6;--accent:#3c4553;--accent-foreground:#f6f8fa;
     --destructive:#f23c3c;--border:rgb(255 255 255 / 10%);--input:rgb(255 255 255 / 15%);--ring:#828eff;
@@ -944,6 +947,7 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .ido-av .av-vis{fill:#21252e;stroke:color-mix(in srgb,var(--primary) 35%,#21252e);stroke-width:.8}
 .ido-av .av-w{fill:#ffffff}
 .ido-av .av-lid,.ido-av .av-chk{fill:#21252e}
+.ido-av .av-disc{fill:var(--av-disc)}
 .flo-fab .ido-av{margin-left:-2px}
 .flo-h .fav{flex:none;display:grid;place-items:center;margin:-4px 2px -4px -4px}
 
@@ -1103,7 +1107,7 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .ks-row{display:grid;grid-template-columns:minmax(96px,auto) minmax(0,1fr);gap:14px;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
 .ks-row:last-child{border-bottom:0}
 .ks-k{display:inline-flex;gap:4px;align-items:center;color:var(--muted-foreground);font-size:12px}
-.hero-ask .pchip .ido-av{margin-left:-4px}
+.hero-ask .pchip .ido-av{margin-left:-8px}
 .hero-ask .pchip .ido-av svg{width:100%;height:100%;color:inherit}
 .po.gs{--pic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 2.5 5 13.5M11 2.5l-1 11M2.5 6h11M2 10.5h11'/%3E%3C/svg%3E")}
 .po.gc{--pic:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M14 2 7 9M14 2l-4.5 12-2.5-5-5-2.5z'/%3E%3C/svg%3E")}
@@ -5956,6 +5960,9 @@ let lbRT=0;window.addEventListener("resize",()=>{clearTimeout(lbRT);lbRT=setTime
    No setTimeout while animating: every schedule is a timestamp on the clock. The rAF loop runs only while a mascot is visible and the tab shows;
    avKick() resumes it. Reduced motion (OS setting, .still): each state's shape is painted once, nothing animates, sleep is off. */
 const AV_MARK=(()=>{const p=document.querySelector(".brand .mark path"),d=p?p.getAttribute("d")||"":"";const a=d.split(/Z(?=M)/);return a.length===2?[a[0]+"Z",a[1]]:[d,""];})();
+/* soft disc behind the whole mark (owner ask, variant A). AV_DISC=false turns it off. The disc is fixed; the mascot inside is scaled about the mark's
+   resting centre so no state or motion extreme (breath, nod, shake, greet lift) reaches the edge: worst-case radius 33.0 units, 1.25px clear at 20px, 2px above. */
+const AV_DISC=true,AV_DC=[32.29,31.97],AV_DK=[.8486,.8728];
 const AV_EX=[24.5,39.5],AV_EY=31.5,AV_SK=1.28;
 const avE=(w,h,r,li=0,lo=0,ck=0,dx=0,dy=0)=>({w,h,r,li,lo,ck,dx,dy});
 const avT=o=>Object.assign({gx:0,gy:0,ty:0,s:1,rot:0,hand:0,ba:.014,bp:4200,ptr:0,tau:80,in:250,out:400},o);
@@ -6003,7 +6010,8 @@ let avUid=0;
 function avSVG(p,small){
   const id="ido-av-c"+(++avUid),a=avAttrs(p,small),at=o=>Object.keys(o).map(k=>`${k}="${o[k]}"`).join(" ");
   const eye=e=>`<rect class="av-w" ${at(e.rect)}/><path class="av-lid" d="${e.lid}"/><ellipse class="av-chk" ${at(e.chk)}/>`;
-  return`<svg viewBox="0 0 64 64" focusable="false"><defs><clipPath id="${id}"><rect x="10.7" y="21.7" width="42.6" height="19.6" rx="9.8"/></clipPath></defs><g class="av-bdy" transform="${a.body}"><g transform="translate(2.6 8.6) scale(.1508)"><path d="${AV_MARK[1]}" class="av-up"/><path d="${AV_MARK[0]}" class="av-sh av-hand" transform="${a.hand}"/></g><rect x="10" y="21" width="44" height="21" rx="10.5" class="av-vis"/><g class="av-eyes" clip-path="url(#${id})">${a.eyes.map(eye).join("")}</g></g></svg>`;
+  const k=AV_DK[small?0:1],disc=AV_DISC?`<circle class="av-disc" cx="32" cy="32" r="32"/><g transform="translate(32 32) scale(${k}) translate(${-AV_DC[0]} ${-AV_DC[1]})">`:"";
+  return`<svg viewBox="0 0 64 64" focusable="false"><defs><clipPath id="${id}"><rect x="10.7" y="21.7" width="42.6" height="19.6" rx="9.8"/></clipPath></defs>${disc}<g class="av-bdy" transform="${a.body}"><g transform="translate(2.6 8.6) scale(.1508)"><path d="${AV_MARK[1]}" class="av-up"/><path d="${AV_MARK[0]}" class="av-sh av-hand" transform="${a.hand}"/></g><rect x="10" y="21" width="44" height="21" rx="10.5" class="av-vis"/><g class="av-eyes" clip-path="url(#${id})">${a.eyes.map(eye).join("")}</g></g>${AV_DISC?"</g>":""}</svg>`;
 }
 function avPaint(sv,p,small){
   const r=sv._r||(sv._r=(()=>{const ey=sv.querySelectorAll(".av-eyes > *");return{b:sv.querySelector(".av-bdy"),h:sv.querySelector(".av-hand"),e:[[ey[0],ey[1],ey[2]],[ey[3],ey[4],ey[5]]]};})());
