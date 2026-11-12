@@ -1196,6 +1196,34 @@ body.ov-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
 body.ov-dragging .ovb-h{cursor:grabbing}
 @media (max-width:600px){.hero-r{align-items:flex-start;width:100%}.ov-cz{justify-content:flex-start}.ov-cnote{text-align:left}body.ov-edit .ovb:not([data-b="hero"]){padding:46px 8px 8px}}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
+/* ==== build 12: guided tour (JS block "build 12: guided tour"). One fixed root above every layer (drawer 41, Ask Ido 46/50, umenu 48,
+   toast 60, confetti 70, palette 81, help 95): a transparent blocker, the spotlight (a rounded cut-out drawn by a 200vmax shadow) and the
+   popover. Offer mode (.offer) is the first-run card only: no blocker, no dim, the page stays usable. The spotlight glides only between steps
+   (.glide, 250 ms); on scroll and resize it follows at once. Reduced motion: the global rule above. */
+:root{--tour-dim:rgb(16 20 30 / .48);--tour-ring:var(--primary)}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--tour-dim:rgb(0 0 0 / .62)}}
+:root[data-theme="dark"]{--tour-dim:rgb(0 0 0 / .62)}
+.tour{position:fixed;inset:0;z-index:100;pointer-events:auto}
+.tour.nospot{background:var(--tour-dim)}
+.tour.offer{inset:auto;pointer-events:none;background:none}
+.tour-spot{position:fixed;left:0;top:0;width:0;height:0;border-radius:10px;pointer-events:none;box-shadow:0 0 0 2px var(--tour-ring),0 0 0 200vmax var(--tour-dim)}
+.tour.glide .tour-spot{transition:left .2s ease-out,top .2s ease-out,width .2s ease-out,height .2s ease-out}
+.tour.nospot .tour-spot,.tour.offer .tour-spot{display:none}
+.tour-pop{position:fixed;left:0;top:0;box-sizing:border-box;width:min(344px,calc(100vw - 32px));background:var(--card);color:var(--card-foreground);border:1px solid var(--border);border-radius:14px;box-shadow:var(--shadow-lift),0 0 0 1px color-mix(in srgb,var(--primary) 10%,transparent);padding:14px 16px 14px;font-family:var(--font-sans);pointer-events:auto;animation:tour-in .16s ease-out}
+.tour-pop:focus{outline:none}
+.tour-pop.bottom{left:50%!important;transform:translateX(-50%);width:min(400px,calc(100vw - 32px))}
+@keyframes tour-in{from{opacity:0}to{opacity:1}}
+.tour-h{display:flex;align-items:center;gap:8px;min-height:24px;margin-bottom:6px}
+.tour-h .ido-av{flex:none}
+.tour-n{font-size:12px;line-height:16px;color:var(--muted-foreground);font-variant-numeric:tabular-nums}
+.tour-pop h2{margin:0 0 4px;font-family:var(--font-heading);font-size:19px;line-height:24px;font-weight:600;letter-spacing:0;color:var(--foreground)}
+.tour-pop p{margin:0;font-size:14px;line-height:20px;color:var(--secondary-foreground);text-wrap:pretty}
+.tour-f{display:flex;align-items:center;gap:8px;margin-top:14px}
+.tour-f .sp{flex:1}
+.tour-f .btn.ghost{padding:0 6px;margin-left:-6px;color:var(--muted-foreground)}
+.tour-f .btn.ghost:hover{background:var(--accent);color:var(--foreground)}
+.tour-pop .btn:focus-visible{outline:2px solid color-mix(in srgb,var(--ring) 55%,transparent);outline-offset:2px}
+#tour-nav{cursor:pointer}
 </style>
 
 <div class="app">
@@ -1373,6 +1401,7 @@ const FLO_VOICE = (function(){ return /*__FLO_VOICE_JSON__*/ })() || null;
 <script>
 (function(){
 "use strict";
+window.addEventListener("keydown",e=>tourKeyCap(e),true); /* build 12: the guided tour takes its keys before any page shortcut */
 const $=id=>document.getElementById(id);
 const esc=s=>String(s==null?"":s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const MON=["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -5031,6 +5060,7 @@ function palCmds(){
   out.push({k:"x:theme",l:"Toggle theme",d:"Now "+TH_L[themeGet()],run:themeCycle});
   if(deskW())out.push({k:"x:rail",l:railC()?"Expand sidebar":"Collapse sidebar",run:()=>railSet(!railC())});
   out.push({k:"x:keys",l:"Keyboard shortcuts",run:()=>ksOpen()});
+  out.push({k:"x:tour",l:"Take the tour",run:()=>tourStart()});
   out.push({k:"x:plan",l:"Open 2027 plan",run:()=>setSection("events",true)});
   out.push(...palWorkCmds());
   if(fa){
@@ -5302,6 +5332,7 @@ function umRender(){
     ${UM.edit?form:`<button type="button" class="um-row" data-um="profile"${can?"":` aria-disabled="true"`}>${svg("user")}<span>Edit my profile</span></button>${can?"":`<div class="um-note">${ST.dbState==="ready"?"Saving a role needs edit access to this page.":"Saving a role needs the published page."}</div>`}`}
     ${photo}
     <button type="button" class="um-row" data-um="keys">${svg("keys")}<span>Keyboard shortcuts</span><kbd class="kh" aria-hidden="true">?</kbd></button>
+    <button type="button" class="um-row" data-um="tour">${svg("tour")}<span>Take the tour</span></button>
     <div class="um-ap"><span class="label" id="um-apl">Appearance</span><div class="appr" role="radiogroup" aria-labelledby="um-apl">${["light","dark","system"].map(k=>`<button type="button" role="radio" data-th="${k}" aria-checked="${t===k}" tabindex="${t===k?0:-1}">${TH_L[k]}</button>`).join("")}</div></div>`;
   avFill(el.querySelector(".um-h .av"),ST.me&&ST.me.name?String(ST.me.name).trim():"");
   const f=$("um-file");if(f)f.onchange=avUpload;
@@ -5480,6 +5511,7 @@ function umClick(e){
   else if(a==="cancel"){UM.edit=false;UM.err="";umRender();umFocus('[data-um="profile"]');}
   else if(a==="save")profSave();
   else if(a==="keys")ksOpen();
+  else if(a==="tour"){umClose(false);tourStart({from:$("ucard")});}
   else if(a==="gphoto"||a==="upload"||a==="rmphoto"){
     if(b.getAttribute("aria-disabled")==="true")return;
     if(a==="gphoto")avGoogle();else if(a==="rmphoto")avRemove();else{const f=$("um-file");if(f)f.click();}
@@ -6672,6 +6704,250 @@ $("p-overview").addEventListener("click",e=>{const a=e.target.closest(".ovb-bar 
 /* the "Live updates stopped" pill (header and Dashboard hero) reloads the page */
 document.addEventListener("click",e=>{const b=e.target&&e.target.closest&&e.target.closest("[data-reload]");if(!b)return;e.preventDefault();
   let p;try{p=flushCandNotes();}catch(x){p=null;}Promise.resolve(p).catch(()=>{}).then(()=>location.reload());});
+
+/* ==== build 12: guided tour. A first-run offer (a small card, never a forced modal) and a tour anyone can restart from "Take the tour"
+   (sidebar, above the user card; the user menu; the palette command). Steps live in TOUR_STEPS: section to open, target (a function
+   returning an element or a list, spotlit as one rect), title and body (strings or functions of the context), when (role or capability
+   gate), alt (narrow screens: spotlight the menu button instead), soft (no target: the popover sits at the bottom with no spotlight;
+   else the step is skipped). Edit steps there, not the engine.
+   Seen rule: the own profile doc (data/users/<uid>/profile tour_seen_at, tour_outcome, through profPatch) when canProf() and the profile
+   was read, plus localStorage partneros.tour. A profile that already holds a role, a photo or tour_seen_at counts as seen, so returning
+   users never get the offer. Finish, Skip and Not now all count. The tour writes nothing else, never calls Ask Ido or a connector, and
+   switches sections with setSection(k,false) (no saved section, no hash change); it returns to the starting section and scroll at the end.
+   Keys (tourKeyCap, registered first in the capture phase so no page shortcut fires underneath): Escape skips, Left and Right move,
+   Tab stays in the popover. The section help texts these bodies summarise are SECTION_HELP above. */
+Object.assign(IC,{tour:'<path d="M2.5 4.3 6 2.8l4 1.6 3.5-1.5v9.3L10 13.7l-4-1.6-3.5 1.5z"/><path d="M6 2.8v9.3M10 4.4v9.3"/>'});
+const TOUR_LS="partneros.tour";
+const TOUR={open:false,offer:false,i:0,plan:[],els:null,start:null,launcher:null,el:null,raf:0,seq:0,gt:0,marked:false};
+const tourNavA=k=>document.querySelector(`#nav a[data-s="${k}"]`);
+const tourCtx=()=>({edit:!!ST.canEdit,narrow:!deskW(),ask:!!FLO.avail,prof:canProf(),mod:MODK+" K",engine:!!$("o-engine-link")});
+/* KPI step: the filter chips and the first row of cards (the whole block is taller than most screens) */
+function tourKpis(){
+  const b=document.querySelector('#p-overview [data-b="kpis"]');if(!b)return null;
+  const cards=[...$("ov-kpis").children],top=cards.length?cards[0].offsetTop:0;
+  return[b.querySelector(".chips")].concat(cards.filter(c=>c.offsetTop===top));
+}
+const TOUR_STEPS=[
+  {id:"dashboard",sec:"overview",soft:1,alt:1,target:()=>tourNavA("overview"),title:"Dashboard",
+    body:c=>"Your starting point. It puts what needs attention, top partners, recent leads and the program's numbers on one screen."+(c.narrow?" On a small screen, every section is in the menu at the top.":"")},
+  {id:"attention",sec:"overview",target:()=>$("ov-attn"),title:"Today's work",
+    body:"Needs attention lists candidates that are stale, due, or replied without a next step. Click a row to open it, or use Pick one for me at the top for a high-fit candidate."},
+  {id:"numbers",sec:"overview",target:tourKpis,title:"Numbers and filters",
+    body:"Each card is one number for the period and partners you choose above it. The ? on a card names its source; Customize, at the top, hides or reorders blocks for you."},
+  {id:"revenue",sec:"dashboard",soft:1,alt:1,target:()=>tourNavA("dashboard"),title:"Revenue",
+    body:"Revenue, paying stores, payouts, the trend and the forecast, laid out for leadership. My view keeps the cards you choose for yourself."},
+  {id:"partners",sec:"partners",soft:1,alt:1,target:()=>tourNavA("partners"),title:"Partners",
+    body:c=>"Every partner with its agreement, stores and history. "+(c.edit?"Click a row to open the partner; you can edit its details there.":"Click a row to open the partner and read its details.")},
+  {id:"outreach",sec:"outreach",soft:1,alt:1,target:()=>tourNavA("outreach"),title:"Outreach",
+    body:c=>"Suggested partners to recruit, best fit first, and the campaigns running. "+(c.edit?"Open a candidate to log contact, notes and the next step.":"Open a candidate to see why it fits and what happened so far.")+(c.engine?" Outreach engine, next to the tabs, opens on its own page.":"")},
+  {id:"events",sec:"events",soft:1,alt:1,target:()=>tourNavA("events"),title:"Events",
+    body:"The 2027 partner events plan: a map of the events, their dates and what each one is for."},
+  {id:"payouts",sec:"payouts",soft:1,alt:1,target:()=>tourNavA("payouts"),title:"Payouts",
+    body:c=>"One row per payout quarter, from accrual to paid. "+(c.edit?"Open a quarter to check its totals and record a payment.":"Open a quarter to check its totals and due dates.")},
+  {id:"leads",sec:"leads",soft:1,alt:1,target:()=>tourNavA("leads"),title:"Leads",
+    body:"Merchants referred by partners, with their status and collected revenue. Filter by status, or show the leads still missing a HubSpot deal."},
+  {id:"settings",sec:"settings",soft:1,alt:1,target:()=>[tourNavA("settings"),tourNavA("runs")],title:"Settings and Runs",
+    body:c=>(c.edit?"Settings holds":"Settings shows")+" the program rules: terms, tiers, targets and openers. Runs shows when each dataset was last refreshed; Data as of, at the top right, is the date of the revenue numbers."},
+  {id:"search",sec:"overview",soft:1,alt:1,target:()=>$("srch"),title:"Search and commands",
+    body:c=>"Find a section, partner or candidate, or run a command such as switching the theme. "+(c.narrow?"It sits in the menu at the top; with a keyboard, press "+c.mod+".":"Press "+c.mod+" from anywhere to open it.")},
+  {id:"ask",sec:"overview",when:c=>c.ask,target:()=>$("flo-fab"),title:"Ask Ido",
+    body:c=>"Ask about partners, revenue, leads or the outreach queue in plain words. "+(c.edit?"When it suggests a change, it shows a card, and nothing changes until you press Confirm.":"It can suggest a change as a card; confirming one needs edit access.")},
+  {id:"menu",sec:"overview",soft:1,alt:1,target:()=>[$("tour-nav"),$("ucard")],title:c=>c.narrow?"Take it again":"Your menu",
+    body:c=>c.narrow?"Take the tour, in the menu at the top, starts this tour again. Search finds it too.":
+      (c.prof?"Change your picture and role, switch between light and dark, and see the keyboard shortcuts.":"Switch between light and dark and see the keyboard shortcuts; your picture and role need edit access.")+" Take the tour, just above, starts this tour again."}
+];
+const tourTxt=(v,c)=>typeof v==="function"?v(c):v;
+/* visible apart from the section panel it sits in (panels open when the step arrives): no hidden or display:none ancestor */
+function tourVis(el){
+  if(!el||!el.isConnected)return false;
+  for(let n=el;n&&n!==document.body;n=n.parentElement){if(n.classList.contains("panel"))continue;if(n.hidden)return false;
+    const cs=getComputedStyle(n);if(cs.display==="none"||cs.visibility==="hidden")return false;}
+  return true;
+}
+const tourShown=el=>tourVis(el)&&shown(el)&&!el.closest(".panel[hidden]")&&el.getBoundingClientRect().width>0;
+function tourEls(s,ok){let t=null;try{t=s.target();}catch(e){t=null;}const a=(Array.isArray(t)?t:[t]).filter(e=>e&&ok(e));
+  /* alt: on narrow screens the rail items, search and the user card sit inside the menu, so the menu button stands in for them */
+  return a.length||!s.alt||deskW()?a:[$("menu-btn")].filter(e=>e&&ok(e));}
+function tourPlan(){const c=tourCtx();return TOUR_STEPS.filter(s=>(!s.when||s.when(c))&&(s.soft||tourEls(s,tourVis).length));}
+function tourRect(els){
+  let l=1e9,t=1e9,r=-1e9,b=-1e9;
+  els.forEach(e=>{const q=e.getBoundingClientRect();if(!q.width&&!q.height)return;l=Math.min(l,q.left);t=Math.min(t,q.top);r=Math.max(r,q.right);b=Math.max(b,q.bottom);});
+  return r<l?null:{left:l,top:t,right:r,bottom:b,width:r-l,height:b-t};
+}
+const tourTop=()=>{if(deskW())return 0;const r=$("side").getBoundingClientRect();return Math.max(0,r.bottom);};
+const tourFrame=()=>new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+const tourWait=ms=>new Promise(r=>setTimeout(r,ms));
+function tourMount(offer){
+  let r=$("tour");
+  if(!r){r=document.createElement("div");r.id="tour";r.className="tour";
+    r.innerHTML=`<div class="tour-spot" aria-hidden="true"></div><div class="tour-pop" id="tour-pop" role="dialog" tabindex="-1" aria-labelledby="tour-t" aria-describedby="tour-b"></div>`;
+    document.body.appendChild(r);
+    r.addEventListener("click",tourClick);
+    r.addEventListener("pointerdown",e=>{if(!e.target.closest(".tour-pop"))e.preventDefault();});}
+  r.hidden=false;r.classList.toggle("offer",!!offer);r.classList.remove("nospot");
+  $("tour-pop").setAttribute("aria-modal",offer?"false":"true");$("tour-pop").classList.remove("bottom");
+  return TOUR.el=r;
+}
+function tourClick(e){
+  const b=e.target.closest("[data-tour]");if(!b)return;const a=b.dataset.tour;
+  if(a==="next")tourGo(1);else if(a==="back")tourGo(-1);else if(a==="skip")tourEnd("skipped");
+  else if(a==="start"){tourOfferClose();tourStart({fromOffer:true});}
+  else if(a==="later"){tourOfferClose();tourMark("not_now");}
+}
+/* start: close the palette, menus, help, Ask Ido and a clean drawer; refuse while a drawer holds unsaved work */
+function tourStart(o){
+  o=o||{};if(TOUR.open)return false;
+  if(TOUR.offer)tourOfferClose();
+  const drOpen=!$("drawer").hidden;
+  const dirty=ST.busy||ST.cbusy||ST.abusy||ST.pbusy||ST.lbusy||ST.edit||!!ST.guard||(!!ST.copen&&candNotesPending());
+  if(drOpen&&dirty){toast("Save or close the open panel first, then start the tour.");return false;}
+  const launcher=o.from||document.activeElement;
+  hpHide();palClose(false);ksClose(false);umClose(false);if(FLO.open)floClose();
+  if(drOpen)closeDrawer();
+  if(OVS.edit)ovEdit(false);
+  $("side").classList.remove("open");$("menu-btn").setAttribute("aria-expanded","false");
+  const plan=tourPlan();if(!plan.length)return false;
+  TOUR.start={sec:ST.sec,x:window.scrollX,y:window.scrollY};TOUR.launcher=launcher;TOUR.plan=plan;TOUR.open=true;
+  tourMount(false);tourShow(0,1);
+  return true;
+}
+async function tourShow(i,dir){
+  const seq=++TOUR.seq,s=TOUR.plan[i];TOUR.i=i;
+  if(s.sec&&ST.sec!==s.sec){setSection(s.sec,false);window.scrollTo(0,0);}
+  await tourFrame();if(seq!==TOUR.seq||!TOUR.open)return;
+  let els=tourEls(s,tourShown);
+  for(let k=0;k<6&&!els.length&&!s.soft;k++){await tourWait(100);if(seq!==TOUR.seq||!TOUR.open)return;els=tourEls(s,tourShown);}
+  if(!els.length&&!s.soft){/* the target is not there (hidden block, empty data, narrow width): drop the step and move on */
+    TOUR.plan.splice(i,1);if(!TOUR.plan.length){tourEnd("done");return;}
+    tourShow(dir<0?Math.max(0,i-1):Math.min(i,TOUR.plan.length-1),dir);return;}
+  TOUR.els=els;tourRender(s);tourScroll(els);
+  TOUR.el.classList.add("glide");clearTimeout(TOUR.gt);TOUR.gt=setTimeout(()=>{if(TOUR.el)TOUR.el.classList.remove("glide");},250);tourPlace();
+  /* the section's entry motion (reveal, count-up) moves cards for a moment: follow the target for 1.2 s */
+  const t0=performance.now(),follow=()=>{if(seq!==TOUR.seq||!TOUR.open)return;tourPlace();if(performance.now()-t0<1200)requestAnimationFrame(follow);};
+  requestAnimationFrame(follow);
+}
+function tourRender(s){
+  const c=tourCtx(),n=TOUR.plan.length,i=TOUR.i,last=i===n-1,p=$("tour-pop");
+  p.dataset.step=s.id;
+  p.innerHTML=`<div class="tour-h">${c.ask?avHTML(24):""}<span class="tour-n">${i+1} of ${n}</span></div><h2 id="tour-t">${esc(tourTxt(s.title,c))}</h2><p id="tour-b">${esc(tourTxt(s.body,c))}</p>
+    <div class="tour-f"><button type="button" class="btn ghost sm" data-tour="skip">Skip tour</button><span class="sp"></span>${i>0?`<button type="button" class="btn" data-tour="back">Back</button>`:""}<button type="button" class="btn primary" data-tour="next">${last?"Done":"Next"}</button></div>`;
+  if(c.ask){if(last)avEv("done");avKick();}
+  try{p.querySelector('[data-tour="next"]').focus({preventScroll:true});}catch(e){}
+}
+/* scroll the page (never the fixed rail or the Ask Ido button) so the target sits in view, above a bottom-anchored popover */
+function tourScroll(els){
+  if(els.every(e=>e.closest("#side,#flo-fab")))return;
+  const R=tourRect(els);if(!R)return;
+  const vh=window.innerHeight,p=$("tour-pop"),top=tourTop()+16,bot=vh-(document.documentElement.clientWidth<=600?p.offsetHeight+32:16);
+  if(R.top>=top&&R.bottom<=bot)return;
+  const room=bot-top,dy=R.height<=room?R.top-(top+(room-R.height)/2):R.top-top;
+  window.scrollBy(0,Math.round(dy));
+}
+function tourPlace(){
+  if(!TOUR.open||!TOUR.el)return;
+  const s=TOUR.plan[TOUR.i];if(s)TOUR.els=tourEls(s,tourShown);
+  const root=TOUR.el,spot=root.firstElementChild,p=$("tour-pop"),vw=document.documentElement.clientWidth,vh=window.innerHeight,m=16,g=12,pad=6;
+  const R=TOUR.els&&TOUR.els.length?tourRect(TOUR.els):null;
+  root.classList.toggle("nospot",!R);
+  if(R){spot.style.left=Math.round(R.left-pad)+"px";spot.style.top=Math.round(R.top-pad)+"px";spot.style.width=Math.round(R.width+2*pad)+"px";spot.style.height=Math.round(R.height+2*pad)+"px";}
+  const bottom=!R||vw<=600;p.classList.toggle("bottom",bottom);
+  const w=p.offsetWidth,h=p.offsetHeight;
+  if(bottom){let y=vh-h-m;
+    if(R&&R.bottom+pad>y-8){const yt=tourTop()+m;if(R.top-pad>yt+h+8)y=yt;} /* the target sits low (the Ask Ido button): popover on top */
+    p.style.left="";p.style.top=Math.round(y)+"px";return;}
+  const fit=[["right",R.right+pad+g,R.top+R.height/2-h/2],["bottom",R.left,R.bottom+pad+g],["top",R.left,R.top-pad-g-h],["left",R.left-pad-g-w,R.top+R.height/2-h/2]]
+    .find(([k,x,y])=>k==="right"?x+w<=vw-m:k==="left"?x>=m:k==="bottom"?y+h<=vh-m:y>=m);
+  let x=fit?fit[1]:vw-m-w,y=fit?fit[2]:vh-m-h;
+  x=Math.max(m,Math.min(x,vw-m-w));y=Math.max(m,Math.min(y,vh-m-h));
+  p.style.left=Math.round(x)+"px";p.style.top=Math.round(y)+"px";p.dataset.side=fit?fit[0]:"over";
+}
+function tourSoon(){if(TOUR.raf)return;TOUR.raf=requestAnimationFrame(()=>{TOUR.raf=0;if(TOUR.open)tourPlace();else if(TOUR.offer)tourOfferPlace();});}
+window.addEventListener("scroll",()=>{if(TOUR.open)tourSoon();},{capture:true,passive:true});
+window.addEventListener("resize",()=>{if(TOUR.open||TOUR.offer)tourSoon();},{passive:true});
+function tourGo(d){
+  if(!TOUR.open)return;const n=TOUR.i+d;if(n<0)return;
+  if(n>=TOUR.plan.length){tourEnd("done");return;}
+  tourShow(n,d);
+}
+function tourEnd(outcome){
+  if(!TOUR.open)return;TOUR.open=false;TOUR.seq++;
+  TOUR.el.hidden=true;$("tour-pop").innerHTML="";TOUR.els=null;
+  const S=TOUR.start;TOUR.start=null;
+  if(S){if(ST.sec!==S.sec)setSection(S.sec,false);window.scrollTo(S.x,S.y);}
+  tourMark(outcome);
+  const L=TOUR.launcher;TOUR.launcher=null;
+  /* the launcher, else Take the tour, else the menu button (narrow screens: the launcher sat in the menu, which is closed now) */
+  try{const f=[L,$("tour-nav"),$("menu-btn")].find(shown);if(f)f.focus();}catch(e){}
+}
+/* seen: the local flag, or a profile that has the tour stamp, a role or a photo (a returning user) */
+function tourSeen(){
+  if(lsGet(TOUR_LS))return true;
+  const p=ST.prof;return!!(p&&(p.tour_seen_at||(typeof p.role==="string"&&p.role.trim())||(typeof p.avatar_url==="string"&&p.avatar_url)));
+}
+async function tourMark(outcome){
+  const now=new Date().toISOString();
+  if(!lsGet(TOUR_LS))lsSet(TOUR_LS,JSON.stringify({seen_at:now,outcome}));
+  if(TOUR.marked||(ST.prof&&ST.prof.tour_seen_at))return;TOUR.marked=true;
+  /* ST.prof is undefined until the profile was read: never write over a profile the page could not read */
+  if(canProf()&&ST.prof!==undefined){try{await profPatch({tour_seen_at:now,tour_outcome:outcome});}catch(e){avDbg(e);}}
+}
+/* first run: the offer card, bottom left of the content (bottom centre on narrow screens), the page stays usable */
+function tourOffer(){
+  if(TOUR.open||TOUR.offer)return;
+  TOUR.offer=true;tourMount(true);const c=tourCtx(),p=$("tour-pop");
+  p.dataset.step="offer";
+  p.innerHTML=`<div class="tour-h">${c.ask?avHTML(28):""}</div><h2 id="tour-t">Welcome to PartnerOS</h2><p id="tour-b">A short tour of the sections, search, ${c.ask?"Ask Ido ":""}and your menu, about two minutes. You can take it again any time from Take the tour.</p>
+    <div class="tour-f"><button type="button" class="btn primary" data-tour="start">Start the tour</button><button type="button" class="btn" data-tour="later">Not now</button></div>`;
+  if(!c.ask)p.firstElementChild.remove();
+  tourOfferPlace();
+  if(c.ask){avEv("open");avKick();}
+  const a=document.activeElement;if(!a||a===document.body)try{p.querySelector('[data-tour="start"]').focus({preventScroll:true});}catch(e){}
+}
+function tourOfferPlace(){
+  const p=$("tour-pop");if(!p||!TOUR.offer)return;const vw=document.documentElement.clientWidth,vh=window.innerHeight,m=16,narrow=!deskW();
+  p.classList.toggle("bottom",narrow);
+  const x=narrow?0:$("side").getBoundingClientRect().right+24;
+  p.style.left=narrow?"":Math.round(Math.min(x,vw-m-p.offsetWidth))+"px";p.style.top=Math.round(vh-p.offsetHeight-(narrow?m:24))+"px";
+}
+function tourOfferClose(){if(!TOUR.offer)return;TOUR.offer=false;if(TOUR.el){TOUR.el.hidden=true;$("tour-pop").innerHTML="";}}
+function tourKeyCap(e){
+  if(TOUR.offer&&!TOUR.open){
+    if(e.key==="Escape"&&$("tour-pop").contains(document.activeElement)){e.preventDefault();e.stopImmediatePropagation();tourOfferClose();tourMark("not_now");}
+    return;}
+  if(!TOUR.open)return;
+  const k=e.key,plain=!e.metaKey&&!e.ctrlKey&&!e.altKey,p=$("tour-pop");
+  if(k==="Escape"){e.preventDefault();tourEnd("skipped");}
+  else if(k==="ArrowRight"&&plain){e.preventDefault();tourGo(1);}
+  else if(k==="ArrowLeft"&&plain){e.preventDefault();tourGo(-1);}
+  else if(k==="Tab"){e.preventDefault();const f=[...p.querySelectorAll("button")];if(f.length){const i=f.indexOf(document.activeElement);f[i<0?0:(i+(e.shiftKey?f.length-1:1))%f.length].focus();}}
+  else if(!p.contains(document.activeElement)&&(k==="Enter"||k===" "))e.preventDefault();
+  e.stopImmediatePropagation();
+}
+function tourNav(){
+  const g=$("nav-bot");if(!g||$("tour-nav"))return;
+  const a=document.createElement("a");a.href="#";a.id="tour-nav";a.setAttribute("role","button");a.title="Take the tour";
+  a.innerHTML=`${svg("tour")}<span class="n">Take the tour</span>`;
+  a.onclick=e=>{e.preventDefault();tourStart({from:a});};
+  a.onkeydown=e=>{if(e.key===" "){e.preventDefault();tourStart({from:a});}};
+  g.appendChild(a);
+}
+/* boot: the nav item once the rail exists; the offer once the user and the profile are known and the page has settled */
+function tourBoot(){
+  setTimeout(tourNav,0);
+  const t0=Date.now();
+  const tick=()=>{const el=Date.now()-t0;
+    if(ST.userState==="loading"||(ST.db&&ST.uid&&ST.prof===undefined&&el<6000)){if(el<20000)setTimeout(tick,250);return;}
+    setTimeout(()=>tourMaybe(0),1200);};
+  setTimeout(tick,250);
+}
+function tourMaybe(n){
+  if(tourSeen()||TOUR.open||TOUR.offer)return;
+  const busy=document.hidden||PAL.open||KS.open||UM.open||FLO.open||OVS.edit||!$("drawer").hidden||inText(document.activeElement)||$("side").classList.contains("open");
+  if(busy){if(n<40)setTimeout(()=>tourMaybe(n+1),3000);return;}
+  tourOffer();
+}
+tourBoot();
+
 /* ---- boot: render the seed first, then connect */
 ovLoad();
 $("ov-period").onchange=e=>{ST.ov.period=e.target.value;ovSave();renderOverview();};
