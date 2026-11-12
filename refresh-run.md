@@ -77,8 +77,9 @@ All-time per store comes from BI's verified ledger, not from HubSpot lifetime or
 
 ```
 python3 /Users/idod/dev/scripts/partneros/ledger_overlay.py apply --snapshot snapshot.json \
-  --ledger /Users/idod/dev/docs/finance/partneros/ledger-overlay-2026-11-08/ledger.json \
+  --ledger /Users/idod/dev/docs/finance/partneros/ledger-overlay-2026-11-10-v4/ledger.json \
   --leads /Users/idod/dev/docs/finance/partneros/referred-merchants-chargeflow-ids-2026-11-05.csv \
+  --program-adds /Users/idod/dev/docs/finance/partneros/ledger-program-adds.json \
   --config config.json --slim-dir /Users/idod/dev/scripts/partneros \
   --out snapshot.json --slim-out slim.json --report overlay-report.json
 ```
