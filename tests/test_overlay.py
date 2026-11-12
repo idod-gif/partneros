@@ -140,6 +140,15 @@ class ApplyOverlay(unittest.TestCase):
         self.assertEqual((rep['program_added'], rep['program_skipped']), (['L1', 'L3'], ['L4']))
         self.assertEqual(fresh[0]['lifetime_products']['other'], 5.0)
 
+    def test_program_adds_recompute_store_count_of_touched_partners_only(self):
+        sn = self.snap(snap_store(lead='L9', hs='1000009', stripe=7.0, partner='pay'), snap_store(lead='L8', hs='1000008', stripe=1.0, partner='prog', scope='program'))
+        sn['partners'] = [{'name': 'pay', 'stores': 1, 'rate_override': 30}, {'name': 'prog', 'scope': 'program', 'stores': 1}, {'name': 'untouched', 'stores': 9}]
+        adds = [{'partner': 'pay', 'company': 'a', 'lead_id': 'L1'}, {'partner': 'prog', 'company': 'b', 'lead_id': 'L2'}, {'partner': 'prog', 'company': 'c', 'lead_id': 'L3'}]
+        lo.apply_overlay(sn, ledger(merchant('c1', 'L1', collected=1.0)), program_adds=adds)
+        got = {p['name']: p['stores'] for p in sn['partners']}
+        self.assertEqual(got, {'pay': 1, 'prog': 3, 'untouched': 9})     # payout partner keeps its payout-store count; program partner counts program stores
+        self.assertEqual(sn['partners'][0]['rate_override'], 30)
+
     def test_idempotent_second_run_same_figures(self):
         sn = self.snap(snap_store(stripe=10.0), snap_store(lead='L9', hs='1000009', stripe=7.0))
         led = ledger(merchant('c1', 'L1', collected=200.0, shopify=30.0))

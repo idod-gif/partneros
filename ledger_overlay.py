@@ -262,7 +262,7 @@ def add_program_stores(snap, adds):
     have_l = {(s.get('lead_id') or '').strip() for s in snap['stores']}
     have_h = {(s.get('hs_id') or '').strip() for s in snap['stores']}
     names = {p['name'] for p in snap.get('partners') or []}
-    added, skipped, made = [], [], set()
+    added, skipped = [], []
     for a in adds:
         lid, hs = str(a.get('lead_id') or '').strip(), str(a.get('hs_id') or '').strip()
         if (lid and lid in have_l) or (hs and hs in have_h):
@@ -277,9 +277,6 @@ def add_program_stores(snap, adds):
                 'q2_actual_payout_net': None, 'q2_actual_paid_rows': None, 'q2_actual_by_product': {}, 'rate_override': None,
                 'display_name': a['partner'], 'signed_on': None, 'partnerio_created': None, 'active_since': None})
             names.add(a['partner'])
-            made.add(a['partner'])
-        if a['partner'] in made:
-            [p for p in snap['partners'] if p['name'] == a['partner']][0]['stores'] += 1
         s = {'partner': a['partner'], 'company': a.get('company', ''), 'handle': a.get('handle', ''), 'cfid': a.get('cfid', ''),
              'hs_id': hs, 'lead_id': lid, 'lead_status': a.get('lead_status', ''), 'q3_reference': None, 'added_since_cut': False,
              'note': a.get('note', ''), 'scope': 'program', 'no_commission': False, 'by_month': {}}
@@ -288,6 +285,14 @@ def add_program_stores(snap, adds):
         snap['stores'].append(s)
         have_l.add(lid), have_h.add(hs)
         added.append(lid)
+    # per-partner store count, as refresh.py counts it: payout-scope stores for a payout partner, program stores for a program-only partner.
+    # Only partners that received an added store are touched; no rate, agreement, payout or scope field changes.
+    for name in {s['partner'] for s in snap['stores'] if s.get('lead_id') in added}:
+        pay = sum(1 for s in snap['stores'] if s['partner'] == name and s.get('scope') == 'payout')
+        prog = sum(1 for s in snap['stores'] if s['partner'] == name and s.get('scope') == 'program')
+        for p in snap['partners']:
+            if p['name'] == name:
+                p['stores'] = pay or prog
     return added, skipped
 
 
