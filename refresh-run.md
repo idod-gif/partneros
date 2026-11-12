@@ -73,6 +73,8 @@ Outputs: `snapshot.json` (full, local only), `trend.json` next to it, `slim.json
 
 ## 3b. Ledger overlay (all time)
 
+**Revenue source of truth (set 2026-11-12).** The BI affiliate ledger (Notion page 41228bf20f6581b2a142cd05353fbd00) is rebuilt once a quarter; its latest version is the baseline for all-time and per-rail program revenue. Between ledgers, current figures come from the 1st/15th sync (HubSpot Stripe-rail invoices) on top of that baseline. The sync never replaces the ledger; the next quarterly ledger resets the baseline. When quoting a number, name the ledger version and date and the sync date. The sync is Stripe rail only, so Shopify-billed revenue stays at its ledger-date value until the next ledger.
+
 All-time per store comes from BI's verified ledger, not from HubSpot lifetime or the Aug 2 `total_store_spent` export (Shopify rail). Run after step 3, before step 4:
 
 ```
