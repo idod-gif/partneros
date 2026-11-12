@@ -4,7 +4,7 @@ Run by a Sonnet agent inside a Claude Code session started in `/Users/idod/dev`.
 
 Large tool results may be saved by the harness under a tool-results directory; read them in place (Read, offset and limit) or with read-only python3 or jq, never edit them.
 
-MODE: WRITE. The routine writes only `snapshots/latest`, `snapshots/stores-<i>` (only when sharded), `snapshots/trend` and `runs/<TODAY>`, and the snapshots only if the step 4 sanity checks pass. It also builds a Nexus import pack in WORK (step 5.4), a local file only. PartnerOS has no `cache/partnerio` collection: write no lead cache. Set MODE to REPORT-ONLY at the top of the run for a dry run: do steps 0 to 4, write no doc, report what would be written.
+MODE: WRITE. The routine writes only `snapshots/latest`, `snapshots/stores-<i>` (only when sharded), `snapshots/trend` and `runs/<TODAY>`, and the snapshots only if the step 4 sanity checks pass. It also builds a Nexus import pack in WORK (step 5.4) and syncs it to the Nexus app's `pos_docs` table with `nexus_sync.py` (step 5.5). PartnerOS has no `cache/partnerio` collection: write no lead cache. Set MODE to REPORT-ONLY at the top of the run for a dry run: do steps 0 to 4, write no doc, report what would be written.
 
 Tools: Partner.io MCP (`get-leads`, `get-partners`, `get-partner-reps`), HubSpot MCP (`query_crm_data`, `tool_guidance`), ArtifactData, ToolSearch, Read, Write, and Bash with Python. Missing tool: stop and report. The repo is present (cwd `/Users/idod/dev`); `.env` is not needed and is never read.
 
@@ -126,7 +126,8 @@ No `prev.json`: skip the checks, `sanity` = "pass", `previous` = null, and say "
 
 Then `get` `snapshots/latest`; if `generated` is not TODAY, stop and report.
 
-4. Nexus pack: `python3 /Users/idod/dev/scripts/partneros/nexus_pack.py --work WORK --today TODAY`. Report its summary line. Exit 2 means refusal: report stderr verbatim. The file `WORK/nexus-import.json` stays in WORK (gitignored, sensitive); never copy it elsewhere. Ido loads it on the Nexus import page by hand.
+4. Nexus pack: `python3 /Users/idod/dev/scripts/partneros/nexus_pack.py --work WORK --today TODAY`. Report its summary line. Exit 2 means refusal: report stderr verbatim. The file `WORK/nexus-import.json` stays in WORK (gitignored, sensitive); never copy it elsewhere.
+5. Sync Nexus (standing approval from Ido, 2026-11-12; Nexus is PartnerOS, the artifact db is the backup copy). Dry run first: `python3 -I /Users/idod/dev/scripts/partneros/nexus_sync.py --pack WORK/nexus-import.json`. Report its counts line. If it exits 0 and the counts are what the pack holds (no skipped rows), run it again with `--apply` and report the applied counts. Any non-zero exit, a refusal, or counts that do not match the pack: stop, do not apply, report stderr verbatim; Ido can still load the pack on the Nexus import page by hand. The sync overwrites `runs/<TODAY>` on Nexus instead of merging it. Rows cannot be read back from here, so the run is verified only when Ido sees the new as-of date and all-time figure on https://chargeflow.org/apps/partneros; say so in the report, never claim the page was checked.
 
 ## 6. Report (final message)
 
@@ -138,3 +139,4 @@ Under 15 lines:
 - Sanity: the four checks, pass or fail with numbers.
 - `runs/<TODAY>` written.
 - Nexus pack: <n> docs, <bytes>, path
+- Nexus sync: dry run counts / applied counts / seen on the page by Ido (yes, no)
