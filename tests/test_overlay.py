@@ -115,6 +115,21 @@ class ApplyOverlay(unittest.TestCase):
         self.assertEqual([e['chargeflow_id'] for e in rep['ledger_unmatched']], ['c1'])
         self.assertEqual(sn['alltime']['ledger_unmatched'][0]['stripe_collected_alltime'], 200.0)
 
+    def test_program_adds_become_program_stores_matched_by_lead_id(self):
+        sn = self.snap(snap_store(lead='L9', hs='1000009', stripe=7.0))
+        adds = [{'partner': 'partner-a', 'company': 'new store', 'lead_id': 'L1', 'hs_id': '', 'cfid': 'c1'},
+                {'partner': 'no-such-partner', 'company': 'orphan', 'lead_id': 'L2'},
+                {'partner': 'partner-a', 'company': 'dup', 'lead_id': 'L9'}]
+        led = ledger(merchant('c1', 'L1', collected=200.0, shopify=30.0), merchant('c2', 'L2', collected=5.0))
+        rep = lo.apply_overlay(sn, led, program_adds=adds)
+        self.assertEqual((rep['program_added'], rep['program_skipped']), (['L1'], ['L2']))
+        new = [s for s in sn['stores'] if s['lead_id'] == 'L1'][0]
+        self.assertEqual((new['scope'], new['lifetime']['stripe'], new['lifetime']['shopify'], new['ledger_match']), ('program', 200.0, 30.0, 'lead_id'))
+        self.assertEqual([e['chargeflow_id'] for e in rep['ledger_unmatched']], ['c2'])
+        self.assertEqual(len(sn['stores']), 2)
+        lo.apply_overlay(sn, led, program_adds=adds)      # re-run adds nothing twice
+        self.assertEqual(len(sn['stores']), 2)
+
     def test_idempotent_second_run_same_figures(self):
         sn = self.snap(snap_store(stripe=10.0), snap_store(lead='L9', hs='1000009', stripe=7.0))
         led = ledger(merchant('c1', 'L1', collected=200.0, shopify=30.0))

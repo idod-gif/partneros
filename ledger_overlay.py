@@ -254,14 +254,42 @@ def _shares(store, cfg_shares):
     return None
 
 
-def apply_overlay(snap, led, leads_csv_rows=(), cfg_shares=None):
+def add_program_stores(snap, adds):
+    """Append program-scope stores for ledger merchants the Partner.io export never listed. `adds` is a list of dicts with partner, company,
+    lead_id and optional hs_id, hs_url, cfid, lead_status, handle, note (data file kept outside this repo). A store is skipped when its lead_id or
+    hs_id is already in the snapshot, or when its partner has no PartnerOS record (never guessed). Returns (added, skipped) as lists of lead ids.
+    No payout amount, rate or payout-scope membership is touched."""
+    have_l = {(s.get('lead_id') or '').strip() for s in snap['stores']}
+    have_h = {(s.get('hs_id') or '').strip() for s in snap['stores']}
+    names = {p['name'] for p in snap.get('partners') or []}
+    added, skipped = [], []
+    for a in adds:
+        lid, hs = str(a.get('lead_id') or '').strip(), str(a.get('hs_id') or '').strip()
+        if (lid and lid in have_l) or (hs and hs in have_h):
+            continue
+        if a.get('partner') not in names:
+            skipped.append(lid)
+            continue
+        s = {'partner': a['partner'], 'company': a.get('company', ''), 'handle': a.get('handle', ''), 'cfid': a.get('cfid', ''),
+             'hs_id': hs, 'lead_id': lid, 'lead_status': a.get('lead_status', ''), 'q3_reference': None, 'added_since_cut': False,
+             'note': a.get('note', ''), 'scope': 'program', 'no_commission': False, 'by_month': {}}
+        if a.get('hs_url'):
+            s['hs_url'] = a['hs_url']
+        snap['stores'].append(s)
+        have_l.add(lid), have_h.add(hs)
+        added.append(lid)
+    return added, skipped
+
+
+def apply_overlay(snap, led, leads_csv_rows=(), cfg_shares=None, program_adds=()):
     L2C, A2P, M = led['lead_to_cfid'], led['alt_to_primary'], led['merchants']
+    added, skipped = add_program_stores(snap, program_adds) if program_adds else ([], [])
     hs2lead = {}
     for r in leads_csv_rows:
         h = (r.get('hubspot_company_id') or '').strip()
         if h:
             hs2lead.setdefault(h, []).append((r.get('lead_id') or '').strip())
-    rep = {'matched': [], 'fallback': [], 'ledger_zero_hubspot_paid': [], 'ledger_unmatched': []}
+    rep = {'matched': [], 'fallback': [], 'ledger_zero_hubspot_paid': [], 'ledger_unmatched': [], 'program_added': added, 'program_skipped': skipped}
     used = set()
     for s in snap['stores']:
         cf, how = None, None
@@ -356,16 +384,19 @@ def cmd_apply(argv):
     ap.add_argument('--slim-out')
     ap.add_argument('--slim-dir', default=os.path.dirname(os.path.abspath(__file__)))
     ap.add_argument('--report')
+    ap.add_argument('--program-adds', help='JSON list of program-scope stores to add before matching (see add_program_stores)')
     a = ap.parse_args(argv)
     led = json.load(open(a.ledger)) if a.ledger.endswith('.json') else load_ledger(a.ledger)
     snap = json.load(open(a.snapshot))
     rows = list(csv.DictReader(open(a.leads, encoding='utf-8-sig'))) if a.leads else []
     shares = (json.load(open(a.config)).get('lifetime_products') or {}) if a.config else {}
-    rep = apply_overlay(snap, led, rows, shares)
+    adds = json.load(open(a.program_adds)) if a.program_adds else []
+    rep = apply_overlay(snap, led, rows, shares, adds)
     json.dump(snap, open(a.out, 'w'), indent=1, ensure_ascii=False)
     tot = round(sum((s.get('lifetime') or {}).get('total') or 0 for s in snap['stores']), 2)
     print(f'overlay {led["label"]}: {len(rep["matched"])} stores on the ledger, {len(rep["fallback"])} HubSpot fallback, '
-          f'{len(rep["ledger_unmatched"])} billed ledger merchants with no store; all time {tot:,.2f}')
+          f'{len(rep["ledger_unmatched"])} billed ledger merchants with no store; {len(rep["program_added"])} program stores added, '
+          f'{len(rep["program_skipped"])} skipped; all time {tot:,.2f}')
     if a.slim_out:
         sys.path.insert(0, a.slim_dir)
         import slim  # noqa: E402
@@ -377,7 +408,7 @@ def cmd_apply(argv):
         print(f'slim {slim.size(latest):,} bytes, {len(shards)} shard(s)')
     if a.report:
         pick = lambda s: {k: s.get(k) for k in ('lead_id', 'hs_id', 'company', 'partner', 'scope', 'ledger_match', 'lifetime_prev', 'lifetime')}  # noqa: E731
-        json.dump({k: [pick(s) for s in v] if k != 'ledger_unmatched' else v for k, v in rep.items()}, open(a.report, 'w'), indent=1, default=str)
+        json.dump({k: [pick(s) for s in v] if k in ('matched', 'fallback', 'ledger_zero_hubspot_paid') else v for k, v in rep.items()}, open(a.report, 'w'), indent=1, default=str)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1 and sys.argv[1] == 'apply':
