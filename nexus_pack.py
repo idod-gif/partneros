@@ -19,6 +19,14 @@ def fail(msg):
     sys.exit(2)
 
 
+def check_docs(docs):
+    """The size check shared with nexus_sync.py: docs is [(path, data)]; fail() on a doc over MAX_DOC."""
+    for path, data in docs:
+        size = len(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
+        if size > MAX_DOC:
+            fail("%s is %d bytes, over %d" % (path, size, MAX_DOC))
+
+
 def load(path):
     with open(path, encoding="utf-8") as f:
         return json.load(f)
@@ -65,10 +73,7 @@ def main():
             if all(p != dest for p, _ in docs):
                 docs.append((dest, load(os.path.join(a.work, name))))
 
-    for path, data in docs:
-        size = len(json.dumps(data, ensure_ascii=False, separators=(",", ":")).encode("utf-8"))
-        if size > MAX_DOC:
-            fail("%s is %d bytes, over %d" % (path, size, MAX_DOC))
+    check_docs(docs)
     payload = {"docs": [{"path": p, "data": d} for p, d in docs]}
     with open(out, "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False)
