@@ -6730,8 +6730,6 @@ function tourKpis(){
 const TOUR_STEPS=[
   {id:"dashboard",sec:"overview",soft:1,alt:1,target:()=>tourNavA("overview"),title:"Dashboard",
     body:c=>"Your starting point. It puts what needs attention, top partners, recent leads and the program's numbers on one screen."+(c.narrow?" On a small screen, every section is in the menu at the top.":"")},
-  {id:"attention",sec:"overview",target:()=>$("ov-attn"),title:"Today's work",
-    body:"Needs attention lists candidates that are stale, due, or replied without a next step. Click a row to open it, or use Pick one for me at the top for a high-fit candidate."},
   {id:"numbers",sec:"overview",target:tourKpis,title:"Numbers and filters",
     body:"Each card is one number for the period and partners you choose above it. The ? on a card names its source; Customize, at the top, hides or reorders blocks for you."},
   {id:"revenue",sec:"dashboard",soft:1,alt:1,target:()=>tourNavA("dashboard"),title:"Revenue",

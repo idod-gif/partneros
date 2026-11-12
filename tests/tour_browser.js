@@ -15,7 +15,7 @@ const O = Object.assign({ role: "owner", ask: true, prof: "none", width: 1440, h
 const checks = [];
 const check = (name, ok, detail) => checks.push({ name, ok: !!ok, detail: ok ? "" : String(detail == null ? "" : detail).slice(0, 400) });
 /* where each step points and which section it opens */
-const SEC = { dashboard: "overview", attention: "overview", numbers: "overview", revenue: "dashboard", partners: "partners", outreach: "outreach", events: "events", payouts: "payouts", leads: "leads", settings: "settings", search: "overview", ask: "overview", menu: "overview" };
+const SEC = { dashboard: "overview", numbers: "overview", revenue: "dashboard", partners: "partners", outreach: "outreach", events: "events", payouts: "payouts", leads: "leads", settings: "settings", search: "overview", ask: "overview", menu: "overview" };
 
 (async () => {
   const browser = await chromium.launch({ executablePath: CHROME, headless: true });
@@ -58,7 +58,7 @@ const SEC = { dashboard: "overview", attention: "overview", numbers: "overview",
     const n = p.querySelector(".tour-n"), t = p.querySelector("h2"), b = p.querySelector("p");
     const nav = k => document.querySelector(`#nav a[data-s="${k}"]`);
     const kp = () => { const bl = document.querySelector('#p-overview [data-b="kpis"]'); const cs = [...document.getElementById("ov-kpis").children]; const top = cs.length ? cs[0].offsetTop : 0; return [bl.querySelector(".chips")].concat(cs.filter(c => c.offsetTop === top)); };
-    const T = { dashboard: () => [nav("overview")], attention: () => [document.getElementById("ov-attn")], numbers: kp, revenue: () => [nav("dashboard")], partners: () => [nav("partners")], outreach: () => [nav("outreach")],
+    const T = { dashboard: () => [nav("overview")], numbers: kp, revenue: () => [nav("dashboard")], partners: () => [nav("partners")], outreach: () => [nav("outreach")],
       events: () => [nav("events")], payouts: () => [nav("payouts")], leads: () => [nav("leads")], settings: () => [nav("settings"), nav("runs")], search: () => [document.getElementById("srch")], ask: () => [document.getElementById("flo-fab")],
       menu: () => [document.getElementById("tour-nav"), document.getElementById("ucard")] };
     const vis = e => e && e.getClientRects().length && e.getBoundingClientRect().width > 0 && getComputedStyle(e).visibility !== "hidden";
@@ -214,21 +214,22 @@ const SEC = { dashboard: "overview", attention: "overview", numbers: "overview",
 
   if (scenario === "missing") {
     await page.click('#tour-pop [data-tour="later"]');
-    /* the Needs attention block hidden by Customize before the start: the step leaves the plan */
-    await E(() => { document.querySelector('#p-overview [data-b="attention"]').hidden = true; });
+    /* the KPI block hidden by Customize before the start: the step leaves the plan */
+    const kb = '#p-overview [data-b="kpis"]';
+    await E(s => { document.querySelector(s).hidden = true; }, kb);
     await E(() => document.getElementById("tour-nav").click()); await settle();
     const ids = []; let s = await state(), g = 0;
     while (g++ < 30) { ids.push(s.id); if (s.next === "Done") break; await page.keyboard.press("ArrowRight"); await settle(); s = await state(); }
-    check("hidden block: its step is skipped, never a spotlight on nothing", !ids.includes("attention") && ids.length > 5, ids.join(","));
+    check("hidden block: its step is skipped, never a spotlight on nothing", !ids.includes("numbers") && ids.length > 5, ids.join(","));
     await page.keyboard.press("Escape"); await settle();
     /* the block disappears after the start: the step drops out on arrival and the counter shrinks */
-    await E(() => { document.querySelector('#p-overview [data-b="attention"]').hidden = false; });
+    await E(s => { document.querySelector(s).hidden = false; }, kb);
     await E(() => document.getElementById("tour-nav").click()); await settle();
     const n0 = (await state()).counter;
-    await E(() => { document.querySelector('#p-overview [data-b="attention"]').hidden = true; });
+    await E(s => { document.querySelector(s).hidden = true; }, kb);
     await page.keyboard.press("ArrowRight"); await page.waitForTimeout(1200);
     const s2 = await state();
-    check("target gone on arrival: step dropped, next step shown", s2.id === "numbers" && +s2.counter.split(" of ")[1] === +n0.split(" of ")[1] - 1, JSON.stringify([n0, s2.id, s2.counter]));
+    check("target gone on arrival: step dropped, next step shown", s2.id === "revenue" && +s2.counter.split(" of ")[1] === +n0.split(" of ")[1] - 1, JSON.stringify([n0, s2.id, s2.counter]));
     await page.keyboard.press("Escape"); await settle();
     out.ids = ids;
   }

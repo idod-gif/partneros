@@ -75,12 +75,13 @@ class Tour(unittest.TestCase):
 
     def test_owner_walk_forward_back_done(self):
         self.ok('walk-owner', 100)
-        self.assertEqual(self.ids('walk-owner'), ['dashboard', 'attention', 'numbers', 'revenue', 'partners', 'outreach', 'events', 'payouts', 'leads',
+        self.assertEqual(self.ids('walk-owner'), ['dashboard', 'numbers', 'revenue', 'partners', 'outreach', 'events', 'payouts', 'leads',
                                                   'settings', 'search', 'ask', 'menu'])
 
     def test_viewer_gets_viewer_copy(self):
         self.ok('walk-viewer', 100)
         self.assertEqual(self.ids('walk-viewer'), self.ids('walk-owner'))
+        self.assertEqual(len(self.ids('walk-owner')), 12)
         self.assertIn('read its details', self.body('walk-viewer', 'partners'))
         self.assertIn('you can edit', self.body('walk-owner', 'partners'))
         self.assertIn('needs edit access', self.body('walk-viewer', 'ask'))
@@ -92,7 +93,7 @@ class Tour(unittest.TestCase):
     def test_no_ask_ido_step_without_the_assistant(self):
         self.ok('walk-noask', 90)
         self.assertNotIn('ask', self.ids('walk-noask'))
-        self.assertEqual(len(self.ids('walk-noask')), 12)
+        self.assertEqual(len(self.ids('walk-noask')), 11)
 
     def test_local_preview_without_a_database(self):
         self.ok('walk-nodb', 90)
@@ -136,7 +137,7 @@ class Tour(unittest.TestCase):
         self.assertNotRegex(block, '[—–]')
         titles = re.findall(r'title:(?:c=>c\.narrow\?)?"([^"]+)"(?::"([^"]+)")?', block)
         flat = [t for pair in titles for t in pair if t]
-        self.assertGreaterEqual(len(flat), 13)
+        self.assertGreaterEqual(len(flat), 12)
         for t in flat:
             self.assertTrue(1 <= len(t.split()) <= 4 and t[0].isupper(), t)
         # the tour never calls the assistant or a connector, and writes only through tourMark
