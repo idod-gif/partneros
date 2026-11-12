@@ -4138,10 +4138,12 @@ const FLO_BUILTIN=[["b-week","What should I do this week","What should I do this
   ["b-sum","Summarise this candidate","Summarise this candidate: fit, status, outreach so far and the next step."],
   ["b-camp","Which campaign is working","Which campaign is working? Compare reply rates across the campaigns and say what the numbers support."],
   ["b-event","Prep for the next event","Prep me for the next event on the 2027 plan: which candidates list it as their likely event, and what I should do before it."],
-  ["b-noreply","Who replied and has no next step","Who replied and has no next step? List them with what to do next."]];
+  ["b-noreply","Who replied and has no next step","Who replied and has no next step? List them with what to do next."],
+  ["b-rev","Partner revenue this year","Which partners brought in the most paid revenue year to date? Give each figure with its period and as-of date."]];
 const FLO_TOOL_L={get_overview:"Reading the overview",needs_attention:"Reading Needs attention",search_candidates:"Searching candidates",get_candidate:"Reading the candidate",
   list_campaigns:"Reading campaigns",latest_run:"Reading the Monday run",find_partner:"Searching the registry",hubspot_lookup:"Checking HubSpot",draft_opener:"Filling the opener",
-  open_candidate:"Opening the candidate",propose_status:"Queuing a status change",propose_note:"Queuing a note",remember:"Queuing a memory"};
+  open_candidate:"Opening the candidate",propose_status:"Queuing a status change",propose_note:"Queuing a note",remember:"Queuing a memory",
+  revenue_overview:"Reading revenue",revenue_by_partner:"Ranking partners by revenue",get_partner_revenue:"Reading partner revenue",leads_summary:"Counting leads",search_leads:"Searching leads"};
 const FLO_OFF=["not_granted","sampling_disabled","not_declared","capability_disabled","capability_removed"];
 const floCanSave=()=>!!(ST.db&&ST.uid&&ST.canMine);
 const floBase=()=>"data/users/"+ST.uid+"/flo";
@@ -4183,7 +4185,7 @@ function floMount(){
     <div class="flo-c" id="flo-c"><div class="flo-ctx" id="flo-ctx" hidden></div><div class="flo-rl" id="flo-rl" role="status" hidden></div>
       <div class="flo-row"><label for="flo-in" class="sr-only">Ask Ido</label><textarea class="txtin" id="flo-in" rows="1" maxlength="4000" placeholder="Ask about the program, or ask for a draft"></textarea>
       <button type="button" class="btn primary" id="flo-send">Send</button><button type="button" class="btn" id="flo-stop" hidden>Stop</button></div>
-      <div class="flo-cost">Each question to Ask Ido is one Claude call on your account.</div></div>`;
+      <div class="flo-cost">Each question to Ask Ido is one model call, charged by the host this page runs on.</div></div>`;
   $("flo-x").onclick=()=>floClose();
   $("flo-new").onclick=()=>floNewChat();
   el.querySelectorAll(".flo-ib[data-v]").forEach(b=>b.onclick=()=>{FLO.view=FLO.view===b.dataset.v?"chat":b.dataset.v;FLO.editSkill=null;FLO.newSkill=false;floRender();});
@@ -4393,9 +4395,11 @@ function floSystem(){
 - Plays: connect means tech partners and agencies offer chargeback automation to the merchants they serve; rev_share means the partner earns 25% of what Chargeflow earns from stores it refers.
 - Targets: recruited and activated partners for the current period, each with a minimum and a stretch, and pace.
 - Needs attention groups: stale, replied with no next step, due, untouched high fit, double exposure.
-- The partner registry (find_partner: name, type, tier, agreement status, store count), the latest Monday run (latest_run), and HubSpot company records by domain (hubspot_lookup, live only).`,
+- The partner registry (find_partner: name, type, tier, agreement status, store count), the latest Monday run (latest_run), and HubSpot company records by domain (hubspot_lookup, live only).
+- Revenue (revenue_overview, revenue_by_partner, get_partner_revenue): paid revenue from partner-referred stores by period (all time, year to date, last 12 months, quarters), from the revenue snapshot, each result with its as-of date and source. Leads (leads_summary, search_leads): Partner.io referred leads by status, CF status and partner, by referred date. Payouts, commissions and amounts owed are not available to you.`,
     `Hard rules:
 - Answer only from tool results and this conversation. When the tools do not have it, say "I do not have that."
+- With every revenue or lead figure, state the period and the as-of date the tool returned. Never estimate, extrapolate or fill in a figure the tools did not return. When a tool says a partner has no revenue rows, say that; when it says the data is not available, say that instead; they are different answers. For payouts, commissions or amounts owed, say "I do not have that."
 - Never invent numbers. After each number, name its source in a short phrase in brackets, for example (candidates) or (campaign tiles, as of Nov 9).
 - Short answers in plain sentences. No exclamation marks, no long dashes, no marketing copy, no markdown headings or tables. A short list with "- " is fine.
 - Drafts follow the voice rules above.
@@ -4504,6 +4508,82 @@ function floCand(i){
   if(!c)throw new Error(ST.candState==="ready"?"No candidate with that id or domain in the loaded queue.":"Candidates are not loaded in this view.");
   return c;
 }
+/* ---- revenue and leads tools: read-only, over state the page already holds. Revenue reuses the Revenue section's own compute() (saving and restoring its period and partner, as ovTopRows does), so a tool total equals the section for the same filter. Payout fields (spend, net, rate, parts, commission flags) are never returned. Lead rows carry no contact data. */
+const FLO_CAP=9000;
+function floFit(o,key,total){
+  let s=JSON.stringify(o);
+  while(s.length>FLO_CAP&&Array.isArray(o[key])&&o[key].length>1){o[key]=o[key].slice(0,Math.max(1,Math.floor(o[key].length*.7)));o.trimmed_for_size=true;s=JSON.stringify(o);}
+  if(total!=null&&Array.isArray(o[key])){o.shown=o[key].length;o.not_shown=Math.max(0,total-o[key].length);}
+  return o;
+}
+const floR2=v=>Math.round((+v||0)*100)/100;
+const floNo=s=>{s=String(s==null?"":s);return PII_RX.test(s)?"":s;};
+function floRevGate(){
+  const L=lbGet();
+  if(!L)return{out:{available:false,note:"Revenue is not available for your access in this view: the revenue snapshot is not loaded."}};
+  return{L};
+}
+function floRevMeta(L){
+  const D=ST.dash||{},S=L.S;
+  return{as_of:D.generated?String(D.generated).slice(0,10):null,data_through:(D.window&&(D.window.to||D.window.end))||null,source:"revenue snapshot, snapshots/latest ("+srcDash()+")",
+    basis:"Paid revenue from partner-referred stores, Stripe invoices by invoiced month, gross; the current month is partial. All time also adds Shopify Billing lifetime totals when the Shopify switch is on.",
+    page_filters:{include_stores_added_since_cut:!!S.includeAdded,shopify_in_all_time:S.shopify!==false}};
+}
+function floPeriodOf(L,key){
+  const q=String(key==null?"":key).trim().toLowerCase().replace(/[_-]+/g," ");
+  if(!q)return L.periods.find(p=>p.key==="alltime")||L.periods[0];
+  const al={"all":"alltime","all time":"alltime","lifetime":"alltime","year to date":"ytd","last 12 months":"l12","last twelve months":"l12","l12m":"l12"}[q];
+  const p=L.periods.find(x=>String(x.key).toLowerCase()===(al||q))||L.periods.find(x=>String(x.label||"").toLowerCase()===q||String(perYr(x)).toLowerCase()===q);
+  if(!p)throw new Error("Unknown period. Available: "+L.periods.map(x=>x.key+" ("+x.label+")").join(", ")+".");
+  return p;
+}
+function floCompute(L,period,partner){
+  const S=L.S,keep={period:S.period,partner:S.partner};let c=null;
+  try{S.period=period;S.partner=partner||"";c=L.compute();}finally{S.period=keep.period;S.partner=keep.partner;}
+  return c;
+}
+const floPerInfo=(L,p)=>{const ms=(p.months||[]).filter(Boolean);return{period:p.key,label:p.label||p.key,months:p.key==="alltime"?null:ms.length?(ms[0]===ms[ms.length-1]?ms[0]:ms[0]+" to "+ms[ms.length-1]):null,
+  includes_partial_month:!!(L.partialMonth&&ms.includes(L.partialMonth))};};
+function floResolvePartner(L,name){
+  const q=String(name||"").trim().toLowerCase();if(!q)throw new Error("Give a partner name.");
+  const reg=rowsAll().filter(r=>r.name.toLowerCase().includes(q)||r.aliases.some(a=>a.toLowerCase().includes(q))).slice(0,5);
+  const keys=new Set();reg.forEach(r=>[r.name].concat(r.aliases).forEach(n=>keys.add(n.toLowerCase())));
+  const snap=L.allPartners.filter(p=>String(p.name).toLowerCase().includes(q)||String(p.display_name||"").toLowerCase().includes(q)||keys.has(String(p.name).toLowerCase()));
+  return{q,reg,snap};
+}
+/* the lead filters' dates: leads are dated by referred_at; the Leads section itself has no period, so these are calendar ranges */
+function floLeadRange(i){
+  const p=String(i.period||"").trim().toLowerCase().replace(/[\s-]+/g,"_"),from=String(i.from||"").slice(0,10),to=String(i.to||"").slice(0,10);
+  const t=todayLocal(),y=+t.slice(0,4),m=+t.slice(5,7)-1,pad=n=>String(n).padStart(2,"0"),d=(yy,mm,dd)=>yy+"-"+pad(mm+1)+"-"+pad(dd),last=(yy,mm)=>new Date(yy,mm+1,0).getDate();
+  const qs=Math.floor(m/3)*3;
+  const R={this_month:[d(y,m,1),t,"this month ("+d(y,m,1)+" to "+t+")"],last_month:null,this_quarter:[d(y,qs,1),t,"Q"+(qs/3+1)+" "+y+" to date ("+d(y,qs,1)+" to "+t+")"],last_quarter:null,
+    ytd:[d(y,0,1),t,"year to date ("+d(y,0,1)+" to "+t+")"],last_12_months:null,all:[null,null,"all loaded leads"],"":[null,null,"all loaded leads"]};
+  {const pm=m===0?11:m-1,py=m===0?y-1:y;R.last_month=[d(py,pm,1),d(py,pm,last(py,pm)),"last month ("+d(py,pm,1)+" to "+d(py,pm,last(py,pm))+")"];}
+  {const pq=qs===0?9:qs-3,py=qs===0?y-1:y;R.last_quarter=[d(py,pq,1),d(py,pq+2,last(py,pq+2)),"Q"+(pq/3+1)+" "+py+" ("+d(py,pq,1)+" to "+d(py,pq+2,last(py,pq+2))+")"];}
+  R.last_12_months=[d(y-1,m,1),t,"the last 12 months ("+d(y-1,m,1)+" to "+t+")"];
+  let r=R[p];
+  if(r===undefined)throw new Error("Unknown period. Use all, this_month, last_month, this_quarter, last_quarter, ytd or last_12_months, or give from and to as YYYY-MM-DD.");
+  let f=r[0],e=r[1],lab=r[2];
+  if(from||to){f=from||f;e=to||e;lab=(from&&to?`referred ${from} to ${to}`:from?`referred from ${from}`:`referred up to ${to}`);}
+  return{from:f,to:e,label:lab,dated:!!(f||e)};
+}
+function floLeadGate(){
+  if(ST.leadState!=="ready")return{out:{available:false,note:"Leads are not available for your access in this view. "+stMsg(ST.leadState,"leads")}};
+  return{};
+}
+function floLeadMeta(R){
+  const up=latestOf(ST.leads,["updated_at"]);
+  return{period:R.label,date_field:"referred date",source:"leads collection, live database",as_of:up?String(up).slice(0,10):null,loaded_leads:ST.leads.length,
+    note:ST.leadCapped?"Only the first 1,000 leads are loaded; the collection has more.":null};
+}
+function floLeadPick(R,partnerQ){
+  let rows=leadRows(),und=0;
+  if(R.dated)rows=rows.filter(r=>{if(!r.referred){und++;return false;}return(!R.from||r.referred>=R.from)&&(!R.to||r.referred<=R.to);});
+  if(partnerQ){const q=String(partnerQ).trim().toLowerCase(),names=new Set([q]);
+    rowsAll().filter(r=>r.name.toLowerCase().includes(q)||r.aliases.some(a=>a.toLowerCase().includes(q))).forEach(r=>[r.name].concat(r.aliases).forEach(n=>names.add(n.toLowerCase())));
+    rows=rows.filter(r=>{const p=r.partner.toLowerCase();return p&&(p.includes(q)||names.has(p));});}
+  return{rows,undated:und};
+}
 const floT={
   get_overview(){
     if(ST.candState!=="ready")return{loaded:ST.candState,note:"Candidates are not loaded in this view."};
@@ -4556,6 +4636,67 @@ const floT={
     const m=rowsAll().filter(r=>r.name.toLowerCase().includes(q)||r.aliases.some(a=>a.toLowerCase().includes(q))).slice(0,5);
     return{source:"partner registry ("+srcReg()+")",matches:m.map(r=>({id:r.id,name:r.name,type:r.type||null,tier:r.tier||null,agreement_status:r.status,stores:r.stores}))};
   },
+  revenue_overview(i){
+    const g=floRevGate();if(g.out)return g.out;const L=g.L;
+    const pick=i&&i.period?floPeriodOf(L,i.period):null,list=pick?[pick]:L.periods;
+    const items=list.map(p=>{const c=floCompute(L,p.key,""),o=Object.assign(floPerInfo(L,p),{earned_usd:floR2(c.tot.earned),partners_with_revenue:c.rows.filter(r=>(r.earned||0)>0).length,stores:c.storeCount});
+      if(c.AT){o.stripe_usd=floR2(c.tot.stripe);o.shopify_billing_usd=floR2(c.tot.shopify);}return o;});
+    return Object.assign(floRevMeta(L),{periods:items});
+  },
+  revenue_by_partner(i){
+    const g=floRevGate();if(g.out)return g.out;const L=g.L;
+    const p=floPeriodOf(L,i.period),c=floCompute(L,p.key,""),lim=Math.max(1,Math.min(20,Math.round(+i.limit)||10)),q=String(i.name||"").trim().toLowerCase();
+    let regAl=null;if(q){regAl=new Set();rowsAll().filter(r=>r.name.toLowerCase().includes(q)||r.aliases.some(a=>a.toLowerCase().includes(q))).forEach(r=>[r.name].concat(r.aliases).forEach(n=>regAl.add(n.toLowerCase())));}
+    const tot=c.tot.earned;
+    const rows=c.rows.filter(r=>!q||String(r.name).toLowerCase().includes(q)||String(r.dn).toLowerCase().includes(q)||regAl.has(String(r.name).toLowerCase()))
+      .sort((a,b)=>(b.earned||0)-(a.earned||0)||String(a.dn).localeCompare(String(b.dn)));
+    const out=Object.assign(floRevMeta(L),floPerInfo(L,p),{name_filter:q?String(i.name).trim():null,total_earned_all_partners_usd:floR2(tot),partners_matching:rows.length,
+      matching_earned_usd:floR2(rows.reduce((a,r)=>a+(r.earned||0),0)),
+      rows:rows.slice(0,lim).map(r=>({partner:String(r.dn||r.name),earned_usd:floR2(r.earned),stores:r.storeCount,share_of_total_pct:tot>0?Math.round(r.earned/tot*1000)/10:0}))});
+    return floFit(out,"rows",rows.length);
+  },
+  get_partner_revenue(i){
+    const g=floRevGate();if(g.out)return g.out;const L=g.L,r=floResolvePartner(L,i.name),meta=floRevMeta(L);
+    let snap=r.snap;
+    if(snap.length>1){const ex=snap.filter(p=>String(p.name).toLowerCase()===r.q||String(p.display_name||"").toLowerCase()===r.q);if(ex.length===1)snap=ex;}
+    if(snap.length>1)return Object.assign(meta,{ambiguous:true,matches:snap.slice(0,5).map(p=>String(p.display_name||p.name)),note:"Several partners match. Ask which one."});
+    if(!snap.length){
+      if(r.reg.length)return Object.assign(meta,{found_in_registry:true,partner:r.reg[0].name,revenue_rows:0,matches_in_registry:r.reg.map(x=>x.name),
+        note:"The partner is in the registry but has no rows in the revenue snapshot, so no paid revenue is on record for it."});
+      return Object.assign(meta,{found:false,note:"No partner matches that name in the registry or the revenue snapshot."});
+    }
+    const P=snap[0],nm=P.name,regRow=r.reg.find(x=>[x.name].concat(x.aliases).some(n=>n.toLowerCase()===String(nm).toLowerCase()))||null;
+    const per=L.periods.map(p=>{const c=floCompute(L,p.key,nm),o=Object.assign(floPerInfo(L,p),{earned_usd:floR2(c.tot.earned)});if(c.AT){o.stripe_usd=floR2(c.tot.stripe);o.shopify_billing_usd=floR2(c.tot.shopify);}return o;});
+    const at=floCompute(L,(L.periods.find(p=>p.key==="alltime")||L.periods[0]).key,nm),row=at.rows[0]||null;
+    const sp=L.periods.find(p=>p.key!=="alltime"&&!p.l12),series=sp?(()=>{const c=floCompute(L,sp.key,nm);return L.months.map(m=>({month:m,earned_usd:floR2((c.byMonth[m]||{}).earned)}));})():null;
+    const out=Object.assign(meta,{partner:String(P.display_name||nm),stores_in_snapshot:row?row.storeCount:0,stores_in_registry:regRow?regRow.stores:null,paying_since:row&&row.activeSince?String(row.activeSince).slice(0,10):null,
+      periods:per,monthly_series:series,series_basis:"invoiced month, Stripe rail, payout-list stores; the last month may be partial"+(L.partialMonth?" ("+L.partialMonth+")":"")});
+    if(!(row&&row.storeCount)&&per.every(x=>!x.earned_usd))out.note="The partner is in the revenue snapshot with no paid revenue in any period.";
+    return floFit(out,"monthly_series",null);
+  },
+  leads_summary(i){
+    const g=floLeadGate();if(g.out)return g.out;const R=floLeadRange(i||{}),pk=floLeadPick(R,i&&i.partner),rows=pk.rows;
+    const st={},cf={},by=new Map();
+    rows.forEach(r=>{const s=r.status||"unknown";st[s]=(st[s]||0)+1;const c=r.cf||"not_set";cf[c]=(cf[c]||0)+1;
+      const k=floNo(r.partner)||"No partner",e=by.get(k)||{partner:k,leads:0,approved:0,pending:0,lost:0};e.leads++;if(r.status==="approved")e.approved++;else if(r.status==="pending")e.pending++;else if(r.status==="lost")e.lost++;by.set(k,e);});
+    const S=leadStats(rows.map(r=>r.l)),ps=[...by.values()].sort((a,b)=>b.leads-a.leads||a.partner.localeCompare(b.partner));
+    const out=Object.assign(floLeadMeta(R),{partner_filter:i&&i.partner?String(i.partner).trim():null,leads:rows.length,undated_leads_excluded:R.dated?pk.undated:0,by_status:st,by_cf_status:cf,
+      open:S.open,paying:S.paying,missing_deal:S.miss,collected_usd:floR2(S.coll),partners:ps.length,by_partner:ps.slice(0,20)});
+    return floFit(out,"by_partner",ps.length);
+  },
+  search_leads(i){
+    const g=floLeadGate();if(g.out)return g.out;const R=floLeadRange(i||{}),pk=floLeadPick(R,i.partner),lim=Math.max(1,Math.min(20,Math.round(+i.limit)||10));
+    const st=String(i.status||"").trim().toLowerCase(),cf=String(i.cf_status||"").trim().toLowerCase(),q=String(i.query||"").trim().toLowerCase();
+    const rows=pk.rows.filter(r=>(!st||st==="all"||r.status===st)&&(!cf||(cf==="none"?!r.cf:r.cf.toLowerCase()===cf))&&(i.missing_deal!==true||r.missing)&&
+      (!q||r.company.toLowerCase().includes(q)||r.handle.toLowerCase().includes(q)||r.partner.toLowerCase().includes(q)))
+      .sort((a,b)=>String(b.referred).localeCompare(String(a.referred))||a.company.localeCompare(b.company));
+    const S=leadStats(rows.map(r=>r.l));
+    const out=Object.assign(floLeadMeta(R),{filters:{partner:i.partner?String(i.partner).trim():null,status:st||null,cf_status:cf||null,query:q||null,missing_deal_only:i.missing_deal===true},
+      total_matching:rows.length,matching_open:S.open,matching_paying:S.paying,matching_collected_usd:floR2(S.coll),
+      rows:rows.slice(0,lim).map(r=>({company:floNo(r.company),store_handle:floNo(r.handle)||null,partner:floNo(r.partner)||null,status:r.status||null,cf_status:r.cf||null,
+        collected_usd:r.collected==null?null:floR2(r.collected),referred:r.referred||null,lost:r.lost||null,missing_deal:r.missing}))});
+    return floFit(out,"rows",rows.length);
+  },
   async hubspot_lookup(i,ctx){
     const r=await hsLookup(i.domain,{signal:ctx&&ctx.signal});
     if(r.state==="found"||r.state==="not_found")FLO.crm=true;
@@ -4595,7 +4736,16 @@ function floTools(am){
     ["open_candidate","Opens Outreach, Queue and the candidate's drawer on the page. Returns ok.",{type:"object",properties:{id:floStr},required:["id"]}],
     ["propose_status","Queues a status change card for the viewer to confirm. Does not write. Returns proposed and action_id.",{type:"object",properties:{id:floStr,status:{type:"string",enum:["new","contacted","replied","signed","dropped"]},reason:floStr},required:["id","status"]}],
     ["propose_note","Queues a note card (a dated line appended to the candidate's notes) for the viewer to confirm. Does not write. No contact details, no HubSpot values.",{type:"object",properties:{id:floStr,text:floStr},required:["id","text"]}],
-    ["remember","Queues a card to save a short fact to the viewer's Ask Ido memory, read in every later question. Does not write. No contact details.",{type:"object",properties:{text:floStr},required:["text"]}]];
+    ["remember","Queues a card to save a short fact to the viewer's Ask Ido memory, read in every later question. Does not write. No contact details.",{type:"object",properties:{text:floStr},required:["text"]}],
+    ["revenue_overview","Paid revenue from partner-referred stores for every period the Revenue section offers (all time, year to date, last 12 months, quarters), with the as-of date and source. Optional period. No payouts.",
+      {type:"object",properties:{period:{type:"string",description:"Optional: alltime, ytd, l12 or a quarter key; default every period"}}}],
+    ["revenue_by_partner","Partners ranked by paid revenue for one period, as the Revenue section's Top partners. Up to 20 rows plus how many are not shown. Optional name filter. No payouts.",
+      {type:"object",properties:{period:{type:"string",description:"alltime, ytd, l12 or a quarter key; default alltime"},name:{type:"string",description:"Partner name or alias contains"},limit:{type:"integer",minimum:1,maximum:20}}}],
+    ["get_partner_revenue","One partner's paid revenue for every period plus the monthly series and store count. Resolves the name like find_partner. Says when the partner has no revenue rows. No payouts.",{type:"object",properties:{name:floStr},required:["name"]}],
+    ["leads_summary","Partner.io referred leads counted by status, CF status and partner for a period (by referred date), plus open, paying, missing-deal and collected totals. Optional partner filter.",
+      {type:"object",properties:{period:{type:"string",enum:["all","this_month","last_month","this_quarter","last_quarter","ytd","last_12_months"]},from:{type:"string",description:"YYYY-MM-DD, with or instead of period"},to:{type:"string",description:"YYYY-MM-DD"},partner:floStr}}],
+    ["search_leads","Find referred leads by partner, status, CF status, text and referred date range. Up to 20 rows (company, store, partner, status, collected, dates) plus the total matching. No contact details.",
+      {type:"object",properties:{partner:floStr,status:{type:"string",enum:["approved","pending","lost","all"]},cf_status:floStr,query:floStr,missing_deal:{type:"boolean"},period:{type:"string",enum:["all","this_month","last_month","this_quarter","last_quarter","ytd","last_12_months"]},from:floStr,to:floStr,limit:{type:"integer",minimum:1,maximum:20}}}]];
   const run={
     propose_status:i=>{const c=floCand(i),to=String(i.status||"");if(!CHIPS.includes(to))throw new Error("Status must be new, contacted, replied, signed or dropped.");
       const from=String(c.status||"new");if(from===to)throw new Error(`It is already ${to}.`);
