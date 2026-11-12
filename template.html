@@ -825,15 +825,31 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .lb-tst b{color:var(--foreground);font-weight:600;font-size:13px}
 .lb-tst .ts{font-size:11px}
 .bento .lb-tst .ts{display:none}
-.bento .b-tr h2{white-space:nowrap}
-.bento .b-tr .card-head{margin-bottom:4px}
+/* Trend and forecast (2026-11-12 spacing pass): the card is a size container. Wide: title left, controls right (16px apart, 12px inside the group).
+   Container widths are the card's content box (card minus 32px padding). 448px and up: all on one row. 392 to 447px: one row, the switch's
+   "Forecast" word goes visually hidden (it stays the switch's accessible name). Under 392px: title, subtitle, then the controls as one group
+   on their own row, label shown. Stats wrap with one 16px gap between pairs, 4px inside a pair.
+   Rhythm: head 4px rows, 8px to the stats, 8px to the chart, 8px from the axis labels to the legend. */
+.bento .b-tr{container-type:inline-size}
+.bento .b-tr .card-head{margin-bottom:8px;gap:4px 16px;align-items:center}
+.bento .b-tr h2{white-space:nowrap;min-width:0}
+.bento .b-tr .lb-tctl{flex-wrap:nowrap;gap:12px}
 .bento .b-tr .lb-tctl .seg button{height:24px}
 .bento .b-tr .lb-tst{line-height:16px}
-.bento .b-tr .lb-lg{margin-top:2px;line-height:14px}
+.bento .b-tr .lb-box{margin-top:8px}
+.bento .b-tr .lb-lg{margin-top:8px;line-height:14px}
+@container (min-width:392px) and (max-width:447px){
+  .bento .b-tr #lb-fc-l{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+}
+@container (max-width:391px){
+  .bento .b-tr .card-head{grid-template-columns:minmax(0,1fr)}
+  .bento .b-tr .lb-tctl{grid-column:1;grid-row:3;margin-top:4px}
+}
 .bento #lb-tr-sub{white-space:nowrap}
-.bento .lb-tst{flex-wrap:nowrap;white-space:nowrap}
+.lb-tst .tst{display:inline-flex;align-items:baseline;gap:4px}
+.bento .lb-tst{gap:4px 16px}
 @media (min-width:1200px) and (max-width:1439px){.bento .lb-tst .tst.mom{display:none}}
-@media (max-width:1439px){.bento #lb-tr-sub{overflow:hidden;text-overflow:ellipsis}.bento .lb-tst{gap:2px 10px}.bento .lb-tst .tl{font-size:11px}}
+@media (max-width:1439px){.bento #lb-tr-sub{overflow:hidden;text-overflow:ellipsis}.bento .lb-tst .tl{font-size:11px}}
 .bento .tscroll{margin:0 -16px;padding:0 16px}
 .bento .lb-table{font-size:13px}
 .bento .lb-table th{height:32px;padding:0 8px;font-size:10px;letter-spacing:.8px}
@@ -898,7 +914,6 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
   .b-pay .lb-table th,.b-pay .lb-table td{padding:0 5px;font-size:12px}
   .b-pay .lb-table th{font-size:10px;letter-spacing:.5px}
   .lb-ptab{font-size:11px}
-  #lb-fc-l{position:absolute!important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
   .ktiles>.kt{padding:2px 12px}.kt .v{font-size:22px;letter-spacing:-.6px}
   .b-top .lb-table th:nth-child(4),.b-top .lb-table td:nth-child(4){display:none}
   .bento .lb-table td.lb-pn{max-width:120px}
@@ -911,7 +926,6 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
   .bento .card-head{flex-wrap:wrap}
   .bento .card-head>:not(:first-child){flex:1 1 100%}
   .bento #lb-ep-lg .lb-lg{justify-content:flex-start;max-width:none}
-  .bento .lb-tst{flex-wrap:wrap;white-space:normal}
   .bento #lb-tr-sub{white-space:normal}
 }
 @media (max-width:600px){
