@@ -43,7 +43,7 @@ def registry(with_orphan=True):
     return {'partners': parts, 'built': '2026-11-04', 'meta': {}}
 
 
-HOOK = ('window.__T={ST,FLO,LBS,floT,floTools,floSystem,floSend,floMount,lbGet,renderLB,renderLeads,leadRows,leadStats,rowsAll,ovCompute,setSection,todayLocal};\n')
+HOOK = ('window.__T={ST,FLO,LBS,floT,floTools,floSystem,floSend,floMount,lbGet,renderLB,renderLeads,leadRows,leadStats,rowsAll,ovCompute,netNewEarned,storeEarned,setSection,todayLocal};\n')
 
 
 def build(out_path, snapshot=True):

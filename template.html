@@ -1565,6 +1565,19 @@ function closedQ(){
 /* label for the run doc's q3_* totals: the fields are named for Q3, so the label says Q3 and its year from the snapshot's q3 period */
 const q3Lbl=()=>{const D=ST.dash,p=D&&Array.isArray(D.periods)?D.periods.find(x=>x&&x.key==="q3"&&Array.isArray(x.months)&&x.months.length):null;return p?perYr(p):`Q3 ${yrsOf(Q3_LEGACY)}`;};
 function storeEarned(s,months){const bm=(s&&s.by_month)||{};return months.reduce((a,m)=>a+(+bm[m]||0),0);}
+/* Net-new in a period: the store's first month with revenue (earliest snapshot month where storeEarned is above zero) falls inside the period,
+   and its first paid invoice (paying_since) is not before the snapshot window. A missing paying_since does not exclude. Returns the store's earned
+   revenue in the period, or null when the store is not net-new there. The one rule behind the Net-new revenue card. */
+function netNewEarned(D,s,months){
+  if(!s||!Array.isArray(months)||!months.length)return null;
+  const bm=(s.by_month)||{};
+  const win=(D&&Array.isArray(D.months)&&D.months.length?D.months.slice():Object.keys(bm).filter(m=>/^\d{4}-\d{2}$/.test(m))).sort();
+  const from=String((D&&D.window&&(D.window.from||D.window.start))||"").slice(0,7)||win[0]||"";
+  const ps=s.paying_since?String(s.paying_since).slice(0,7):"";
+  if(ps&&from&&ps<from)return null;
+  const first=win.find(m=>storeEarned(s,[m])>0);
+  return first&&months.includes(first)?storeEarned(s,months):null;
+}
 
 /* ---- source labels */
 const srcDash=()=>ST.dashSrc==="live"?`live, generated ${dShort(ST.dash&&ST.dash.generated)||"date not recorded"}`:ST.dashSrc==="seed"?"build seed":"not loaded";
@@ -1740,10 +1753,10 @@ function ovCompute(periodKey,scope){
   const curP=per.months?null:ovPeriods().slice(1).filter(p=>!p.xp).pop()||null;
   let curRev=0,curPaying=0;
   if(curP)pay.forEach(s=>{const v=storeEarned(s,curP.months);curRev+=v;if(v>0)curPaying++;});
-  /* Net-new revenue card: always the current open period, in every view. Payout-list stores whose paying_since month falls inside it; N = those with revenue above zero. */
+  /* Net-new revenue card: always the current open period, in every view. Payout-list stores whose first month with revenue falls inside it (netNewEarned); N = those with revenue above zero. */
   const openP=ovPeriods().slice(1).filter(p=>!p.xp).pop()||null;
   let netRev=0,netStores=0;
-  if(openP)pay.forEach(s=>{if(!(s.paying_since&&openP.months.includes(String(s.paying_since).slice(0,7))))return;const v=storeEarned(s,openP.months);netRev+=v;if(v>0)netStores++;});
+  if(openP)pay.forEach(s=>{const v=netNewEarned(D,s,openP.months);if(v==null)return;netRev+=v;if(v>0)netStores++;});
   const q3fin=pdocs.some(d=>d.payouts_summary&&d.payouts_summary.q3_final!=null);
   const pending=pdocs.reduce((a,d)=>{const s=d.payouts_summary||{};const q=q3fin?(s.q3_status==='paid'?0:s.q3_final):s.q3_estimate;return a+(q!=null&&isFinite(+q)?+q:0);},0);
   let paid=0,paidN=0;
@@ -1782,7 +1795,7 @@ function renderOverview(){
     {k:"revenue",icon:"trend",label:"Revenue",value:snap?fmt$c(V.revenue):"-",sub:snap&&!P.months?(V.shopOn?`Stripe ${fmtM(V.ltStripe)}, Shopify ${fmtM(V.ltShopify)}`:`Stripe only, Shopify ${fmtM(V.ltShopify)} left out`):"",to:"dashboard",
       help:P.months?`Paid invoices, Stripe rail, payout-list stores, ${perTxt}, from snapshots/latest (${srcDash()}).${scopeTxt}`:`All time: lifetime revenue, Stripe paid invoices to ${sAsof}${V.shopOn?` plus Shopify billing to ${shAsof}`:`; Shopify billing to ${shAsof} left out by the Shopify payments switch on the Dashboard`}, summed over every snapshot store (payout list and program), from snapshots/latest (${srcDash()}).${scopeTxt}`},
     {k:"newrev",icon:"spark",label:"Net-new revenue",value:snap&&V.openP?fmt$c(V.netRev):"-",sub:snap?(V.openP?(V.netStores>0?`${fmtN(V.netStores)} net-new paying stores, ${esc(V.openP.label)}`:`No net-new paying stores yet, ${esc(V.openP.label)}`):"No open period in the snapshot"):"",
-      help:`Revenue so far in ${V.openP?V.openP.label:"the current period"} from stores whose first paid invoice fell inside it (snapshot store field paying_since), payout-list stores, Stripe rail, from snapshots/latest. Net-new paying stores = those stores with revenue above zero. Shown for the current period in every view.${scopeTxt}`},
+      help:`Revenue so far in ${V.openP?V.openP.label:"the current period"} from payout-list stores whose first month with revenue falls inside it, from the monthly revenue data in snapshots/latest (${srcDash()}). Stores with a first paid invoice before the data window are left out. Net-new paying stores = those stores with revenue above zero. Shown for the current period in every view.${scopeTxt}`},
     PS?{k:"pending",icon:"hourglass",label:"Commission pending",value:fmt$c(PS.owed),sub:PS.owedQ.length?PS.owedQ.map(p=>`${esc(payLabel(p))} ${esc((PST_L[p.status]||"").toLowerCase())}`).join(", "):"Nothing owed",to:"payouts",
       help:"Owed now: total due of payout quarters approved (unpaid), in review or estimate (payouts collection, live database). Not filtered by period. Switch Scope to Active agreements only for the registry sum."}:
     {k:"pending",icon:"hourglass",label:"Commission pending",value:ST.docs.length?fmt$c(V.pending):"-",sub:V.q3fin?(V.pending>0?"Q3 final, approved, unpaid":"Q3 final, all paid"):"Q3 estimate at 25% GM",to:"payouts",
