@@ -921,39 +921,15 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
   .bento .tscroll{margin:0 -16px;padding:0 16px}
 }
 
-/* ---- build 4: Ask Ido avatar. States are classes on .ido-av; transforms and opacity only */
+/* ---- build 11: Ask Ido avatar v2. The controller (JS, "Ask Ido avatar v2") paints eyes, lids, cheeks and body as SVG attributes: no keyframes, no state classes.
+   .still marks reduced motion. Visor and eyes keep fixed colors in both themes; the mark follows --primary. */
 .ido-av{display:inline-block;width:var(--av-s,40px);height:var(--av-s,40px);flex:none;line-height:0}
-.ido-av svg{width:100%;height:100%;overflow:visible}
+.ido-av svg{width:100%;height:100%;overflow:visible;display:block}
 .ido-av .av-sh{fill:var(--primary)}
 .ido-av .av-up{fill:color-mix(in srgb,var(--primary) 76%,#ffffff)}
 .ido-av .av-vis{fill:#21252e;stroke:color-mix(in srgb,var(--primary) 35%,#21252e);stroke-width:.8}
 .ido-av .av-w{fill:#ffffff}
-.ido-av .av-p{fill:#21252e;transform:translate(calc(var(--px,0px) * .55),calc(var(--py,0px) * .55));transition:transform .14s ease-out}
-.ido-av .av-lid{fill:#21252e;opacity:0;transition:opacity .3s}
-.ido-av .av-arc{fill:none;stroke:#ffffff;stroke-width:2.2;stroke-linecap:round;opacity:0}
-.ido-av .av-m{fill:none;stroke:#ffffff;stroke-width:1.7;stroke-linecap:round;transform-box:fill-box;transform-origin:center}
-.ido-av .av-eye{transform-box:fill-box;transform-origin:center;transition:transform .08s ease-in,opacity .15s}
-.ido-av .av-bdy{transform-box:fill-box;transform-origin:50% 100%;animation:av-breathe 4s ease-in-out infinite}
-.ido-av .av-tlt{transform-box:fill-box;transform-origin:50% 90%;transition:transform .25s ease-out}
-.ido-av .av-bnc{transform-box:fill-box;transform-origin:50% 100%}
-.ido-av .av-hand{transform-box:fill-box;transform-origin:88% 30%}
-.ido-av.blink .av-eye{transform:scaleY(.12)}
-.ido-av.thinking .av-bnc{animation:av-bob 1.4s ease-in-out infinite}
-.ido-av.thinking .av-p{transform:translate(1.4px,-1.6px)}
-.ido-av.writing .av-tlt{transform:rotate(-5deg)}
-.ido-av.writing .av-m{animation:av-talk .28s ease-in-out infinite alternate}
-.ido-av.happy .av-eye{opacity:0}
-.ido-av.happy .av-arc{opacity:1}
-.ido-av.happy .av-bnc{animation:av-hop .6s ease-out 2}
-.ido-av.sleepy .av-lid{opacity:1}
-.ido-av.sleepy .av-bdy{animation-duration:7s}
-.ido-av.wave .av-hand{animation:av-lift .6s ease-in-out 1}
-.ido-av.still .av-p{transform:none!important}
-@keyframes av-breathe{0%,100%{transform:scale(1)}50%{transform:scale(1.03)}}
-@keyframes av-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
-@keyframes av-talk{from{transform:scaleY(1)}to{transform:scaleY(.35)}}
-@keyframes av-hop{0%,100%{transform:translateY(0)}40%{transform:translateY(-5px)}}
-@keyframes av-lift{0%{transform:rotate(0)}35%{transform:rotate(13deg)}70%{transform:rotate(-4deg)}100%{transform:rotate(0)}}
+.ido-av .av-lid,.ido-av .av-chk{fill:#21252e}
 .flo-fab .ido-av{margin-left:-2px}
 .flo-h .fav{flex:none;display:grid;place-items:center;margin:-4px 2px -4px -4px}
 
@@ -1634,7 +1610,7 @@ function renderBadges(){
 let shownSec=null;
 function setSection(k,user){
   if(!SEC[k])k="overview";ST.sec=k;
-  SECTIONS.forEach(s=>{$("p-"+s.k).hidden=s.k!==k;});
+  SECTIONS.forEach(s=>{$("p-"+s.k).hidden=s.k!==k;});avKick();
   $("nav").querySelectorAll("a").forEach(a=>{if(a.dataset.s===k)a.setAttribute("aria-current","page");else a.removeAttribute("aria-current");});
   renderTitle();$("menu-cur").textContent=SEC[k].l;
   $("side").classList.remove("open");$("menu-btn").setAttribute("aria-expanded","false");
@@ -4169,6 +4145,7 @@ function floSync(){
   const fab=$("flo-fab");if(fab)fab.hidden=!FLO.avail||FLO.open;
   document.querySelectorAll(".flo-only").forEach(el=>{el.hidden=!FLO.avail;});
   if(ST.sec==="overview"){renderHero();renderAttnOv();}
+  avKick();
 }
 function floHide(){
   FLO.avail=false;FLO.off=true;if(FLO.ctl)try{FLO.ctl.abort();}catch(e){}
@@ -4176,7 +4153,6 @@ function floHide(){
 }
 function floMount(){
   if(FLO.mounted)return;FLO.mounted=true;
-  AV.rm=RM();
   const fab=$("flo-fab");fab.innerHTML=`${avHTML(40)}<span>Ask Ido</span>`;fab.onclick=()=>floOpen();
   const el=$("flo");
   el.innerHTML=`<div class="flo-h"><span class="fav">${avHTML(56)}</span><div class="flo-t"><h2 id="flo-title">Ask Ido</h2><span class="ct" id="flo-ct"></span></div>
@@ -4195,7 +4171,8 @@ function floMount(){
   el.querySelectorAll(".flo-ib[data-v]").forEach(b=>b.onclick=()=>{FLO.view=FLO.view===b.dataset.v?"chat":b.dataset.v;FLO.editSkill=null;FLO.newSkill=false;floRender();});
   const ta=$("flo-in");
   const grow=()=>{ta.style.height="auto";ta.style.height=Math.min(140,ta.scrollHeight+2)+"px";};
-  ta.oninput=grow;
+  ta.oninput=()=>{grow();avEv("input",ta.value.trim().length);};
+  ta.onfocus=()=>avEv("focus",ta.value.trim().length);ta.onblur=()=>avEv("blur");
   ta.onkeydown=e=>{if(e.key==="Enter"&&!e.shiftKey&&!e.isComposing){e.preventDefault();floSubmit();}};
   $("flo-send").onclick=floSubmit;
   $("flo-stop").onclick=()=>{if(FLO.ctl)try{FLO.ctl.abort();}catch(e){}};
@@ -4210,12 +4187,12 @@ function floOpen(o){
   FLO.open=true;if(o.ctx!==undefined)FLO.ctx=o.ctx?String(o.ctx):null;
   if(o.view)FLO.view=o.view;
   $("flo").hidden=false;const fab=$("flo-fab");fab.hidden=true;fab.setAttribute("aria-expanded","true");
-  floEnsureLoaded();floRender();avWave();
+  floEnsureLoaded();floRender();avGreet();avKick();
   if(!o.noFocus)setTimeout(()=>{const ta=$("flo-in");try{if(ta&&!ta.disabled&&FLO.view==="chat")ta.focus();else $("flo-x").focus();}catch(e){}},0);
 }
 function floClose(){
   if(!FLO.open)return;FLO.open=false;FLO.editSkill=null;FLO.newSkill=false;
-  $("flo").hidden=true;const fab=$("flo-fab");fab.hidden=!FLO.avail;fab.setAttribute("aria-expanded","false");
+  $("flo").hidden=true;const fab=$("flo-fab");fab.hidden=!FLO.avail;fab.setAttribute("aria-expanded","false");avKick();
   const inv=FLO.invoker;FLO.invoker=null;
   try{if(inv&&inv.isConnected&&inv.offsetParent!==null&&inv!==document.body)inv.focus();else if(!fab.hidden)fab.focus();}catch(e){}
 }
@@ -4262,7 +4239,6 @@ function floRender(){
   $("flo-c").hidden=v!=="chat";
   floComposer();
   if(v==="chat")b.scrollTop=b.scrollHeight;
-  avSync();
 }
 function floComposer(){
   const cx=$("flo-ctx"),c=FLO.ctx?findCand(FLO.ctx):null;
@@ -4311,7 +4287,7 @@ function floPaint(m){
   if(!FLO.open||FLO.view!=="chat"||!m)return;
   const i=FLO.msgs.indexOf(m),b=$("flo-b"),el=b&&b.querySelector(`.fm[data-mi="${i}"]`);if(!el)return;
   const near=b.scrollHeight-b.scrollTop-b.clientHeight<80;
-  el.outerHTML=floMsgHTML(m,i);avSync();
+  el.outerHTML=floMsgHTML(m,i);
   if(near)b.scrollTop=b.scrollHeight;
 }
 function floPaintActs(m){floPaint(m);}
@@ -4434,13 +4410,13 @@ async function floSend(text,o){
   const history=FLO.msgs.slice();FLO.msgs.push(um,am);
   FLO.busy=true;FLO.status="";FLO.asked=true;FLO.saidNoSave=true;FLO.crm=false;FLO.turn=am;FLO.saveErr="";
   const ctl=new AbortController();FLO.ctl=ctl;
-  floRender();
-  const opts={signal:ctl.signal,cache:false,onText:({text:t})=>{if(FLO.turn!==am)return;am.text=t;am.state="streaming";floPaint(am);}};
+  floRender();avEv("send");
+  const opts={signal:ctl.signal,cache:false,onText:({text:t})=>{if(FLO.turn!==am)return;am.text=t;am.state="streaming";floPaint(am);if(!FLO.status)avEv("token");}};
   if(FLO.tools)opts.tools=floTools(am);
   let save=false;
   try{
     const r=await FLO.sample(floInput(history,um),opts);
-    am.text=String(r&&r.text||am.text);am.state="done";if(r&&r.truncated)am.note="Cut short. Ask for less at a time.";save=true;
+    am.text=String(r&&r.text||am.text);am.state="done";if(r&&r.truncated)am.note="Cut short. Ask for less at a time.";save=true;avEv("done");
   }catch(e){save=floFail(am,e);}
   FLO.busy=false;FLO.ctl=null;FLO.status="";FLO.turn=null;
   if(FLO.off)return;
@@ -4453,6 +4429,8 @@ async function floSend(text,o){
 /* errors by code; returns true when the turn should be saved */
 function floFail(am,e){
   const code=e&&typeof e.code==="string"?e.code:"upstream_error",keep=e&&typeof e.text==="string"?e.text:am.text;
+  /* mascot: Stop aborts the request signal, so a cancelled or aborted code, or an aborted signal, reads as stopped; every other failure is an error */
+  avEv(code==="cancelled"||code==="aborted"||(FLO.ctl&&FLO.ctl.signal&&FLO.ctl.signal.aborted)?"stop":FLO_OFF.includes(code)?"idle":"error");
   if(FLO_OFF.includes(code)){floHide();return false;}
   if(code==="cancelled"||code==="aborted"){am.text=keep||"";am.state="stopped";return !!am.text;}
   am.state=keep?"stopped":"error";am.text=keep||"";
@@ -4614,7 +4592,7 @@ function floTools(am){
       return floPropose(am,{kind:"memory",text});}
   };
   return T.slice(0,FLO.maxTools).map(([name,description,schema])=>{const fn=run[name]||floT[name];const t={name,description,
-    execute:async(input,ctx)=>{FLO.status=FLO_TOOL_L[name]||"Working";floPaint(am);
+    execute:async(input,ctx)=>{FLO.status=FLO_TOOL_L[name]||"Working";floPaint(am);avEv("tool");
       try{return await fn(input&&typeof input==="object"?input:{},ctx);}finally{FLO.status="";floPaint(am);}}};
     if(schema)t.inputSchema=schema;return t;});
 }
@@ -4648,7 +4626,7 @@ async function floAct(aid,yes){
     renderOutTable();renderOverview();
   }
   if(err){a.state="pending";a.err=err;floPaintActs(m);return;}
-  a.state="done";floPaintActs(m);floSaveChat();avHappy();
+  a.state="done";floPaintActs(m);floSaveChat();avEv("done");
 }
 
 /* ---- Draft with Flo and Use this opener */
@@ -5952,45 +5930,191 @@ function lbNotes(L,c){
 }
 let lbRT=0;window.addEventListener("resize",()=>{clearTimeout(lbRT);lbRT=setTimeout(()=>{if(ST.sec==="dashboard"&&DV.v==="lead"&&!railAnim())renderLB();},150);});
 
-/* ---- build 4: Ask Ido avatar. One SVG face, every state a class on .ido-av: thinking, writing, happy, sleepy, blink, wave, still (reduced motion).
-   Pupils follow the pointer within 3px (one rAF per pointermove burst, only while the button or the panel shows). */
-const AV={rm:false,mode:"idle",bt:0,st:0,ht:0,wt:0,raf:0,x:null,y:null,sleepMs:60000,sleepy:false,last:0,waved:false,on:false};
-/* build 5: the face is the Chargeflow mark from the rail brand (its two subpaths: the lower swoosh is the "hand" that lifts on wave, the upper one
-   carries a lighter tint), with a dark visor across the middle holding the eyes and the mouth. The visor stays dark in both themes. */
-const MARK_P=(()=>{const p=document.querySelector(".brand .mark path"),d=p?p.getAttribute("d")||"":"";const a=d.split(/Z(?=M)/);return a.length===2?[a[0]+"Z",a[1]]:[d,""];})();
-const AV_SVG=`<svg viewBox="0 0 64 64" focusable="false"><g class="av-bnc"><g class="av-tlt"><g class="av-bdy"><g transform="translate(2.6 8.6) scale(.1508)"><path d="${MARK_P[1]}" class="av-up"/><g class="av-hand"><path d="${MARK_P[0]}" class="av-sh"/></g></g>
-<rect x="10" y="21" width="44" height="21" rx="10.5" class="av-vis"/>
-<g class="av-eye"><ellipse cx="24.5" cy="30.6" rx="5" ry="5.4" class="av-w"/><circle cx="24.5" cy="31.2" r="2.3" class="av-p"/></g><g class="av-eye"><ellipse cx="39.5" cy="30.6" rx="5" ry="5.4" class="av-w"/><circle cx="39.5" cy="31.2" r="2.3" class="av-p"/></g>
-<rect x="19" y="24.7" width="11" height="6" class="av-lid"/><rect x="34" y="24.7" width="11" height="6" class="av-lid"/><path d="M20.5 32.2q4-5 8 0M35.5 32.2q4-5 8 0" class="av-arc"/>
-<path d="M29.6 38.2q2.4 1.7 4.8 0" class="av-m"/></g></g></g></svg>`.replace(/>\s+</g,"><");
-function avHTML(size){const st=(AV.rm||RM()?" still":"")+(AV.sleepy?" sleepy":"")+(AV.mode==="thinking"||AV.mode==="writing"?" "+AV.mode:"");return`<span class="ido-av${st}" style="--av-s:${size}px" aria-hidden="true">${AV_SVG}</span>`;}
-const avEls=()=>document.querySelectorAll(".ido-av");
-function avCls(c,on,only){(only?[only]:avEls()).forEach(e=>e&&e.classList.toggle(c,!!on));}
-function avSync(){
-  const m=FLO.busy?(FLO.turn&&FLO.turn.state==="streaming"&&!FLO.status?"writing":"thinking"):"idle";AV.mode=m;
-  avEls().forEach(e=>{e.classList.toggle("thinking",m==="thinking");e.classList.toggle("writing",m==="writing");});
+/* ---- build 11: Ask Ido avatar v2, eyes first, reacting to the chat. Design and review page: docs/projects/partneros/ask-ido-mascot-preview.html.
+   The face is still the Chargeflow mark from the rail brand (its two subpaths: the lower swoosh is the "hand" that lifts on greet, the upper one carries a
+   lighter tint) with the dark visor across the middle. The mouth is gone: two solid eyes carry every state through size, corner radius, a top lid cut,
+   a bottom cheek cut and position; at 24px and below they draw 28% larger with a minimum line thickness.
+   States: idle, listening (typing), sent (one beat on Send), thinking (no text yet, or a tool runs), writing (streaming), happy (answer or action done),
+   error (failed, rate limited), stopped (Stop), sleepy (60s without input), asleep (75s), greet (first panel open per session).
+   One clock drives four layers that never fight: body (breath, lean, tilt, shake), gaze (state gaze, idle glances, saccades, pointer within a small
+   radius), eye shape (the state pose) and one-shots (blink, nod, wince, wave). Every blend starts from the current pose, so an interrupt never snaps;
+   exits blend slower than entries. Idle life is randomised: blink every 4 to 7s with rare doubles, a glance every 8 to 20s, micro-saccades.
+   No setTimeout while animating: every schedule is a timestamp on the clock. The rAF loop runs only while a mascot is visible and the tab shows;
+   avKick() resumes it. Reduced motion (OS setting, .still): each state's shape is painted once, nothing animates, sleep is off. */
+const AV_MARK=(()=>{const p=document.querySelector(".brand .mark path"),d=p?p.getAttribute("d")||"":"";const a=d.split(/Z(?=M)/);return a.length===2?[a[0]+"Z",a[1]]:[d,""];})();
+const AV_EX=[24.5,39.5],AV_EY=31.5,AV_SK=1.28;
+const avE=(w,h,r,li=0,lo=0,ck=0,dx=0,dy=0)=>({w,h,r,li,lo,ck,dx,dy});
+const avT=o=>Object.assign({gx:0,gy:0,ty:0,s:1,rot:0,hand:0,ba:.014,bp:4200,ptr:0,tau:80,in:250,out:400},o);
+/* eye: width, height, radius, lid depth inner and outer (share of height), cheek cut 0..1. in/out: blend ms; hold: auto return ms; ba/bp: breath; ptr: pointer weight; tau: gaze smoothing ms */
+const AV_S={
+  idle:     avT({L:avE(7,10,3.4),R:avE(7,10,3.4),ptr:1,tau:70,in:300,out:300}),
+  listening:avT({L:avE(9.6,12,4.8),R:avE(9.6,12,4.8),gy:2.4,ty:1,s:1.03,ba:.01,bp:3600,ptr:.35,tau:90,in:200,out:420}),
+  sent:     avT({L:avE(6.2,8.4,3.1),R:avE(6.2,8.4,3.1),gy:-3.4,ty:.6,s:1.01,ba:.01,tau:55,in:140,out:200,hold:420,next:"thinking"}),
+  thinking: avT({L:avE(6.8,9.4,3.3,.3,.3),R:avE(7.8,10.6,3.9),gx:4.4,gy:-3.2,ty:-.5,rot:3,ba:.012,bp:3800,tau:45,in:240,out:360}),
+  writing:  avT({L:avE(9.6,5.2,2.5),R:avE(9.6,5.2,2.5),gy:2.2,ty:.4,rot:-2,ba:.008,bp:4400,tau:110,in:300,out:460}),
+  happy:    avT({L:avE(9,8.6,4.3,0,0,1),R:avE(9,8.6,4.3,0,0,1),gy:-1,ty:-1,s:1.02,ba:.012,bp:3600,ptr:.5,in:160,out:520,hold:1400,next:"idle"}),
+  error:    avT({L:avE(7.4,8,3.2,0,.56,0,0,.6),R:avE(7.2,9.6,3.3,0,.4,0,0,.2),gy:1.4,ty:.6,rot:-2,ba:.01,bp:4400,ptr:.25,tau:90,in:90,out:620,hold:5000,next:"idle"}),
+  stopped:  avT({L:avE(4.4,11,1.3),R:avE(4.4,11,1.3),gy:.3,ty:.4,in:130,out:420,hold:1200,next:"idle"}),
+  sleepy:   avT({L:avE(8,9.6,3.4,.5,.52,0,0,1.6),R:avE(8,9.6,3.4,.5,.52,0,0,1.6),gy:1,ty:1,s:.99,ba:.02,bp:6500,ptr:.15,tau:200,in:1400,out:300}),
+  asleep:   avT({L:avE(8.6,1.8,.9,0,0,0,0,3.2),R:avE(8.6,1.8,.9,0,0,0,0,3.2),ty:1.6,s:.985,ba:.022,bp:8000,tau:300,in:1600,out:320}),
+  greet:    avT({L:avE(9,8.6,4.3,0,0,1),R:avE(8.2,11.4,4.1),gy:-.8,ty:-.6,s:1.01,rot:-3,hand:6,ptr:.5,in:150,out:460,hold:1100,next:"idle"})
+};
+const AV_NUM=["gx","gy","ty","s","rot","hand","ba","bp","ptr","tau"],AV_EK=["w","h","r","li","lo","ck","dx","dy"];
+const avClone=p=>{const o={};AV_NUM.forEach(k=>o[k]=p[k]);o.L=Object.assign({},p.L);o.R=Object.assign({},p.R);return o;};
+const avLerp=(a,b,u,o)=>{AV_NUM.forEach(k=>o[k]=a[k]+(b[k]-a[k])*u);["L","R"].forEach(s=>AV_EK.forEach(k=>o[s][k]=a[s][k]+(b[s][k]-a[s][k])*u));return o;};
+const avFlat=st=>{const p=AV_S[st]||AV_S.idle;return{L:Object.assign({},p.L),R:Object.assign({},p.R),gx:p.gx,gy:p.gy,tx:0,ty:p.ty,s:p.s,rot:p.rot,hand:p.hand,bl:0,mL:1,mR:1};};
+const avF=n=>Math.round(n*100)/100;
+const avEo=u=>1-Math.pow(1-u,3),avEi=u=>u*u*u,avEio=u=>u<.5?4*u*u*u:1-Math.pow(-2*u+2,3)/2;
+const avRnd=(a,b)=>a+Math.random()*(b-a);
+/* eye boxes after blink and wince, with a continuous clamp that keeps both eyes inside the visor */
+function avGeo(p,small){
+  const k=small?AV_SK:1,mn=small?2.8:1.7,cl=p.bl||0;
+  const ey=[p.L,p.R].map((e,i)=>{const m=i?(p.mR==null?1:p.mR):(p.mL==null?1:p.mL),hm=e.h*k*m,h=Math.max(hm*(1-.93*cl),mn),w=e.w*k;
+    return{w,h,r:Math.min(e.r*k,w/2,h/2),li:e.li,lo:e.lo,ck:e.ck,x:AV_EX[i]+e.dx,y:AV_EY+e.dy+Math.max(0,hm-h)*.22};});
+  const a=ey[0],b=ey[1];
+  const xl=13.6-(a.x-a.w/2),xh=50.4-(b.x+b.w/2),gx=xl>xh?(xl+xh)/2:Math.min(xh,Math.max(xl,p.gx||0));
+  const yl=Math.max(...ey.map(e=>23-(e.y-e.h/2))),yh=Math.min(...ey.map(e=>40-(e.y+e.h/2))),gy=yl>yh?(yl+yh)/2:Math.min(yh,Math.max(yl,p.gy||0));
+  ey.forEach(e=>{e.x+=gx;e.y+=gy;});return ey;
 }
-function avHappy(){clearTimeout(AV.ht);avCls("happy",1);AV.ht=setTimeout(()=>avCls("happy",0),1200);}
-function avBlink(){clearTimeout(AV.bt);if(AV.rm)return;AV.bt=setTimeout(()=>{if(!document.hidden){avCls("blink",1);setTimeout(()=>avCls("blink",0),150);}avBlink();},4000+Math.random()*3000);}
-function avWake(){
-  AV.last=performance.now();if(AV.sleepy){AV.sleepy=false;avCls("sleepy",0);}
-  clearTimeout(AV.st);if(AV.rm||!AV.on)return;AV.st=setTimeout(()=>{AV.sleepy=true;avCls("sleepy",1);},AV.sleepMs);
+function avAttrs(p,small){
+  const th=small?3.3:2.6,legs=small?2.1:1.6;
+  const eyes=avGeo(p,small).map((e,i)=>{
+    const x0=e.x-e.w/2,y0=e.y-e.h/2,dl=i===0?e.lo:e.li,dr=i===0?e.li:e.lo,ry=e.h*.7,top=y0+e.h+.5-e.ck*(e.h+.5-th);
+    return{rect:{x:avF(x0),y:avF(y0),width:avF(e.w),height:avF(e.h),rx:avF(e.r)},
+      lid:`M${avF(x0-.7)} ${avF(y0-1.2)}H${avF(x0+e.w+.7)}V${avF(y0+e.h*dr)}L${avF(x0-.7)} ${avF(y0+e.h*dl)}Z`,
+      chk:{cx:avF(e.x),cy:avF(top+ry),rx:avF(Math.max(.4,e.w/2-legs)),ry:avF(ry)}};});
+  return{eyes,body:`translate(${avF(p.tx||0)} ${avF(p.ty||0)}) rotate(${avF(p.rot||0)} 32 46) translate(32 50) scale(${(p.s||1).toFixed(4)}) translate(-32 -50)`,hand:`rotate(${avF(p.hand||0)} 374 108)`};
 }
-function avWave(){if(AV.rm||AV.waved)return;AV.waved=true;try{if(sessionStorage.getItem("partneros.askido.waved")){return;}sessionStorage.setItem("partneros.askido.waved","1");}catch(e){}
-  const el=document.querySelector("#flo .ido-av");if(!el)return;clearTimeout(AV.wt);el.classList.add("wave");AV.wt=setTimeout(()=>el.classList.remove("wave"),600);}
-function avLook(){
-  AV.raf=0;if(performance.now()-AV.last>500)avWake();
-  if(AV.rm||!FLO.mounted||AV.x==null)return;
-  const fab=$("flo-fab");if((!fab||fab.hidden)&&!FLO.open)return;
-  avEls().forEach(el=>{const r=el.getBoundingClientRect();if(!r.width)return;
-    const dx=AV.x-(r.left+r.width/2),dy=AV.y-(r.top+r.height/2),d=Math.hypot(dx,dy)||1,k=Math.min(3,d/40)/d,u=64/r.width;
-    el.style.setProperty("--px",(dx*k*u).toFixed(2)+"px");el.style.setProperty("--py",(dy*k*u).toFixed(2)+"px");});
+let avUid=0;
+function avSVG(p,small){
+  const id="ido-av-c"+(++avUid),a=avAttrs(p,small),at=o=>Object.keys(o).map(k=>`${k}="${o[k]}"`).join(" ");
+  const eye=e=>`<rect class="av-w" ${at(e.rect)}/><path class="av-lid" d="${e.lid}"/><ellipse class="av-chk" ${at(e.chk)}/>`;
+  return`<svg viewBox="0 0 64 64" focusable="false"><defs><clipPath id="${id}"><rect x="10.7" y="21.7" width="42.6" height="19.6" rx="9.8"/></clipPath></defs><g class="av-bdy" transform="${a.body}"><g transform="translate(2.6 8.6) scale(.1508)"><path d="${AV_MARK[1]}" class="av-up"/><path d="${AV_MARK[0]}" class="av-sh av-hand" transform="${a.hand}"/></g><rect x="10" y="21" width="44" height="21" rx="10.5" class="av-vis"/><g class="av-eyes" clip-path="url(#${id})">${a.eyes.map(eye).join("")}</g></g></svg>`;
 }
+function avPaint(sv,p,small){
+  const r=sv._r||(sv._r=(()=>{const ey=sv.querySelectorAll(".av-eyes > *");return{b:sv.querySelector(".av-bdy"),h:sv.querySelector(".av-hand"),e:[[ey[0],ey[1],ey[2]],[ey[3],ey[4],ey[5]]]};})());
+  if(!r.b||!r.e[1][2])return;
+  const a=avAttrs(p,small);r.b.setAttribute("transform",a.body);r.h.setAttribute("transform",a.hand);
+  a.eyes.forEach((e,i)=>{const [re,li,ch]=r.e[i];for(const k in e.rect)re.setAttribute(k,e.rect[k]);li.setAttribute("d",e.lid);for(const k in e.chk)ch.setAttribute(k,e.chk[k]);});
+}
+/* the controller: one per page, every .ido-av shows the same state */
+const AVC=(()=>{
+  const c={state:"idle",now:0,speed:1,rm:false,on:false,manual:false,sleep1:60000,sleep2:75000,
+    cur:avClone(AV_S.idle),from:avClone(AV_S.idle),t0:0,dur:1,exit:false,autoAt:0,act:0,blurAt:0,
+    g:{x:0,y:0},ph:0,os:{},nb:avRnd(1500,4000),db:0,ng:avRnd(8000,20000),glU:0,gl:{x:0,y:0},nm:2000,mi:{x:0,y:0},ns:0,sc:{x:4.4,y:-3.2},
+    typeX:null,p:avFlat("idle"),raf:0,lt:0,pr:0,rmT:0,trace:null};
+  const os=(n,dur,delay)=>{c.os[n]={t0:c.now+(delay||0),dur};};
+  const tmp={};
+  /* the mascots on screen: connected, not inside a [hidden] ancestor (attribute reads only, no layout) */
+  c.vis=()=>[...document.querySelectorAll(".ido-av")].filter(el=>el.isConnected&&!el.closest("[hidden]"));
+  const small=el=>(+el.dataset.s||40)<=24;
+  c.set=function(st,force){
+    if(!AV_S[st]||(st===c.state&&!force))return;
+    const prev=c.state;c.state=st;c.from=avClone(c.cur);c.t0=c.now;
+    c.exit=st==="idle";c.dur=Math.max(1,c.exit?AV_S[prev].out:AV_S[st].in);
+    c.autoAt=AV_S[st].hold?c.now+AV_S[st].hold:0;
+    for(const k in c.os)if(c.os[k].t0>c.now)delete c.os[k];c.db=0;
+    if(st==="sent")os("nod",380);
+    if(st==="error"){os("wince",520);os("shake",440);}
+    if(st==="stopped")os("blink",160,320);
+    if(st==="greet")os("wave",780);
+    if(st==="thinking")c.ns=c.now+180;
+    if(st==="idle"&&(prev==="sleepy"||prev==="asleep")){os("blink",150,380);c.db=c.now+380+150+110;}
+    if(st!=="listening")c.typeX=null;
+    if(c.rm)c.rmApply();else c.kick();
+  };
+  function life(now){
+    const s=c.state,canBlink=s==="idle"||s==="listening"||s==="thinking"||s==="writing"||s==="error"||s==="sleepy";
+    if(now>=c.nb){if(canBlink&&!c.os.blink){const d=s==="sleepy"?440:150;os("blink",d);if(s!=="sleepy"&&Math.random()<.15)c.db=now+d+110;}
+      c.nb=now+(s==="sleepy"?avRnd(5000,8000):avRnd(4000,7000));}
+    if(c.db&&now>=c.db){c.db=0;if(!c.os.blink)os("blink",150);}
+    if(now>=c.ng){if(s==="idle"){const a=avRnd(0,2*Math.PI),r=avRnd(2.6,3.4);c.gl={x:Math.cos(a)*r,y:Math.sin(a)*r*.6};c.glU=now+avRnd(600,1400);if(Math.random()<.4&&!c.os.blink)os("blink",150);}
+      c.ng=now+avRnd(8000,20000);}
+    if(now>=c.nm){c.mi={x:avRnd(-.45,.45),y:avRnd(-.3,.3)};c.nm=now+avRnd(1500,4000);}
+    if(s==="thinking"&&now>=c.ns){const P=[[4.4,-3.2],[-4.2,-3],[2.2,-3.8],[5,-1.6],[-1.6,-3.8]];let q;do{q=P[Math.floor(Math.random()*P.length)];}while(q[0]===c.sc.x&&q[1]===c.sc.y);
+      c.sc={x:q[0],y:q[1]};c.ns=now+avRnd(280,900);}
+  }
+  c.step=function(dt,els){
+    c.now+=dt;const now=c.now;
+    if(c.blurAt&&now-c.blurAt>=150){c.blurAt=0;if(c.state==="listening")c.set("idle");}
+    if(c.autoAt&&now>=c.autoAt){c.autoAt=0;c.set(AV_S[c.state].next||"idle");}
+    if(c.state==="idle"&&now-c.act>=c.sleep1)c.set("sleepy");else if(c.state==="sleepy"&&now-c.act>=c.sleep2)c.set("asleep");
+    const u=Math.min(1,(now-c.t0)/c.dur);avLerp(c.from,AV_S[c.state],(c.exit?avEio:avEo)(u),c.cur);
+    const cu=c.cur,s=c.state;
+    c.ph=(c.ph+dt/cu.bp*2*Math.PI)%(2*Math.PI);
+    life(now);
+    /* gaze */
+    let tx=cu.gx,ty=cu.gy;
+    if(s==="idle"&&now<c.glU){tx+=c.gl.x;ty+=c.gl.y;}
+    if(s==="idle"||s==="listening"||s==="error"||s==="happy"||s==="sleepy"){tx+=c.mi.x;ty+=c.mi.y;}
+    if(s==="thinking"){tx+=c.sc.x-AV_S.thinking.gx;ty+=c.sc.y-AV_S.thinking.gy;}
+    if(s==="writing"){const L=1900,ln=Math.floor((now-c.t0)/L),q=((now-c.t0)%L)/L;tx+=q<.82?-3.6+7.2*avEio(q/.82):3.6-7.2*avEio((q-.82)/.18);ty+=(ln%4)*.55-.8;}
+    if(s==="listening"&&c.typeX!=null)tx+=c.typeX;
+    const a=1-Math.exp(-dt/Math.max(10,cu.tau));c.g.x+=(tx-c.g.x)*a;c.g.y+=(ty-c.g.y)*a;
+    /* one-shots */
+    let bl=0,mL=1,mR=1,ox=0,oy=0,hand=0;
+    for(const k in c.os){const q=c.os[k];if(now<q.t0)continue;const v=(now-q.t0)/q.dur;if(v>=1){delete c.os[k];continue;}
+      if(k==="blink")bl=v<.4?avEi(v/.4):v<.53?1:1-avEo((v-.53)/.47);
+      else if(k==="nod")oy+=1.6*Math.sin(Math.PI*v);
+      else if(k==="shake")ox+=1.8*Math.sin(5*Math.PI*v)*(1-v)*(1-v);
+      else if(k==="wince"){const e=v<.18?avEo(v/.18):1-avEio((v-.18)/.82);mL=1-.62*e;mR=1-.22*e;}
+      else if(k==="wave")hand+=11*Math.sin(2*Math.PI*v)*(1-v);}
+    /* body */
+    const p=c.p;p.L=cu.L;p.R=cu.R;p.gx=c.g.x;p.gy=c.g.y;p.tx=ox;p.ty=cu.ty+oy;p.s=cu.s*(1+Math.sin(c.ph)*cu.ba);p.rot=cu.rot;p.hand=cu.hand+hand;p.bl=bl;p.mL=mL;p.mR=mR;
+    const k2=1-Math.exp(-dt/120);
+    (els||c.vis()).forEach(el=>{const sv=el.firstElementChild;if(!sv)return;
+      const pt=el._pt||(el._pt={x:0,y:0,tx:0,ty:0});pt.x+=(pt.tx-pt.x)*k2;pt.y+=(pt.ty-pt.y)*k2;
+      Object.assign(tmp,p);tmp.gx=p.gx+pt.x*cu.ptr;tmp.gy=p.gy+pt.y*cu.ptr;avPaint(sv,tmp,small(el));});
+    if(c.trace)c.trace.push(JSON.parse(JSON.stringify(Object.assign({t:now,st:s},p))));
+  };
+  /* the loop stops itself when the tab is hidden or no mascot shows; avKick() restarts it */
+  function frame(t){c.raf=0;if(c.rm||c.manual||!c.on||document.hidden)return;const els=c.vis();if(!els.length)return;
+    const dt=c.lt?Math.min(50,t-c.lt):16.7;c.lt=t;c.step(dt*c.speed,els);c.raf=requestAnimationFrame(frame);}
+  c.kick=()=>{if(!c.raf&&c.on&&!c.rm&&!c.manual&&!document.hidden){c.lt=0;c.raf=requestAnimationFrame(frame);}};
+  c.stop=()=>{if(c.raf)cancelAnimationFrame(c.raf);c.raf=0;};
+  c.rmApply=()=>{const p=avFlat(c.state);c.cur=avClone(AV_S[c.state]);c.from=avClone(c.cur);c.g={x:p.gx,y:p.gy};c.os={};c.p=Object.assign({},p);
+    document.querySelectorAll(".ido-av").forEach(el=>{el.classList.add("still");const sv=el.firstElementChild;if(sv)avPaint(sv,p,small(el));});
+    clearTimeout(c.rmT);c.rmT=0;const h=AV_S[c.state].hold;if(h)c.rmT=setTimeout(()=>{c.rmT=0;c.set(AV_S[c.state].next||"idle");},h);};
+  c.setRM=v=>{c.rm=!!v;clearTimeout(c.rmT);c.rmT=0;
+    if(c.rm){c.stop();c.rmApply();}else{document.querySelectorAll(".ido-av.still").forEach(el=>el.classList.remove("still"));c.act=c.now;c.kick();}};
+  c.wake=()=>{c.act=c.now;if(c.state==="sleepy"||c.state==="asleep")c.set("idle");};
+  /* chat events, the only inputs the page fires */
+  c.ev=function(n,d){
+    if(n!=="blur")c.blurAt=0;c.wake();const s=c.state,busy=s==="sent"||s==="thinking"||s==="writing";
+    switch(n){
+      case"input":{const len=+d||0;if(busy)return;if(len>0){c.typeX=-3+6*((len%42)/42);c.set("listening");}else if(s==="listening")c.set("idle");break;}
+      case"focus":if(!busy&&(+d||0)>0)c.set("listening");break;
+      case"blur":if(s==="listening")c.blurAt=c.now;break;
+      case"send":c.set("sent",true);break;
+      case"token":if(s!=="writing")c.set("writing");break;
+      case"tool":if(s==="writing")c.set("thinking");break;
+      case"done":c.set("happy",true);break;
+      case"error":c.set("error",true);break;
+      case"stop":c.set("stopped",true);break;
+      case"open":c.set("greet",true);break;
+      case"idle":c.set("idle");break;
+    }
+    c.kick();
+  };
+  c.pointer=(x,y)=>{if(c.now-c.act>400)c.wake();c.kick();if(c.pr||c.rm)return;c.pr=requestAnimationFrame(()=>{c.pr=0;
+    c.vis().forEach(el=>{const r=el.getBoundingClientRect();if(!r.width)return;const dx=x-(r.left+r.width/2),dy=y-(r.top+r.height/2),dd=Math.hypot(dx,dy)||1,m=Math.min(2.2,dd/60);
+      const pt=el._pt||(el._pt={x:0,y:0,tx:0,ty:0});pt.tx=dx/dd*m;pt.ty=dy/dd*m*.7;});});};
+  c.html=size=>`<span class="ido-av${c.rm?" still":""}" style="--av-s:${size}px" data-s="${size}" aria-hidden="true">${avSVG(c.p,size<=24)}</span>`;
+  return c;
+})();
+function avHTML(size){return AVC.html(size);}
+function avEv(n,d){AVC.ev(n,d);}
+function avKick(){requestAnimationFrame(()=>AVC.kick());}
+/* greet: first panel open per session, as the build 4 wave was */
+function avGreet(){if(AVC.waved)return;AVC.waved=true;try{if(sessionStorage.getItem("partneros.askido.waved"))return;sessionStorage.setItem("partneros.askido.waved","1");}catch(e){}avEv("open");}
 function avInit(){
-  if(AV.on)return;AV.on=true;AV.rm=RM();avEls().forEach(e=>e.classList.toggle("still",AV.rm));
-  window.addEventListener("pointermove",e=>{AV.x=e.clientX;AV.y=e.clientY;if(!AV.raf)AV.raf=requestAnimationFrame(avLook);},{passive:true});
-  window.addEventListener("pointerdown",avWake,{passive:true,capture:true});window.addEventListener("keydown",avWake,{passive:true,capture:true});
-  avBlink();avWake();
+  if(AVC.on)return;AVC.on=true;AVC.rm=RM();if(AVC.rm)AVC.rmApply();
+  try{const mq=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)");if(mq&&mq.addEventListener)mq.addEventListener("change",()=>AVC.setRM(mq.matches));}catch(e){}
+  window.addEventListener("pointermove",e=>AVC.pointer(e.clientX,e.clientY),{passive:true});
+  window.addEventListener("pointerdown",()=>{AVC.wake();AVC.kick();},{passive:true,capture:true});
+  window.addEventListener("keydown",()=>{AVC.wake();AVC.kick();},{passive:true,capture:true});
+  document.addEventListener("visibilitychange",()=>{if(!document.hidden)AVC.kick();});
+  AVC.kick();
 }
 
 /* ---- build 4: playful layer. Ambient shapes on the stage, confetti on Signed, Pick one for me, KPI icon pulse, empty-state art. All off under reduced motion. */
