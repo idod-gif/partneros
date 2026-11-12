@@ -130,6 +130,16 @@ class ApplyOverlay(unittest.TestCase):
         lo.apply_overlay(sn, led, program_adds=adds)      # re-run adds nothing twice
         self.assertEqual(len(sn['stores']), 2)
 
+    def test_program_adds_new_partner_only_on_opt_in(self):
+        sn = self.snap(snap_store(lead='L9', hs='1000009', stripe=7.0))
+        adds = [{'partner': 'fresh', 'company': 's', 'lead_id': 'L1', 'new_partner': True}, {'partner': 'fresh', 'company': 't', 'lead_id': 'L3', 'new_partner': True},
+                {'partner': 'other', 'company': 'u', 'lead_id': 'L4'}]
+        rep = lo.apply_overlay(sn, ledger(merchant('c1', 'L1', collected=5.0)), program_adds=adds)
+        fresh = [p for p in sn['partners'] if p['name'] == 'fresh']
+        self.assertEqual((len(fresh), fresh[0]['scope'], fresh[0]['stores'], fresh[0]['rate_override'], fresh[0]['signed_on']), (1, 'program', 2, None, None))
+        self.assertEqual((rep['program_added'], rep['program_skipped']), (['L1', 'L3'], ['L4']))
+        self.assertEqual(fresh[0]['lifetime_products']['other'], 5.0)
+
     def test_idempotent_second_run_same_figures(self):
         sn = self.snap(snap_store(stripe=10.0), snap_store(lead='L9', hs='1000009', stripe=7.0))
         led = ledger(merchant('c1', 'L1', collected=200.0, shopify=30.0))

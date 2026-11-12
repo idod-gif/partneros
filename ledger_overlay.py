@@ -257,19 +257,29 @@ def _shares(store, cfg_shares):
 def add_program_stores(snap, adds):
     """Append program-scope stores for ledger merchants the Partner.io export never listed. `adds` is a list of dicts with partner, company,
     lead_id and optional hs_id, hs_url, cfid, lead_status, handle, note (data file kept outside this repo). A store is skipped when its lead_id or
-    hs_id is already in the snapshot, or when its partner has no PartnerOS record (never guessed). Returns (added, skipped) as lists of lead ids.
+    hs_id is already in the snapshot, or when its partner has no PartnerOS record (never guessed), unless the entry sets new_partner true, which creates a program-only partner record with only its name. Returns (added, skipped) as lists of lead ids.
     No payout amount, rate or payout-scope membership is touched."""
     have_l = {(s.get('lead_id') or '').strip() for s in snap['stores']}
     have_h = {(s.get('hs_id') or '').strip() for s in snap['stores']}
     names = {p['name'] for p in snap.get('partners') or []}
-    added, skipped = [], []
+    added, skipped, made = [], [], set()
     for a in adds:
         lid, hs = str(a.get('lead_id') or '').strip(), str(a.get('hs_id') or '').strip()
         if (lid and lid in have_l) or (hs and hs in have_h):
             continue
         if a.get('partner') not in names:
-            skipped.append(lid)
-            continue
+            if not a.get('new_partner'):
+                skipped.append(lid)
+                continue
+            # explicit opt-in: a program-only partner record in the shape refresh.py builds, nothing sourced beyond the name
+            snap.setdefault('partners', []).append({
+                'name': a['partner'], 'stores': 0, 'scope': 'program', 'q1_actual_payout': None, 'q1_actual_by_product': {},
+                'q2_actual_payout_net': None, 'q2_actual_paid_rows': None, 'q2_actual_by_product': {}, 'rate_override': None,
+                'display_name': a['partner'], 'signed_on': None, 'partnerio_created': None, 'active_since': None})
+            names.add(a['partner'])
+            made.add(a['partner'])
+        if a['partner'] in made:
+            [p for p in snap['partners'] if p['name'] == a['partner']][0]['stores'] += 1
         s = {'partner': a['partner'], 'company': a.get('company', ''), 'handle': a.get('handle', ''), 'cfid': a.get('cfid', ''),
              'hs_id': hs, 'lead_id': lid, 'lead_status': a.get('lead_status', ''), 'q3_reference': None, 'added_since_cut': False,
              'note': a.get('note', ''), 'scope': 'program', 'no_commission': False, 'by_month': {}}
