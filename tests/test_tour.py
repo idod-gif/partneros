@@ -35,6 +35,12 @@ RUNS = {
     'returning-seen': ('returning', {'role': 'viewer', 'prof': 'seen'}),
     'missing': ('missing', {'role': 'owner'}),
     'keys': ('keys', {'role': 'owner'}),
+    'center-1440': ('center', {'role': 'owner'}),
+    'center-820-dark': ('center', {'role': 'viewer', 'width': 820, 'theme': 'dark'}),
+    'center-390': ('center', {'role': 'owner', 'width': 390, 'height': 844}),
+    'center-390-short': ('center', {'role': 'viewer', 'width': 390, 'height': 600}),
+    'center-noask': ('center', {'role': 'editor', 'ask': False}),
+    'center-rm': ('center', {'role': 'owner', 'rm': True}),
 }
 
 
@@ -128,13 +134,27 @@ class Tour(unittest.TestCase):
     def test_keys_clicks_scroll_resize(self):
         self.ok('keys', 6)
 
+    def test_start_card_is_centred_at_every_width(self):
+        for name in ('center-1440', 'center-820-dark', 'center-390', 'center-390-short'):
+            o = self.ok(name, 25)
+            for k in ('welcome', 'restart'):
+                self.assertLessEqual(abs(o[k]['dx']), 3, (name, k))
+
+    def test_restart_card_without_ask_ido(self):
+        o = self.ok('center-noask', 25)
+        self.assertFalse(o['restart']['av'])
+
+    def test_glide_frames_and_reduced_motion(self):
+        self.assertGreaterEqual(self.ok('center-1440', 25).get('frames', 0), 25)
+        self.assertNotIn('frames', self.ok('center-rm', 20))
+
     def test_copy_rules_in_the_source(self):
         with open(TEMPLATE, encoding='utf-8') as f:
             src = f.read()
         a = src.index('/* ==== build 12: guided tour.')
         b = src.index('/* ---- boot: render the seed first')
         block = src[a:b]
-        self.assertNotRegex(block, '[—–]')
+        self.assertNotRegex(block, '[\\u2014\\u2013]')
         titles = re.findall(r'title:(?:c=>c\.narrow\?)?"([^"]+)"(?::"([^"]+)")?', block)
         flat = [t for pair in titles for t in pair if t]
         self.assertGreaterEqual(len(flat), 12)
