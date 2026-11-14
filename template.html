@@ -6749,7 +6749,7 @@ const TOUR_STEPS=[
   {id:"search",sec:"overview",soft:1,alt:1,target:()=>$("srch"),title:"Search and commands",
     body:c=>"Find a section, partner or candidate, or run a command such as switching the theme. "+(c.narrow?"It sits in the menu at the top; with a keyboard, press "+c.mod+".":"Press "+c.mod+" from anywhere to open it.")},
   {id:"ask",sec:"overview",when:c=>c.ask,target:()=>$("flo-fab"),title:"Ask Ido",
-    body:c=>"Ask about partners, revenue, leads or the outreach queue in plain words. "+(c.edit?"When it suggests a change, it shows a card, and nothing changes until you press Confirm.":"It can suggest a change as a card; confirming one needs edit access.")},
+    body:c=>"Ask about partners, revenue, leads or the outreach queue in plain words. This Ido is always free to answer, unlike the one with a calendar. "+(c.edit?"Changes arrive as a card, and nothing happens until you press Confirm.":"It can suggest a change as a card; confirming one needs edit access.")},
   {id:"menu",sec:"overview",soft:1,alt:1,target:()=>[$("tour-nav"),$("ucard")],title:c=>c.narrow?"Take it again":"Your menu",
     body:c=>c.narrow?"Take the tour, in the menu at the top, starts this tour again. Search finds it too.":
       (c.prof?"Change your picture and role, switch between light and dark, and see the keyboard shortcuts.":"Switch between light and dark and see the keyboard shortcuts; your picture and role need edit access.")+" Take the tour, just above, starts this tour again."}
