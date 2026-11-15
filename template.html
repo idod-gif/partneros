@@ -1026,6 +1026,16 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .rv-nn{display:block;font-size:12px;line-height:17px;color:var(--secondary-foreground)}
 .rv-nn b{color:var(--foreground);font-weight:600}
 .rv-root:not(.has-led) .rv-cutc{display:none}
+.rv-chips{grid-column:1/-1;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px}
+.rv-chips[hidden]{display:none}
+.rv-chip{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 4px 0 10px;border-radius:999px;background:var(--pill-blue-bg);color:var(--pill-blue-fg);font-size:12px;font-weight:500}
+.rv-chip-x{all:unset;cursor:pointer;display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%}
+.rv-chip-x svg{width:12px;height:12px}
+.rv-chip-x:hover{background:color-mix(in srgb,var(--pill-blue-fg) 14%,transparent)}
+.rv-chip-x:focus-visible{outline:2px solid var(--ring);outline-offset:1px}
+.rv-reset{margin-left:4px}
+.rv-bar .chip.on select{border-color:var(--primary);color:var(--primary);box-shadow:inset 0 0 0 1px var(--primary)}
+.rv-bar .chip.on>svg{color:var(--primary)}
 .rv-def{font-size:12px;line-height:17px;color:var(--secondary-foreground)}
 .rv-np{margin-left:6px;vertical-align:1px}
 .rv-pay{font-size:11px;color:var(--muted-foreground);margin-left:6px}
@@ -1814,6 +1824,7 @@ const IC={
   target:'<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="2.8"/><circle cx="8" cy="8" r=".6"/>',
   help:'<circle cx="8" cy="8" r="6"/><path d="M6.4 6.3a1.6 1.6 0 1 1 2.3 1.5c-.5.2-.7.6-.7 1.1v.3M8 11.1v.1"/>',
   arrow:'<path d="M5 11 11 5M6 5h5v5"/>',
+  x:'<path d="M4.5 4.5l7 7M11.5 4.5l-7 7"/>',
   finance:'<rect x="2.5" y="2.5" width="11" height="11" rx="1.6"/><path d="M5 10.5V8.5M8 10.5V6M11 10.5V7.5"/>'
 };
 const svg=(k,cls)=>`<svg${cls?` class="${cls}"`:""} viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${IC[k]||""}</svg>`;
@@ -6641,19 +6652,60 @@ function rvHero(L,M,c){
   const tile=(id,l,v,s,tt,right)=>`<div class="rv-tile rv-tthost${right?" ttr":""}" tabindex="0" data-tt="${id}" aria-describedby="rvtt-${id}"><div class="l" title="${esc(l)}">${esc(l)}</div><div class="v num">${v}</div><div class="s">${s}</div>${tt.replace('class="rv-tt"',`class="rv-tt" id="rvtt-${id}"`)}</div>`;
   const preNote=c.pre.length?` Before ${lbMY(M.win[0])}: trend history, not split by product.`:"";const srcL=rvSrcLine(M);
   $("rv-hero").innerHTML=`<h2 class="sr-only">Revenue for the selection</h2><div class="rv-h"><div class="rv-hl">
-    <div class="rv-lab" id="rv-hero-l">${RVS.nn?`Net new, ${rvNetL()} revenue`:`${RVS.gm?"Net":"Total"} revenue`}, ${esc(rl)}</div>
+    <div class="rv-lab" id="rv-hero-l">${esc(rvHeroLabel(L,M,st,rl))}</div>
     <div class="rv-tthost rv-bigw"><div class="rv-big num" tabindex="0" id="rv-hero-v" aria-describedby="rvtt-hero" data-v="${c.total.toFixed(2)}">${rvF$(c.total)}</div>${rvTT(`${heroT} behind ${rvF$(c.total)}`,rvTopRows(heroItems,c.total),c.total,"Share of this selection's revenue.").replace('class="rv-tt"','class="rv-tt" id="rvtt-hero"')}</div>
     <div class="rv-hs"><span>${esc(pn)}, ${esc(prl.toLowerCase())}. <span id="rv-src">${esc(srcL)}</span>${esc(preNote)}</span>${M.X?`<span class="rv-def" id="rv-cut-l" data-v="${c.cut.toFixed(2)}">${RVS.cut?`After Shopify's cut of ${rvF$(c.cut)} (Shopify's fees on Shopify Billing revenue, by charge month).`:`Before Shopify's cut: ${rvF$(c.cut)} of Shopify's fees in this selection are included.`}</span>`:""}${RVS.nn?rvNnLine(L,M,c):""}<span class="rv-def" id="rv-basis">${esc(basis)}</span></div></div>
     <div class="rv-kt">
     ${tile("pay",M.X?"Merchants with revenue":"Paying stores",fmtN(c.paying),`${fmtN(c.partnersRev)} partner${c.partnersRev===1?"":"s"} with revenue`,rvTT("Top 5 merchants",rvTopRows(storeItems,c.total),c.total,"Share of this selection's revenue."))}
     ${tile("lm",lm?`Last full month, ${rvMon(lm)}`:"Last full month",lv!=null?rvF$(lv):"-",lm?`${L.fmtSP(mom)}${pm?" vs "+rvMon(pm):""}`:"No full month in range",rvTT(lm?`Top 5 in ${lbMY(lm)}`:"Last full month",lm?rvTopRows(lmItems,lv):[],lv||0,lm?"Share of that month's revenue.":""))}
-    ${tile("mix",big?`Largest product, ${rvPLab(big)}`:"Largest product",big?`${pt>0?Math.round(c.prod[big]/pt*100):0}%`:"-",big?`${esc(rvPLab(big))} of ${rvF$(pt)}, ${rvNetL()} revenue`:"",rvTT("Revenue by product",RV_PK.map(k=>({n:rvPLab(k),v:c.prod[k],c:LBC[k]})).filter(x=>x.v!==0).sort((a,b)=>b.v-a.v),pt,M.X?"Finance ledger product columns.":c.pre.length?"Months before the snapshot window are not split and count as Other.":"From invoice line items; a month without lines counts as Other."))}
+    ${st.product&&st.product!=="all"?(()=>{const all=c.allProd||0,v=c.total;return tile("mix",`${LB_PL[st.product]} share`,all>0?`${Math.round(v/all*100)}%`:"-",`of ${rvF$(all)} all-product ${rvNetL()} revenue`,rvTT("Revenue by product, same selection",RV_PK.map(k=>({n:rvPLab(k),v:(c.allPr||{})[k]||0,c:LBC[k]})).filter(x=>x.v!==0).sort((a,b)=>b.v-a.v),all,"Every product, the rest of the selection unchanged."));})():tile("mix",big?`Largest product, ${rvPLab(big)}`:"Largest product",big?`${pt>0?Math.round(c.prod[big]/pt*100):0}%`:"-",big?`${esc(rvPLab(big))} of ${rvF$(pt)}, ${rvNetL()} revenue`:"",rvTT("Revenue by product",RV_PK.map(k=>({n:rvPLab(k),v:c.prod[k],c:LBC[k]})).filter(x=>x.v!==0).sort((a,b)=>b.v-a.v),pt,M.X?"Finance ledger product columns.":c.pre.length?"Months before the snapshot window are not split and count as Other.":"From invoice line items; a month without lines counts as Other."))}
     ${tile("l12","Last 12 months",g&&g.t12_now!=null?rvF$(g.t12_now):"-",`${g&&g.span_now?esc(g.span_now):""}. All partners, not filtered`,rvTT("Top 5 partners, last 12 months",rvTopRows(l12Items,l12T),l12T,M.X?`Finance ledger, ${rvMeasL(M)}, every store in the explorer.`:"From snapshots/trend; collected, all referred stores."),true)}
-    ${tile("at","All time",atOk?rvF$(at.tot.earned):"-",atOk?`${RVS.nn?"The new stores, ":""}${st.partner&&st.partner!==RV_OP?esc(pn):"All partners"}, ${M.X?`${rvNetL()} revenue, ${rvMeasL(M)}, to ${lbMY(M.MU[M.MU.length-1])}`:`collected${RVS.shop===false?", Stripe only":", Stripe and Shopify"}`}`:"",rvTT(st.partner&&st.partner!==RV_OP&&!RVS.nn?"All time by product":"Top 5 partners, all time",rvTopRows(atItems,atOk?at.tot.earned:0),atOk?at.tot.earned:0,M.X?`Every month in the Finance ledger, ${rvNetL()} revenue, ${rvMeasL(M)}, both rails. Not by range.`:"Lifetime: Stripe invoices plus Shopify Billing when the switch is on. Not by range or Alerts basis."),true)}
+    ${tile("at","All time",atOk?rvF$(at.tot.earned):"-",atOk?`${RVS.nn?"The new stores, ":""}${st.partner&&st.partner!==RV_OP?esc(pn):"All partners"}, ${M.X?`${rvNetL()} revenue${st.product&&st.product!=="all"?", all products":""}, ${rvMeasL(M)}, to ${lbMY(M.MU[M.MU.length-1])}`:`collected${RVS.shop===false?", Stripe only":", Stripe and Shopify"}`}`:"",rvTT(st.partner&&st.partner!==RV_OP&&!RVS.nn?"All time by product":"Top 5 partners, all time",rvTopRows(atItems,atOk?at.tot.earned:0),atOk?at.tot.earned:0,M.X?`Every month in the Finance ledger, ${rvNetL()} revenue, ${rvMeasL(M)}, both rails. Not by range.`:"Lifetime: Stripe invoices plus Shopify Billing when the switch is on. Not by range or Alerts basis."),true)}
     </div></div>`;
   $("rv-hero").querySelectorAll(".rv-tthost").forEach(h=>{h.addEventListener("mouseleave",()=>h.classList.remove("tt-off"));
     h.addEventListener("keydown",e=>{if(e.key==="Escape"&&!h.classList.contains("tt-off")){h.classList.add("tt-off");e.stopPropagation();}});h.addEventListener("focusout",()=>h.classList.remove("tt-off"));});
 }
+/* build 16: the hero label names whatever narrows the number, so a filtered figure never sits under a bare "Total revenue" */
+function rvHeroLabel(L,M,st,rl){
+  const P=st.product||"all",prod=P==="all"?"":LB_PL[P],parts=[];
+  let head=RVS.gm?(P==="all"?"Net revenue":`Net revenue, ${prod} only`):(P==="all"?"Total revenue":`${prod} revenue`);
+  if(M.X&&M.meas==="b")head+=" (billed)";
+  if(RVS.nn)head=`Net new, ${head.charAt(0).toLowerCase()+head.slice(1)}`;
+  if(st.partner)parts.push(st.partner===RV_OP?"partners outside the top five":rvPN(L,st.partner));
+  if(M.X&&RVS.xy)parts.push("excluding self-referral partners");
+  if(!RVS.add)parts.push("excluding stores added since the cut");
+  return[head].concat(parts,[rl]).join(", ");
+}
+/* the default state the chips and Reset compare against */
+function rvDefault(M){const MU=M.MU,to=M.X?(M.lastFull||MU[MU.length-1]):MU[MU.length-1],from=M.X?MU[0]:(M.win[0]||MU[0]);return{from,to,partner:"",product:"all",meas:"c",nn:false,xy:false,add:true,cut:true,gm:true,view:"m"};}
+function rvChips(L,M){
+  const el=$("rv-chips");if(!el)return;const d=rvDefault(M),sel=RVS.sel,base=sel?sel.prev:RVS,ch=[];
+  const chip=(k,t)=>ch.push(`<span class="rv-chip" data-k="${k}"><span>${esc(t)}</span><button type="button" class="rv-chip-x" data-chip="${k}" aria-label="Remove: ${esc(t)}">${svg("x")||"&times;"}</button></span>`);
+  if(base.product&&base.product!=="all")chip("product",`Product: ${LB_PL[base.product]}`);
+  if(base.partner)chip("partner",`Partner: ${base.partner===RV_OP?"outside the top five":rvPN(L,base.partner)}`);
+  if(base.from!==d.from||base.to!==d.to)chip("period",`Period: ${rvRangeL(base.from,base.to,RVS.view)}`);
+  if(M.X&&M.meas==="b")chip("meas","Amounts: billed");
+  if(RVS.nn)chip("nn","Net new only");
+  if(M.X&&RVS.xy)chip("xy","Self-referral partners excluded");
+  if(!RVS.add)chip("add","Stores added since the cut excluded");
+  if(M.X&&!RVS.cut)chip("cut","Shopify's cut included");
+  if(sel){const b=(RVD&&RVD.B||[]).find(x=>x.k===sel.bk);chip("sel",`Selected from chart: ${b?b.label.replace(/, (partial|part)$/,""):sel.bk}`);
+    if(sel.seg){const s=(RVD&&RVD.S||[]).find(x=>x.k===sel.seg);chip("seg",`Selected from chart: ${s?s.label:sel.seg}`);}}
+  const differs=ch.length||RVS.gm!==d.gm||RVS.view!==d.view;
+  el.hidden=!differs;
+  el.innerHTML=differs?`${ch.join("")}<button type="button" class="btn sm rv-reset" id="rv-reset">Reset to default</button>`:"";
+}
+function rvChipRemove(k){
+  const L=lbGet();if(!L)return;const M=rvModel(L),d=rvDefault(M);
+  if(k==="sel"){rvClear();return;}
+  if(k==="seg"&&RVS.sel){const p=RVS.sel.prev;RVS.product=p.product;RVS.partner=p.partner;RVS.sel.seg=null;RVS.sel.label=RVS.sel.label.replace(/, [^,]+$/,"");rvRender();return;}
+  /* a base filter: drop any chart selection first, then reset that one setting */
+  if(RVS.sel){const p=RVS.sel.prev;RVS.from=p.from;RVS.to=p.to;RVS.partner=p.partner;RVS.product=p.product;RVS.sel=null;}
+  if(k==="product")RVS.product="all";else if(k==="partner")RVS.partner="";else if(k==="period"){RVS.from=d.from;RVS.to=d.to;}
+  else if(k==="meas")RVS.meas="c";else if(k==="nn")RVS.nn=false;else if(k==="xy")RVS.xy=false;else if(k==="add")RVS.add=true;else if(k==="cut")RVS.cut=true;
+  RVS.shown=25;rvSave();rvRender();
+}
+function rvReset(){const L=lbGet();if(!L)return;const d=rvDefault(rvModel(L));RVS.sel=null;Object.assign(RVS,{from:d.from,to:d.to,partner:"",product:"all",meas:"c",nn:false,xy:false,add:true,cut:true,gm:true,view:"m",shown:25});rvSave();rvRender();}
 /* Net new: the one-line definition, new stores with revenue, share of the range's revenue, stores without a first paid date */
 function rvNnLine(L,M,c){
   const k=rvCoh(),nNew=c.per.filter(x=>x.rev!==0).length,all=c.all?c.all.total:0,nofp=rvRowsOf(M,c.st.partner,false).filter(r=>!r.fp).length;
@@ -6676,6 +6728,7 @@ function rvShell(){
     <span class="sw" id="rv-shop-w"><button type="button" class="switch" role="switch" id="rv-shop" aria-checked="true" aria-labelledby="rv-shop-l"></button><span id="rv-shop-l">Shopify in all time</span></span>
   </div><span class="dc-sum" id="rv-ctl-sub"></span><button type="button" class="btn sm" id="rv-notes" aria-haspopup="dialog">Notes and limits</button></div>
   <div class="rv-selbar" id="rv-selbar" aria-live="polite" hidden></div>
+  <div class="rv-chips" id="rv-chips" role="group" aria-label="Active filters" aria-live="polite" hidden></div>
   <section class="card rv-hero" id="rv-hero" aria-label="Revenue for the selection"></section>
   <section class="card rv-chart" id="rv-chart" aria-label="Revenue chart"><div class="card-head"><div><h2 id="rv-ch-t">Revenue by month</h2><div class="card-sub" id="rv-ch-sub"></div></div>
     <div class="rv-ctl">
@@ -6919,6 +6972,8 @@ function rvControls(L,M){
   $("rv-view").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===RVS.view)));
   const ps=M.partners;
   $("rv-partner").innerHTML=`<option value="">All partners (${ps.length})</option>`+ps.map(n=>`<option value="${esc(n)}">${esc(rvPN(L,n))}</option>`).join("")+`<option value="${RV_OP}">Partners outside the top five</option>`;$("rv-partner").value=RVS.partner;
+  {const d=rvDefault(M);$("rv-partner").closest(".chip").classList.toggle("on",!!RVS.partner);$("rv-product").closest(".chip").classList.toggle("on",RVS.product!=="all");
+   $("rv-from").closest(".chip").classList.toggle("on",RVS.from!==d.from);$("rv-to").closest(".chip").classList.toggle("on",RVS.to!==d.to);}
   $("rv-product").innerHTML=["all"].concat(RV_PK).map(k=>`<option value="${k}">${esc(rvPL(k))}</option>`).join("");$("rv-product").value=RVS.product;
   $("rv-gm").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.v==="gm")===RVS.gm)));
   $("rv-nn").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.v==="nn")===RVS.nn)));
@@ -6943,16 +6998,17 @@ function rvRender(){
   rvControls(L,M);
   const c=rvCalc(M,Object.assign({},RVS,{nn:RVS.nn})),C=rvChartState();
   const call=RVS.nn?rvCalc(M,Object.assign({},RVS,{nn:false})):c;c.all=call;
+  if(RVS.product!=="all"){const ca=rvCalc(M,Object.assign({},RVS,{product:"all"}));c.allProd=ca.total;c.allPr=ca.prod;}
   rvHero(L,M,c);
-  const unit=RVS.view==="q"?"quarter":"month",NG=RVS.gm?"Net revenue":"Total revenue";
+  const unit=RVS.view==="q"?"quarter":"month",CP=rvChartState().product||"all",NG=RVS.gm?(CP==="all"?"Net revenue":`Net revenue, ${LB_PL[CP]} only,`):(CP==="all"?"Total revenue":`${LB_PL[CP]} revenue`);
   $("rv-ch-t").textContent=RVS.mode==="stack"?`${NG} by ${unit}, stacked by ${RVS.stackBy}`:`${NG} by ${unit}`;
   const rl=rvRangeL(C.from,C.to,RVS.view),scope=C.partner?rvPN(L,C.partner):"all partners";
   $("rv-ch-sub").textContent=`${rl}, ${scope}, ${rvPL(C.product||"all").toLowerCase()}. ${rvBasisL(M)}.${M.X?` ${M.X.src.label||"Finance ledger"}, ${M.meas==="b"?"billed":"collected"}, both rails.`:""}${RVS.mode==="stack"&&RVS.stackBy==="partner"?" The five largest partners across all months, the rest as Other partners.":""}${M.noGm&&RVS.gm?` ${fmtN(M.noGm)} store-months without a margin rate keep Alerts at the full amount.`:""}`;
   rvDraw(L,M);rvBoxBind();rvDataTable();
   const tt=rvTable(L,M,c);
   if(RVS.nn){$("rv-ch-sub").textContent+=` Net new: stores whose ${M.X?"first revenue month":"first paid month"} is in ${rvRangeL(rvCoh().from,rvCoh().to,RVS.view)}.`;}
-  const sb=$("rv-selbar");
-  if(RVS.sel){sb.hidden=false;sb.innerHTML=`<span>Selected from the chart: <b>${esc(RVS.sel.label)}</b>. Filters, totals and the table follow it.</span><button type="button" class="btn sm" id="rv-clear">Clear selection<span class="sr-only">, back to ${esc(rvRangeL(RVS.sel.prev.from,RVS.sel.prev.to,RVS.view))}</span></button>`;}
+  const sb=$("rv-selbar");rvChips(L,M);
+  if(false){sb.hidden=false;sb.innerHTML=`<span>Selected from the chart: <b>${esc(RVS.sel.label)}</b>. Filters, totals and the table follow it.</span><button type="button" class="btn sm" id="rv-clear">Clear selection<span class="sr-only">, back to ${esc(rvRangeL(RVS.sel.prev.from,RVS.sel.prev.to,RVS.view))}</span></button>`;}
   else{sb.hidden=true;sb.innerHTML="";}
   $("rv-ctl-sub").textContent=`${rvRangeL(RVS.from,RVS.to,RVS.view)}, ${RVS.partner?rvPN(L,RVS.partner):"all partners"}, ${rvPL(RVS.product).toLowerCase()}, ${rvNetL()} revenue, ${rvMeasL(M)}${M.X?`. ${M.X.src.label||"Finance ledger"}${M.X.src.asof?", as of "+dShort(M.X.src.asof):""}`:""}`;
   let nnCk=null;if(RVS.nn&&c.all){const k=rvCoh(),sum=f=>c.all.per.filter(f).reduce((a,x)=>a+x.rev,0);nnCk={all:c.all.total,nn:c.total,before:sum(x=>x.r.fp&&x.r.fp<k.from),after:sum(x=>x.r.fp&&x.r.fp>k.to),nofp:sum(x=>!x.r.fp),rows:RVtabN};}
@@ -6984,6 +7040,8 @@ function rvOnClick(e,t){
   if(t.id==="rv-xy"){RVS.xy=!RVS.xy;RVS.sel=null;RVS.shown=25;rvSave();rvRender();return;}
   if(t.id==="rv-shop"){RVS.shop=!RVS.shop;rvSave();rvRender();return;}
   if(t.id==="rv-notes"){lbOpen("notes");return;}
+  if(t.dataset.chip){const k=t.dataset.chip;rvChipRemove(k);const b=$("rv-box");if(b&&(k==="sel"||k==="seg"))try{b.focus({preventScroll:true});}catch(x){}return;}
+  if(t.id==="rv-reset"){rvReset();return;}
   if(t.id==="rv-clear"){rvClear();const b=$("rv-box");if(b)try{b.focus({preventScroll:true});}catch(x){}return;}
   if(t.id==="rv-bd-plus"){RVS.shown+=25;rvRender();return;}
   if(t.id==="rv-bd-all"){RVS.shown=1e9;rvRender();return;}
