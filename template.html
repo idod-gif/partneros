@@ -1,6 +1,7 @@
 <title>PartnerOS</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <script>/* build 5: saved appearance (light, dark; system = no attribute) and rail state, applied before the first stylesheet */
+try{document.documentElement.classList.add("vp-wait");var vpc=localStorage.getItem("partneros.vp");if(vpc==="finance")document.documentElement.classList.add("vp-finance");}catch(e){}
 try{var t=localStorage.getItem("partneros.theme");if(t==="light"||t==="dark")document.documentElement.setAttribute("data-theme",t);if(localStorage.getItem("partneros.rail")==="collapsed")document.documentElement.classList.add("rail-c","rail-lh","rail-cd");}catch(e){}</script>
 <style>
 @font-face{font-family:"Degular Display";src:url(fonts/degular-display-500.woff2) format("woff2");font-weight:500;font-style:normal;font-display:swap}
@@ -938,6 +939,10 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
   .bento .tscroll{margin:0 -16px;padding:0 16px}
 }
 
+.vp-wait #nav .nav-grp,.vp-wait .main-in,.vp-wait #menu-cur{visibility:hidden}
+.vp-banner{position:fixed;left:50%;transform:translateX(-50%);bottom:16px;z-index:80;display:flex;align-items:center;gap:12px;padding:8px 8px 8px 14px;border-radius:12px;background:var(--pill-blue-bg);color:var(--pill-blue-fg);box-shadow:var(--shadow-cards);font-size:13px;max-width:calc(100vw - 32px)}
+.vp-banner[hidden]{display:none}
+.vp-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:13px}
 .fin-tab tfoot td{border-bottom:0;font-weight:600;height:48px}
 .fin-tab td{height:44px}
 .fin-cor{font-size:11px;line-height:14px;color:var(--pill-est-fg);font-weight:500}
@@ -1535,6 +1540,7 @@ body.ov-dragging .ovb-h{cursor:grabbing}
     </section>
   </div>
   <div id="p-settings" class="panel" hidden>
+    <section class="card" id="vp-settings" aria-label="View profiles" hidden></section>
     <div id="set-src"></div>
     <div id="set-body"><section class="card" aria-label="Program settings"><div class="msg">Loading program settings.</div></section></div>
   </div>
@@ -1883,6 +1889,7 @@ function setSection(k,user){
   if(k==="overview")renderOverview();
   if(k==="dashboard"&&DV.v==="lead"&&lbGet()&&VP.p!=="finance")requestAnimationFrame(()=>{if(ST.sec==="dashboard"&&DV.v==="lead")renderLB();});
   if(k==="finance")renderFinance();
+  if(k==="settings")vpSettingsRender();
   if(k==="dashboard"&&VP.p==="finance")requestAnimationFrame(()=>{if(ST.sec==="dashboard")rvPageRender();});
   if(shownSec!==k){shownSec=k;reveal($("p-"+k));icPulse($("p-"+k));}
   countUp($("p-"+k));
@@ -6369,11 +6376,64 @@ function vpApply(p,src){
   if(p==="finance"){ST.canEdit=false;ST.canMine=false;try{renderPartners();renderHead();}catch(e){}}
   if(ch){buildNav();if(!secOk(ST.sec))setSection(secHome(),false);else renderTitle();}else if(ST.sec==="finance")renderFinance();
 }
+/* build 19: the profile comes from /api/pos/me (server-side lookup, view_profile) when the app serves it; otherwise from
+   settings/view_profiles, read here with retries. Matching is case-insensitive and trimmed, on id and email, and on the profile
+   value. A read that keeps failing logs a console warning instead of silently showing the full view. The navigation and the
+   panels stay hidden (html.vp-wait) until the profile is known, so a Finance viewer never sees the full nav; the last resolved
+   profile is cached per browser so later visits apply it before first paint. */
+const vpNorm=x=>String(x==null?"":x).trim().toLowerCase();
+function vpMatch(doc,ids){
+  if(!doc||typeof doc!=="object"||Array.isArray(doc))return null;
+  const inner=doc.data&&typeof doc.data==="object"&&!Array.isArray(doc.data)?doc.data:null,map=doc.profiles!=null?doc.profiles:inner?inner.profiles:null;
+  if(!map||typeof map!=="object"||Array.isArray(map))return null;
+  const want=new Set((ids||[]).map(vpNorm).filter(Boolean));if(!want.size)return null;
+  for(const k of Object.keys(map)){if(!want.has(vpNorm(k)))continue;const v=vpNorm(map[k]);if(v==="finance")return v;}
+  return null;
+}
+const VP_LS="partneros.vp";
+let vpDoneT=0;
+function vpDone(){clearTimeout(vpDoneT);document.documentElement.classList.remove("vp-wait");}
+function vpRemember(p){try{if(p==="finance")localStorage.setItem(VP_LS,"finance");else localStorage.removeItem(VP_LS);}catch(e){}}
 async function vpLoad(){
-  const q=vpQuery();if(q){VP.p="";vpApply(q,"query");return;}
-  const id=ST.me&&typeof ST.me.id==="string"?ST.me.id.trim().toLowerCase():"";if(!id||!ST.db)return;
-  try{const s=await ST.db.doc("settings/view_profiles").get();const d=s&&s.exists?s.data():null;const m=d&&d.profiles&&typeof d.profiles==="object"?d.profiles:null;
-    if(!m)return;const hit=Object.keys(m).find(k=>String(k).trim().toLowerCase()===id);if(hit&&m[hit]==="finance")vpApply("finance","settings");}catch(e){}
+  try{
+    const q=vpQuery();if(q){VP.p="";vpApply(q,"query");return;}
+    /* admin preview of the Finance view, this session only */
+    let pv=null;try{pv=sessionStorage.getItem("partneros.viewas");}catch(e){}
+    const me=ST.me||{},ids=[me.id,me.email];
+    let p=null,known=false;
+    if(me.viewProfileStatus==="ok"){p=me.viewProfile==="finance"?"finance":null;known=true;}
+    if(!known&&ST.db){
+      for(let i=0;i<3&&!known;i++){
+        if(i)await new Promise(r=>setTimeout(r,i===1?800:2500));
+        try{const s=await ST.db.doc("settings/view_profiles").get();p=s&&s.exists?vpMatch(s.data(),ids):null;known=true;}catch(e){if(i===2)console.warn("PartnerOS: the view profile could not be read (settings/view_profiles); showing the full view. "+(e&&e.message||""));}
+      }
+    }
+    if(known)vpRemember(p);
+    if(p==="finance")vpApply("finance","settings");
+    else if(pv==="finance"&&ST.canEdit){VP.adminEdit=true;vpApply("finance","preview");}
+    else if(known&&VP.p==="finance"&&VP.src==="cache")vpApply("full","settings");
+  }finally{vpDone();vpBanner();}
+}
+/* the Finance view preview for admins: a banner with the way out, a Settings card listing who is mapped */
+function vpBanner(){
+  let b=$("vp-banner");const on=VP.src==="preview";
+  if(!on){if(b)b.hidden=true;return;}
+  if(!b){b=document.createElement("div");b.id="vp-banner";b.className="vp-banner";b.setAttribute("role","status");document.body.appendChild(b);}
+  b.hidden=false;b.innerHTML=`<span><b>Preview:</b> the Finance view, as a mapped viewer sees it. Your session only; nothing is saved.</span><button type="button" class="btn sm" id="vp-exit">Exit preview</button>`;
+  $("vp-exit").onclick=()=>{try{sessionStorage.removeItem("partneros.viewas");}catch(e){}location.reload();};
+}
+async function vpSettingsRender(){
+  const el=$("vp-settings");if(!el)return;
+  if(!ST.canEdit||VP.src==="preview"){el.hidden=true;return;}
+  el.hidden=false;let rows=[],err="";
+  try{if(ST.db){const s=await ST.db.doc("settings/view_profiles").get();const d=s&&s.exists?s.data():null;const m=d&&(d.profiles||(d.data&&d.data.profiles));
+    if(m&&typeof m==="object"&&!Array.isArray(m))rows=Object.keys(m).map(k=>[k.trim(),vpNorm(m[k])]);}}catch(e){err="The mapping could not be read.";}
+  const me=ST.me||{};
+  el.innerHTML=`<div class="card-head"><div><h2>View profiles</h2><div class="card-sub">Who sees which view. The mapping is the database document settings/view_profiles (login email to profile); everyone not listed sees the full app.</div></div></div>
+    ${err?`<div class="notice" role="note">${esc(err)}</div>`:rows.length?`<table class="ptable"><thead><tr><th>Login email</th><th>Profile</th></tr></thead><tbody>${rows.map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v==="finance"?`<span class="pill sm blue">Finance</span>`:`<span class="pill sm outline">${esc(v||"none")} (not a profile)</span>`}</td></tr>`).join("")}</tbody></table>`:`<div class="muted">No one is mapped.</div>`}
+    <div class="vp-row"><span class="muted">You are signed in as ${esc(me.email||me.id||"unknown")}. ${me.viewProfileStatus==="ok"?"The server resolved your profile.":"Your profile was resolved in the page."}</span>
+    <button type="button" class="btn sm" id="vp-preview">Preview the Finance view</button></div>`;
+  $("vp-preview").onclick=()=>{try{sessionStorage.setItem("partneros.viewas","finance");}catch(e){}location.reload();};
 }
 /* ---- Finance summary: one quarter, four numbers, one row per partner. All from the payout dashboard's compute() for the quarter
    (the same numbers as Payouts > Payout by period), so the two agree by construction. */
@@ -7380,7 +7440,7 @@ function renderAll(){renderHead();renderOverview();renderDashboard();renderRuns(
 async function connect(){
   let db=null;
   try{if(window.claude&&typeof window.claude.use==="function")db=await window.claude.use("db");}catch(e){db=null;}
-  if(!db){if(!FIN_LEDGER){FINL_ST="missing";}ST.dbState="nodb";ST.userState="none";ST.myd.state="none";ST.runsState="nodb";ST.candState="nodb";ST.campState="nodb";ST.agrState="nodb";ST.payState="nodb";ST.leadState="nodb";ST.setState="nodb";renderAll();renderPartners();renderOutreach();renderAgreements();renderPayouts();renderLeads();renderSettings();return;}
+  if(!db){vpDone();if(!FIN_LEDGER){FINL_ST="missing";}ST.dbState="nodb";ST.userState="none";ST.myd.state="none";ST.runsState="nodb";ST.candState="nodb";ST.campState="nodb";ST.agrState="nodb";ST.payState="nodb";ST.leadState="nodb";ST.setState="nodb";renderAll();renderPartners();renderOutreach();renderAgreements();renderPayouts();renderLeads();renderSettings();return;}
   ST.db=db;ST.dbState="ready";
   try{const user=await window.claude.use("user");ST.canEdit=!!(user&&typeof user.canEdit==="function"&&await user.canEdit());
     try{ST.isOwner=!!(user&&typeof user.isOwner==="function"&&await user.isOwner());}catch(e){ST.isOwner=false;}
@@ -7392,7 +7452,7 @@ async function connect(){
     ST.canMine=!!ST.uid&&(cw===true||(cw==null&&ST.canEdit));}catch(e){ST.canEdit=false;ST.userState="none";}
   renderTitle();
   renderHead();
-  floOnUser();profLoad();vpLoad();
+  vpLoad();try{floOnUser();}catch(e){console.warn("PartnerOS: Flo init",e);}profLoad();
 
   // snapshots: the db doc always replaces the build seed (the seed is only a fallback, and a rebuilt seed can carry a later stamp
   // over older data); once live, a db update applies only when its generated stamp is newer
@@ -7983,7 +8043,9 @@ lbLoad();dvLoad();lbBind();ambInit();
 $("dash-view").querySelectorAll("button").forEach(b=>b.onclick=()=>{if(b.dataset.v!==DV.v)setDV(b.dataset.v,true);});
 try{const t=localStorage.getItem(OT_LS);if(OTABS.includes(t))ST.otab=t;}catch(e){}
 $("o-tabs").querySelectorAll("button").forEach(b=>b.onclick=()=>setOTab(b.dataset.t,true));
-{const q=vpQuery();if(q){VP.p=q;VP.src="query";document.documentElement.classList.add("vp-finance");}}
+{const q=vpQuery();if(q){VP.p=q;VP.src="query";document.documentElement.classList.add("vp-finance");}
+ else{let c=null;try{c=localStorage.getItem(VP_LS);}catch(e){}if(c==="finance"){VP.p="finance";VP.src="cache";}}
+ vpDoneT=setTimeout(()=>{if(document.documentElement.classList.contains("vp-wait")){console.warn("PartnerOS: the view profile took too long; showing the page.");vpDone();}},6000);}
 $("fin-q").onchange=e=>{FIN.q=e.target.value;renderFinance();};
 buildNav();b5Init();renderStubs();renderAll();renderPartners();renderOutreach();renderAgreements();renderPayouts();renderLeads();renderSettings();setPView(ST.pview,false);
 let start="overview";

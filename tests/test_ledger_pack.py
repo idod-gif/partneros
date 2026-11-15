@@ -28,7 +28,9 @@ class LedgerPack(unittest.TestCase):
         self.assertGreater(len(docs) - 1, 1)
 
     def test_small_cap_splits(self):
-        parts = ledger_pack.shard(fake(10, 5), "g", limit=800)
+        merch = fake(10, 5)
+        one = ledger_pack.size({"generated": "g", "i": 0, "merch": merch[:1]})
+        parts = ledger_pack.shard(merch, "g", limit=one * 3)
         self.assertEqual(sum(len(p) for p in parts), 10)
         self.assertGreater(len(parts), 1)
 
