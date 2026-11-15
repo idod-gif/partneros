@@ -942,9 +942,9 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .fin-tab td{height:44px}
 .fin-cor{font-size:11px;line-height:14px;color:var(--pill-est-fg);font-weight:500}
 .fin-noled #fin-net-h,.fin-noled .fin-netc{display:none}
-.tiles.fin5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.tiles.fin5{grid-template-columns:repeat(4,minmax(0,1fr))}
 .tiles.fin5>.tile:nth-child(3n+1){border-left:1px solid var(--border);padding-left:20px}
-.tiles.fin5>.tile:first-child{border-left:0;padding-left:0}
+.tiles.fin5>.tile:nth-child(4n+1){border-left:0;padding-left:0}
 @media (max-width:1199px){.tiles.fin5{grid-template-columns:repeat(2,minmax(0,1fr))}.tiles.fin5>.tile{border-left:0!important;padding-left:0!important}}
 .fin-tab td:last-child{white-space:normal;min-width:120px}
 /* ---- build 12: Revenue v2 (hero, merged chart, breakdown, enlarge) and the payout blocks on Payouts.
@@ -1018,6 +1018,7 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .rv-pk{font-size:12px}
 .rv-nn{display:block;font-size:12px;line-height:17px;color:var(--secondary-foreground)}
 .rv-nn b{color:var(--foreground);font-weight:600}
+.rv-root:not(.has-led) .rv-cutc{display:none}
 .rv-def{font-size:12px;line-height:17px;color:var(--secondary-foreground)}
 .rv-np{margin-left:6px;vertical-align:1px}
 .rv-pay{font-size:11px;color:var(--muted-foreground);margin-left:6px}
@@ -1423,7 +1424,7 @@ body.ov-dragging .ovb-h{cursor:grabbing}
     </section>
     <section class="card" aria-label="By partner">
       <div class="card-head"><div><h2>By partner</h2><div class="card-sub" id="fin-tsub"></div></div><span id="fin-rec"></span></div>
-      <div class="tscroll"><table class="ptable fin-tab"><thead><tr><th>Partner</th><th class="r">Paying stores</th><th class="r" id="fin-rev-h">Collected revenue</th><th class="r" id="fin-net-h">Net revenue</th><th class="r">Commissionable</th><th class="r"><span id="fin-rate-h">Rate</span></th><th class="r">Payout due</th><th class="r">Paid</th><th>Status</th></tr></thead><tbody id="fin-b"></tbody><tfoot id="fin-f"></tfoot></table></div>
+      <div class="tscroll"><table class="ptable fin-tab"><thead><tr><th>Partner</th><th class="r">Paying stores</th><th class="r" id="fin-rev-h">Collected revenue</th><th class="r fin-netc">Shopify cut</th><th class="r" id="fin-net-h">Net revenue</th><th class="r">Commissionable</th><th class="r"><span id="fin-rate-h">Rate</span></th><th class="r">Payout due</th><th class="r">Paid</th><th>Status</th></tr></thead><tbody id="fin-b"></tbody><tfoot id="fin-f"></tfoot></table></div>
       <div class="foot-note" id="fin-note"></div>
     </section>
     <section class="card" aria-label="All time by billing rail">
@@ -6367,13 +6368,14 @@ function finCalc(L,key){
   const sRev=s=>{const v=X?lrev(s):null;if(v!=null){led++;return v;}if(X)unled++;return c.pm.reduce((a,m)=>a+(+((s.by_month||{})[m])||0),0);};
   const sComm=s=>{const v=X?lcomm(s):null;return v!=null?v:comm(s);};
   /* net: Alerts at the ledger's gross margin rate, other products at face value (no-commission stores still count) */
+  const sCut=s=>{const lm=X?flOf(X,s):null;if(!lm)return 0;const f={};(lm.sf||[]).forEach(x=>f[x[0]]=x);return c.pm.reduce((a,m)=>{const x=f[m];return a+(x?(+x[1]||0)+(+x[2]||0)+(+x[3]||0)+(+x[4]||0):0);},0);};
   const sNet=s=>{const lm=X?flOf(X,s):null;if(!lm)return null;const g=lm.g&&lm.g.c;return c.pm.reduce((a,m)=>{const x=lm._c[m];if(!x)return a;const r=Array.isArray(g)?+g[m<"2026-01"?0:1]:1;return a+(+x[1]||0)+(+x[2]||0)*(isFinite(r)?r:1)+(+x[3]||0)+(+x[4]||0);},0);};
-  const rows=c.rows.map(r=>{const due=r.spend,paid=paidQ?due:0,revs=r.stores.map(sRev),cm=r.stores.reduce((a,s)=>a+sComm(s),0),cmPay=r.stores.reduce((a,s)=>a+comm(s),0),pay=revs.filter(v=>v>0).length,rev=X?revs.reduce((a,v)=>a+v,0):r.earned,net=X?r.stores.reduce((a,s)=>{const v=sNet(s);return a+(v==null?0:v);},0):null;
+  const rows=c.rows.map(r=>{const due=r.spend,paid=paidQ?due:0,revs=r.stores.map(sRev),cm=r.stores.reduce((a,s)=>a+sComm(s),0),cmPay=r.stores.reduce((a,s)=>a+comm(s),0),pay=revs.filter(v=>v>0).length,rev=X?revs.reduce((a,v)=>a+v,0):r.earned,cut=X?r.stores.reduce((a,s)=>a+sCut(s),0):0,net=X?r.stores.reduce((a,s)=>{const v=sNet(s);return a+(v==null?0:v);},0)-cut:null;
     /* build 13: pending payout corrections from the local payout file (preview seed): due grows, paid stays on the record */
     const corAll=adj?adj.corrections.filter(x=>x.partner===r.name):[],ca=corAll.reduce((a,x)=>a+(+x.amount||0),0),cpaid=corAll.filter(x=>x.paid).reduce((a,x)=>a+(+x.amount||0),0),cor=corAll.filter(x=>!x.paid);
     const st=cor.length?"correction":r.noComm?"excluded":due<=0?"none":paidQ?"paid":"unpaid";
-    return{name:r.name,dn:r.dn,pay,rev,net,comm:cm,cmPay,rate:r.noComm?null:(r.override!=null?r.override:S.rate),due:due+ca,paidRec:due,cor,paid:paid+(paidQ?cpaid:0),st,noComm:r.noComm};}).filter(r=>r.rev!==0||r.due!==0);
-  const T=rows.reduce((a,r)=>{a.rev+=r.rev;a.net+=r.net||0;a.comm+=r.comm;a.due+=r.due;a.paid+=r.paid;a.pay+=r.pay;return a;},{rev:0,net:0,comm:0,due:0,paid:0,pay:0});
+    return{name:r.name,dn:r.dn,pay,rev,cut,net,comm:cm,cmPay,rate:r.noComm?null:(r.override!=null?r.override:S.rate),due:due+ca,paidRec:due,cor,paid:paid+(paidQ?cpaid:0),st,noComm:r.noComm};}).filter(r=>r.rev!==0||r.due!==0);
+  const T=rows.reduce((a,r)=>{a.rev+=r.rev;a.cut+=r.cut||0;a.net+=r.net||0;a.comm+=r.comm;a.due+=r.due;a.paid+=r.paid;a.pay+=r.pay;return a;},{rev:0,cut:0,net:0,comm:0,due:0,paid:0,pay:0});
   return{per,paidQ,rows,T,c,X,led,unled,adj};
 }
 function renderFinance(){
@@ -6387,7 +6389,9 @@ function renderFinance(){
   $("fin-sub").textContent=F.paidQ?`Paid quarter: payout figures on record.`:`${cap1(String(F.per.status||"open"))} quarter: payout due is an estimate, ${L.S.rate}% of commissionable revenue.`;
   $("fin-tiles").innerHTML=[
     tile(F.X?"Total revenue":"Referred revenue collected",fin$(T.rev),F.X?`Every product at the collected amount, ${esc(ql)} by paid month, Stripe and Shopify, payout-list stores`:`Paid invoices in ${esc(ql)}, payout-list stores`,F.X?`${F.X.src.label||"Finance ledger"}${F.X.src.asof?", as of "+dShort(F.X.src.asof):""}`:"snapshots/latest, Stripe paid invoices by month"),
-    F.X?tile("Net revenue",fin$(T.net),"Alerts at the ledger's gross margin rate per merchant, other products at face value; same stores and months",`${F.X.src.label||"Finance ledger"}, collected`):"",
+    F.X?tile("Shopify's cut",fin$(T.cut),"Shopify's fees on Shopify Billing revenue in the quarter, by charge month","v4 ledger workbook, Shopify payouts tab"):"",
+    F.X?tile("Income after Shopify's cut",fin$(T.rev-T.cut),"Total revenue less Shopify's cut",`${F.X.src.label||"Finance ledger"} and the v4 workbook`):"",
+    F.X?tile("Net revenue",fin$(T.net),"Alerts at the ledger's gross margin rate per merchant, other products at face value, after Shopify's cut",`${F.X.src.label||"Finance ledger"}, collected`):"",
     tile("Commissionable revenue",fin$(T.comm),F.X?"Alerts at the ledger's per-merchant gross margin, other products at full rate; no-commission stores count zero":`${esc(basis)}; no-commission stores count zero`,F.X?`${F.X.src.label||"Finance ledger"}, collected`:"snapshots/latest, commissionable_by_month"),
     tile("Payout due",fin$(T.due),F.adj?(()=>{const pend=F.adj.corrections.filter(x=>!x.paid);return`Paid ${fin$(T.paid)}${pend.length?` plus ${pend.length} correction${pend.length===1?"":"s"} on the payout sheet, not yet paid`:""}`;})():F.paidQ?"Actual payouts recorded for the quarter":`Estimate: ${L.S.rate}% of commissionable revenue, partner rates where set`,F.adj?`${L.srcOf(F.per)}; corrections from the local payout file`:F.paidQ?(L.srcOf(F.per)):"PartnerOS estimate"),
     tile("Payout paid",fin$(T.paid),`Outstanding ${fin$(T.due-T.paid)}${F.adj&&F.adj.corrections.some(x=>!x.paid)?", a correction pending":""}${F.adj&&F.adj.corrections.some(x=>x.paid)?`; includes ${fin$(F.adj.corrections.filter(x=>x.paid).reduce((a,x)=>a+(+x.amount||0),0))} paid after Nov 3 to 4`:""}`,F.paidQ?`Quarter status paid${F.adj&&F.adj.paid_on?", "+F.adj.paid_on:""}`:"Nothing recorded as paid for this quarter")
@@ -6395,9 +6399,9 @@ function renderFinance(){
   $("fin-rev-h").textContent=F.X?"Total revenue":"Collected revenue";host.classList.toggle("fin-noled",!F.X);
   const stP=s=>s==="correction"?`<span class="pill sm estimate" title="A correction on the payout sheet, not yet paid">Correction pending</span>`:s==="paid"?`<span class="pill sm actual">Paid</span>`:s==="unpaid"?`<span class="pill sm estimate">Unpaid</span>`:s==="none"?`<span class="pill sm outline">No payout on record</span>`:`<span class="pill sm outline" title="No-commission partner or stores">Excluded</span>`;
   const R=F.rows.slice().sort((a,b)=>b.due-a.due||b.rev-a.rev);
-  $("fin-b").innerHTML=R.length?R.map(r=>`<tr><td><span style="font-weight:500">${esc(r.dn)}</span></td><td class="r num">${fmtN(r.pay)}</td><td class="r num">${fin$(r.rev)}</td><td class="r num fin-netc">${r.net==null?`<span class="muted">-</span>`:fin$(r.net)}</td><td class="r num">${fin$(r.comm)}</td>
-    <td class="r num">${r.st==="excluded"||r.st==="none"||r.rate==null?`<span class="muted">-</span>`:F.paidQ?(r.cmPay>0?((r.paidRec!=null?r.paidRec:r.due)/r.cmPay*100).toFixed(1)+"%":`<span class="muted">-</span>`):esc(String(r.rate))+"%"}</td><td class="r num" title="${r.cor&&r.cor.length?esc(r.cor.map(x=>`${fin$(x.amount)}: ${x.note||"correction"}`).join("; ")):""}">${fin$(r.due)}${r.cor&&r.cor.length?`<div class="fin-cor">incl. ${fin$(r.cor.reduce((a,x)=>a+(+x.amount||0),0))} pending</div>`:""}</td><td class="r num">${fin$(r.paid)}</td><td>${stP(r.st)}</td></tr>`).join(""):`<tr><td colspan="9" class="empty">No partners with revenue or payout in this quarter.</td></tr>`;
-  $("fin-f").innerHTML=`<tr class="lb-sum"><td>Total, ${fmtN(R.length)} partner${R.length===1?"":"s"}</td><td class="r num">${fmtN(T.pay)}</td><td class="r num" id="fin-t-rev" data-v="${T.rev.toFixed(2)}">${fin$(T.rev)}</td><td class="r num fin-netc" id="fin-t-net" data-v="${T.net.toFixed(2)}">${fin$(T.net)}</td><td class="r num" id="fin-t-comm">${fin$(T.comm)}</td><td></td><td class="r num" id="fin-t-due" data-v="${T.due.toFixed(2)}">${fin$(T.due)}</td><td class="r num" id="fin-t-paid" data-v="${T.paid.toFixed(2)}">${fin$(T.paid)}</td><td></td></tr>`;
+  $("fin-b").innerHTML=R.length?R.map(r=>`<tr><td><span style="font-weight:500">${esc(r.dn)}</span></td><td class="r num">${fmtN(r.pay)}</td><td class="r num">${fin$(r.rev)}</td><td class="r num fin-netc">${r.cut?fin$(r.cut):`<span class="muted">-</span>`}</td><td class="r num fin-netc">${r.net==null?`<span class="muted">-</span>`:fin$(r.net)}</td><td class="r num">${fin$(r.comm)}</td>
+    <td class="r num">${r.st==="excluded"||r.st==="none"||r.rate==null?`<span class="muted">-</span>`:F.paidQ?(r.cmPay>0?((r.paidRec!=null?r.paidRec:r.due)/r.cmPay*100).toFixed(1)+"%":`<span class="muted">-</span>`):esc(String(r.rate))+"%"}</td><td class="r num" title="${r.cor&&r.cor.length?esc(r.cor.map(x=>`${fin$(x.amount)}: ${x.note||"correction"}`).join("; ")):""}">${fin$(r.due)}${r.cor&&r.cor.length?`<div class="fin-cor">incl. ${fin$(r.cor.reduce((a,x)=>a+(+x.amount||0),0))} pending</div>`:""}</td><td class="r num">${fin$(r.paid)}</td><td>${stP(r.st)}</td></tr>`).join(""):`<tr><td colspan="10" class="empty">No partners with revenue or payout in this quarter.</td></tr>`;
+  $("fin-f").innerHTML=`<tr class="lb-sum"><td>Total, ${fmtN(R.length)} partner${R.length===1?"":"s"}</td><td class="r num">${fmtN(T.pay)}</td><td class="r num" id="fin-t-rev" data-v="${T.rev.toFixed(2)}">${fin$(T.rev)}</td><td class="r num fin-netc" id="fin-t-cut" data-v="${T.cut.toFixed(2)}">${fin$(T.cut)}</td><td class="r num fin-netc" id="fin-t-net" data-v="${T.net.toFixed(2)}">${fin$(T.net)}</td><td class="r num" id="fin-t-comm">${fin$(T.comm)}</td><td></td><td class="r num" id="fin-t-due" data-v="${T.due.toFixed(2)}">${fin$(T.due)}</td><td class="r num" id="fin-t-paid" data-v="${T.paid.toFixed(2)}">${fin$(T.paid)}</td><td></td></tr>`;
   const pq=(ST.pays||[]).find(p=>{const k=String(p.quarter||p.id||"").toLowerCase().replace(/\s+/g,"");const m=F.per.months[0],qn="q"+(Math.floor((+m.slice(5,7)-1)/3)+1);return k.includes(qn)&&k.includes(m.slice(0,4));});
   $("fin-rec").innerHTML=pq?(pq.reconciles===true?`<span class="pill sm actual">Reconciles</span>`:pq.reconciles===false?`<span class="pill sm danger">Does not reconcile</span>`:`<span class="pill sm outline">No cross-check yet</span>`):`<span class="pill sm outline" title="No payouts record for this quarter in the database">No payouts record</span>`;
   $("fin-rate-h").textContent=F.paidQ?"Effective rate":"Rate";$("fin-rate-h").title=F.paidQ?"Payout due over the commissionable revenue the payout was computed on (the PartnerOS snapshot, Stripe): paid quarters carry the actual payout, so legacy and one-time terms show here.":"The partner's rate (25% unless an override is set); the estimate applies it to commissionable revenue.";
@@ -6406,8 +6410,11 @@ function renderFinance(){
   $("fin-note").textContent=`Snapshot generated ${gen}${sa?`, Stripe as of ${sa}`:""}${sh?`, Shopify as of ${sh}`:""}. Ledger version: ${D.ledger_version?esc(String(D.ledger_version)):"not recorded in the snapshot"}. ${F.X?`Total, net and commissionable revenue: ${F.X.src.label||"Finance ledger"} (as of ${dShort(F.X.src.asof||"")}), collected by paid month, Stripe and Shopify${F.unled?`; ${fmtN(F.unled)} store-quarter${F.unled===1?"":"s"} not in the ledger keep the Stripe figure`:""}. Payout due and paid stay on the payout record.`:"Quarter figures are the Stripe rail only (paid invoices by month); Shopify Billing has no month detail."} Whole dollars.`;
   /* all time per billing rail */
   let at=null;{const S=L.S,kp=S.period,kpa=S.partner,ks=S.shopify;S.period="alltime";S.partner="";S.shopify=true;try{at=L.compute();}catch(e){at=null;}S.period=kp;S.partner=kpa;S.shopify=ks;}
-  $("fin-rail").innerHTML=at&&at.AT?[tile("Stripe",fin$(at.tot.stripe),"Paid invoices, all time","ledger, lifetime per store"),tile("Shopify",fin$(at.tot.shopify),`Billed, not gross: fees not netted${sh?`; to ${esc(sh)}`:""}`,"ledger, Shopify Billing lifetime per store"),tile("Both rails",fin$(at.tot.stripe+at.tot.shopify),"All referred stores in the snapshot","sum of the two")].join(""):"";
-  window.__fin={net:T.net,rev:T.rev,comm:T.comm,due:T.due,paid:T.paid,key:FIN.q,rows:R.length,sum:R.reduce((a,r)=>({rev:a.rev+r.rev,due:a.due+r.due,paid:a.paid+r.paid}),{rev:0,due:0,paid:0})};
+  const RL=F.X&&F.X.src.rails;
+  if(RL){$("fin-rail").innerHTML=[tile("Stripe",fin$(RL.stripe),"Collected, all time","v4 ledger workbook, Collected tab, Stripe"),tile("Shopify before fees",fin$(RL.shopify_gross),"Shopify Billing payouts, gross","v4 ledger workbook, Shopify payouts tab"),tile("Shopify's cut",fin$(RL.shopify_fees),"Shopify's fees","v4 ledger workbook, Shopify payouts tab"),tile("Shopify after fees",fin$(RL.shopify_net),`Received; with Stripe, ${fin$(RL.stripe+RL.shopify_net)} after Shopify's cut`,"v4 ledger workbook, Shopify payouts tab")].join("");$("fin-rail").className="tiles fin5";
+    const sb=$("fin-rail").closest("section").querySelector(".card-sub");if(sb)sb.textContent="All referred merchants, all time, per billing rail, from the v4 ledger workbook (Nov 9, 2026).";}
+  else $("fin-rail").innerHTML=at&&at.AT?[tile("Stripe",fin$(at.tot.stripe),"Paid invoices, all time","ledger, lifetime per store"),tile("Shopify",fin$(at.tot.shopify),`Billed, not gross: fees not netted${sh?`; to ${esc(sh)}`:""}`,"ledger, Shopify Billing lifetime per store"),tile("Both rails",fin$(at.tot.stripe+at.tot.shopify),"All referred stores in the snapshot","sum of the two")].join(""):"";
+  window.__fin={cut:T.cut,net:T.net,rev:T.rev,comm:T.comm,due:T.due,paid:T.paid,key:FIN.q,rows:R.length,sum:R.reduce((a,r)=>({rev:a.rev+r.rev,due:a.due+r.due,paid:a.paid+r.paid}),{rev:0,due:0,paid:0})};
 }
 
 /* ==== build 12 (2026-11-15): Revenue v2. One model feeds the hero, the KPI tiles, the merged chart and the breakdown table, so their
@@ -6422,14 +6429,14 @@ function renderFinance(){
 const RV_PK=["alerts","automation","prevent","other"];
 const RV_CAT=["var(--cat-1)","var(--cat-2)","var(--cat-3)","var(--cat-4)","var(--cat-5)"];
 const RV_OP="__other";
-const RVS={from:null,to:null,view:"m",partner:"",product:"all",gm:false,mode:"bars",stackBy:"product",fc:true,group:"merchant",sort:{key:"rev",dir:-1},shown:25,dtab:false,sel:null,big:false,nn:false,add:true,shop:true,meas:"c",xy:false};
+const RVS={from:null,to:null,view:"m",partner:"",product:"all",gm:false,mode:"bars",stackBy:"product",fc:true,group:"merchant",sort:{key:"rev",dir:-1},shown:25,dtab:false,sel:null,big:false,nn:false,add:true,shop:true,meas:"c",xy:false,cut:true};
 RVS.gm=true;
 const RV_LS="partneros.revenue.v2";
 function rvLoad(){try{const v=JSON.parse(localStorage.getItem(RV_LS)||"null");if(!v||typeof v!=="object")return;
   if(typeof v.from==="string")RVS.from=v.from;if(typeof v.to==="string")RVS.to=v.to;if(v.view==="q")RVS.view="q";
   if(typeof v.partner==="string")RVS.partner=v.partner;if(RV_PK.includes(v.product))RVS.product=v.product;RVS.gm=v.gm!==false;
-  if(["curve","bars","stack"].includes(v.mode))RVS.mode=v.mode;if(v.stackBy==="partner")RVS.stackBy="partner";if(v.fc===false)RVS.fc=false;if(v.group==="partner")RVS.group="partner";RVS.nn=v.nn===true;if(v.add===false)RVS.add=false;if(v.shop===false)RVS.shop=false;if(v.meas==="b")RVS.meas="b";RVS.xy=v.xy===true;}catch(e){}}
-function rvSave(){if(RVS.big)return;try{localStorage.setItem(RV_LS,JSON.stringify({from:RVS.from,to:RVS.to,view:RVS.view,partner:RVS.partner,product:RVS.product,gm:RVS.gm,mode:RVS.mode,stackBy:RVS.stackBy,fc:RVS.fc,group:RVS.group,nn:RVS.nn,add:RVS.add,shop:RVS.shop,meas:RVS.meas,xy:RVS.xy}));}catch(e){}}
+  if(["curve","bars","stack"].includes(v.mode))RVS.mode=v.mode;if(v.stackBy==="partner")RVS.stackBy="partner";if(v.fc===false)RVS.fc=false;if(v.group==="partner")RVS.group="partner";RVS.nn=v.nn===true;if(v.add===false)RVS.add=false;if(v.shop===false)RVS.shop=false;if(v.meas==="b")RVS.meas="b";RVS.xy=v.xy===true;RVS.cut=v.cut!==false;}catch(e){}}
+function rvSave(){if(RVS.big)return;try{localStorage.setItem(RV_LS,JSON.stringify({from:RVS.from,to:RVS.to,view:RVS.view,partner:RVS.partner,product:RVS.product,gm:RVS.gm,mode:RVS.mode,stackBy:RVS.stackBy,fc:RVS.fc,group:RVS.group,nn:RVS.nn,add:RVS.add,shop:RVS.shop,meas:RVS.meas,xy:RVS.xy,cut:RVS.cut}));}catch(e){}}
 const rvQ=m=>m.slice(0,4)+"-Q"+(Math.floor((+m.slice(5,7)-1)/3)+1);
 const rvQL=k=>`Q${k.slice(-1)} ${k.slice(0,4)}`;
 const rvMon=m=>MON[+m.slice(5,7)-1];
@@ -6453,7 +6460,7 @@ const flOf=(X,s)=>{if(!X||!s)return null;for(const c of [s.cfid,s.ledger_cfid]){
 const rvMonthsBetween=(a,b)=>{const o=[];let y=+a.slice(0,4),m=+a.slice(5,7);const Y=+b.slice(0,4),Mo=+b.slice(5,7);while(y<Y||(y===Y&&m<=Mo)){o.push(`${y}-${String(m).padStart(2,"0")}`);m++;if(m>12){m=1;y++;}}return o;};
 const rvMeasL=M=>M.X?(M.meas==="b"?"billed":"collected"):"collected";
 function rvModel(L){
-  const X=flIndex(),D=L.DATA,T=L.TREND,meas=X&&RVS.meas==="b"?"b":"c",key=[RVS.add,RVS.gm,meas,RVS.xy].join("|");
+  const X=flIndex(),D=L.DATA,T=L.TREND,meas=X&&RVS.meas==="b"?"b":"c",key=[RVS.add,RVS.gm,meas,RVS.xy,RVS.cut].join("|");
   if(RVX&&RVX._D===D&&RVX._T===T&&RVX._k===key)return RVX;
   const win=(D.months||[]).slice(),last=win[win.length-1],TM=T&&Array.isArray(T.months)?T.months:[],TS=(T&&T.stores)||{};
   let MU,partial=L.partialMonth;
@@ -6464,9 +6471,14 @@ function rvModel(L){
   let noGm=0,matched=0,unmatched=0,notInPos=0,xyOut=0;
   /* a ledger merchant: Net (gm on) multiplies Alerts by the ledger's margin rate for that merchant, before 2026 and from 2026 */
   const mkLed=(lm,s)=>{const ser=meas==="b"?lm._b:lm._c,g=lm.g&&lm.g[meas],v={};
+    if(!lm._sf){lm._sf={};(lm.sf||[]).forEach(x=>lm._sf[x[0]]=x);}
     MU.forEach(m=>{const x=ser[m];const p=x?{automation:+x[1]||0,alerts:+x[2]||0,prevent:+x[3]||0,other:+x[4]||0}:{alerts:0,automation:0,prevent:0,other:0};
       if(RVS.gm&&p.alerts){const r=Array.isArray(g)?g[m<"2026-01"?0:1]:null;if(r!=null&&isFinite(+r))p.alerts*=+r;else noGm++;}
-      p.all=p.alerts+p.automation+p.prevent+p.other;v[m]=p;});
+      /* build 14: Shopify's cut for this merchant-month (fees by charge month, split by product); subtracted when Deducted */
+      const f=lm._sf[m],cut=f?{automation:+f[1]||0,alerts:+f[2]||0,prevent:+f[3]||0,other:+f[4]||0}:{automation:0,alerts:0,prevent:0,other:0};
+      cut.all=cut.automation+cut.alerts+cut.prevent+cut.other;
+      if(RVS.cut&&cut.all){RV_PK.forEach(k=>p[k]-=cut[k]);}
+      p.cut=cut;p.all=p.alerts+p.automation+p.prevent+p.other;v[m]=p;});
     const fp=/^\d{4}-\d{2}/.test(String(lm.nm||""))?String(lm.nm).slice(0,7):/^\d{4}-\d{2}/.test(String(lm.fi||""))?String(lm.fi).slice(0,7):null;
     const ss=s||{lead_status:lm.st||"",hs_id:null,partner:lm.p};
     return{s:ss,partner:s?s.partner:(lm.p||"Unknown partner"),name:s?(s.company||s.handle||lm.n||"Unnamed store"):(lm.n||"Unnamed merchant"),v,fp,fpSrc:lm.nm?"mrr":lm.fi?"invoice":null,lt:MU.reduce((a,m)=>a+v[m].all,0),led:true,inPos:!!s,xy:!!lm.xy,key:s&&s.hs_id!=null?String(s.hs_id):"L"+lm.id};};
@@ -6506,7 +6518,8 @@ function rvSrcLine(M){
   const s=M.X.src,as=s.asof?dShort(s.asof):"";
   return`Every referred merchant in the ${s.label||"Finance ledger"}${as?` (as of ${as})`:""}, ${M.meas==="b"?"billed by invoice month":"collected by paid month"}, Stripe and Shopify: ${fmtN(M.rows.length)} merchants, ${fmtN(M.notInPos)} not in PartnerOS.${M.unmatched?` ${fmtN(M.unmatched)} PartnerOS store${M.unmatched===1?"":"s"} not in the ledger keep the Stripe series.`:""}${M.xyOut?` Self-referral partners left out (${fmtN(M.xyOut)} merchants).`:""}`;
 }
-const rvBasisL=M=>RVS.gm?(M.X?"Net revenue: Alerts at the Finance ledger's gross margin rate per merchant, other products at face value":"Net revenue: Alerts at gross margin (PartnerOS monthly ratios), other products at face value"):`Total revenue: every product at the ${M.X&&M.meas==="b"?"billed":"collected"} amount`;
+const rvCutL=M=>M.X?(RVS.cut?", after Shopify's cut":", before Shopify's cut"):"";
+const rvBasisL=M=>RVS.gm?(M.X?`Net revenue: Alerts at the Finance ledger's gross margin rate per merchant, other products at face value${rvCutL(M)}`:"Net revenue: Alerts at gross margin (PartnerOS monthly ratios), other products at face value"):`Total revenue: every product at the ${M.X&&M.meas==="b"?"billed":"collected"} amount${rvCutL(M)}`;
 const rvNetL=()=>RVS.gm?"net":"total";
 /* product label: Alerts reads "Alerts, at gross margin" in Net mode */
 const rvPLab=k=>k==="alerts"&&RVS.gm?"Alerts, at gross margin":LB_PL[k];
@@ -6539,13 +6552,13 @@ function rvRangeL(from,to,view){
 /* the selection: per store revenue, products and months with revenue; totals, by partner and by product */
 function rvCalc(M,st){
   const ms=M.MU.filter(m=>m>=st.from&&m<=st.to),P=st.product||"all",rows=rvRowsOf(M,st.partner,st.nn);
-  const per=rows.map(r=>{let rev=0,mw=0,first=null,lastm=null;const pr={alerts:0,automation:0,prevent:0,other:0};
-    ms.forEach(m=>{const x=r.v[m],val=x[P];rev+=val;RV_PK.forEach(k=>{if(P==="all"||P===k)pr[k]+=x[k];});if(val>0){mw++;if(!first)first=m;lastm=m;}});
-    return{r,rev,pr,mw,first,last:lastm};});
-  const total=per.reduce((a,x)=>a+x.rev,0),prod={alerts:0,automation:0,prevent:0,other:0};per.forEach(x=>RV_PK.forEach(k=>prod[k]+=x.pr[k]));
+  const per=rows.map(r=>{let rev=0,mw=0,first=null,lastm=null,cut=0;const pr={alerts:0,automation:0,prevent:0,other:0};
+    ms.forEach(m=>{const x=r.v[m],val=x[P];rev+=val;if(x.cut)cut+=P==="all"?x.cut.all:x.cut[P];RV_PK.forEach(k=>{if(P==="all"||P===k)pr[k]+=x[k];});if(val>0){mw++;if(!first)first=m;lastm=m;}});
+    return{r,rev,pr,mw,first,last:lastm,cut};});
+  const total=per.reduce((a,x)=>a+x.rev,0),cutT=per.reduce((a,x)=>a+x.cut,0),prod={alerts:0,automation:0,prevent:0,other:0};per.forEach(x=>RV_PK.forEach(k=>prod[k]+=x.pr[k]));
   const byP={};per.forEach(x=>{const p=x.r.partner,o=byP[p]||(byP[p]={name:p,rev:0,stores:0,pay:0,pr:{alerts:0,automation:0,prevent:0,other:0},st:{},first:null,last:null,lt:0});
     o.rev+=x.rev;o.stores++;if(x.rev>0)o.pay++;RV_PK.forEach(k=>o.pr[k]+=x.pr[k]);});
-  return{st,ms,P,per,total,prod,byP,pre:ms.filter(m=>!M.winSet.has(m)),paying:per.filter(x=>x.rev>0).length,partnersRev:Object.values(byP).filter(p=>p.rev>0).length};
+  return{st,ms,P,per,total,cut:cutT,prod,byP,pre:ms.filter(m=>!M.winSet.has(m)),paying:per.filter(x=>x.rev>0).length,partnersRev:Object.values(byP).filter(p=>p.rev>0).length};
 }
 const rvChartState=()=>RVS.sel?RVS.sel.prev:RVS;
 /* chart series for a state: one total, the four products, or the five largest partners (over all months, so a colour stays with its
@@ -6622,7 +6635,7 @@ function rvHero(L,M,c){
   $("rv-hero").innerHTML=`<h2 class="sr-only">Revenue for the selection</h2><div class="rv-h"><div class="rv-hl">
     <div class="rv-lab" id="rv-hero-l">${RVS.nn?`Net new, ${rvNetL()} revenue`:`${RVS.gm?"Net":"Total"} revenue`}, ${esc(rl)}</div>
     <div class="rv-tthost rv-bigw"><div class="rv-big num" tabindex="0" id="rv-hero-v" aria-describedby="rvtt-hero" data-v="${c.total.toFixed(2)}">${rvF$(c.total)}</div>${rvTT(`${heroT} behind ${rvF$(c.total)}`,rvTopRows(heroItems,c.total),c.total,"Share of this selection's revenue.").replace('class="rv-tt"','class="rv-tt" id="rvtt-hero"')}</div>
-    <div class="rv-hs"><span>${esc(pn)}, ${esc(prl.toLowerCase())}. <span id="rv-src">${esc(srcL)}</span>${esc(preNote)}</span>${RVS.nn?rvNnLine(L,M,c):""}<span class="rv-def" id="rv-basis">${esc(basis)}</span></div></div>
+    <div class="rv-hs"><span>${esc(pn)}, ${esc(prl.toLowerCase())}. <span id="rv-src">${esc(srcL)}</span>${esc(preNote)}</span>${M.X?`<span class="rv-def" id="rv-cut-l" data-v="${c.cut.toFixed(2)}">${RVS.cut?`After Shopify's cut of ${rvF$(c.cut)} (Shopify's fees on Shopify Billing revenue, by charge month).`:`Before Shopify's cut: ${rvF$(c.cut)} of Shopify's fees in this selection are included.`}</span>`:""}${RVS.nn?rvNnLine(L,M,c):""}<span class="rv-def" id="rv-basis">${esc(basis)}</span></div></div>
     <div class="rv-kt">
     ${tile("pay",M.X?"Merchants with revenue":"Paying stores",fmtN(c.paying),`${fmtN(c.partnersRev)} partner${c.partnersRev===1?"":"s"} with revenue`,rvTT("Top 5 merchants",rvTopRows(storeItems,c.total),c.total,"Share of this selection's revenue."))}
     ${tile("lm",lm?`Last full month, ${rvMon(lm)}`:"Last full month",lv!=null?rvF$(lv):"-",lm?`${L.fmtSP(mom)}${pm?" vs "+rvMon(pm):""}`:"No full month in range",rvTT(lm?`Top 5 in ${lbMY(lm)}`:"Last full month",lm?rvTopRows(lmItems,lv):[],lv||0,lm?"Share of that month's revenue.":""))}
@@ -6648,6 +6661,7 @@ function rvShell(){
     <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M2.5 8h11M8 2.5v11"/></svg><span class="sr-only">Product</span><select id="rv-product"></select></label>
     <span class="rv-gm"><span id="rv-gm-l">Revenue</span><span class="seg sm" role="group" aria-labelledby="rv-gm-l" id="rv-gm"><button type="button" data-v="gm" aria-pressed="true" title="Alerts at the gross margin rate, other products at face value">Net</button><button type="button" data-v="col" aria-pressed="false" title="Every product at the full amount">Total</button></span></span>
     <span class="rv-gm" id="rv-meas-w" hidden><span id="rv-meas-l">Amounts</span><span class="seg sm" role="group" aria-labelledby="rv-meas-l" id="rv-meas"><button type="button" data-v="c" aria-pressed="true" title="Paid month, Stripe collected plus Shopify payouts">Collected</button><button type="button" data-v="b" aria-pressed="false" title="Invoice month, Stripe invoices plus Shopify charges">Billed</button></span></span>
+    <span class="rv-gm" id="rv-cut-w" hidden><span id="rv-cut-lb">Shopify's cut</span><span class="seg sm" role="group" aria-labelledby="rv-cut-lb" id="rv-cut"><button type="button" data-v="ded" aria-pressed="true" title="Shopify's fees subtracted for each merchant and month">Deducted</button><button type="button" data-v="inc" aria-pressed="false" title="Figures before Shopify's fees">Included</button></span></span>
     <span class="seg sm" role="group" aria-label="Revenue scope" id="rv-nn"><button type="button" data-v="all" aria-pressed="true">All revenue</button><button type="button" data-v="nn" aria-pressed="false" title="Revenue from stores whose first paid month is in the selected range">Net new</button></span>
     <span class="sw" id="rv-xy-w" hidden><button type="button" class="switch" role="switch" id="rv-xy" aria-checked="false" aria-labelledby="rv-xy-l"></button><span id="rv-xy-l">Exclude self-referral partners</span></span>
     <span class="sw"><button type="button" class="switch" role="switch" id="rv-add" aria-checked="true" aria-labelledby="rv-add-l"></button><span id="rv-add-l">Stores added since the cut</span></span>
@@ -6799,29 +6813,29 @@ function rvTable(L,M,c){
       const fs=ps.filter(x=>x.first),first=fs.length?fs.map(x=>x.first).sort()[0]:null,last=fs.length?fs.map(x=>x.last).sort().pop():null,mw=c.ms.filter(m=>ps.some(x=>x.r.v[m][c.P]>0)).length;
       const lt=ps.reduce((a,x)=>{const v=ltOf(x.r);return a+(v||0);},0);
       const fps=ps.map(x=>x.r.fp).filter(Boolean).sort();
-      return{fp:fps[0]||null,key:p.name,partner:rvPN(L,p.name),name:`${fmtN(p.stores)} store${p.stores===1?"":"s"}`,rev:p.rev,pr:p.pr,first,last,mw,stores:p.stores,pay:p.pay,
+      return{cut:ps.reduce((a,x)=>a+x.cut,0),fp:fps[0]||null,key:p.name,partner:rvPN(L,p.name),name:`${fmtN(p.stores)} store${p.stores===1?"":"s"}`,rev:p.rev,pr:p.pr,first,last,mw,stores:p.stores,pay:p.pay,
         status:Object.keys(st).sort((a,b)=>st[b]-st[a]).map(k=>`${st[k]} ${(RV_ST[k]||["no status"])[0].toLowerCase()}`).join(", "),lt,payLm:lm?ps.some(x=>x.r.v[lm][c.P]>0):false};}).filter(r=>r.rev!==0);
   }else{
-    rows=c.per.filter(x=>x.rev!==0).map(x=>({key:x.r.key||x.r.name,partner:rvPN(L,x.r.partner),name:x.r.name,rev:x.rev,pr:x.pr,first:x.first,last:x.last,mw:x.mw,
+    rows=c.per.filter(x=>x.rev!==0).map(x=>({cut:x.cut,key:x.r.key||x.r.name,partner:rvPN(L,x.r.partner),name:x.r.name,rev:x.rev,pr:x.pr,first:x.first,last:x.last,mw:x.mw,
       status:String(x.r.s.lead_status||""),lt:ltOf(x.r),notPos:x.r.inPos===false,fp:x.r.fp,payLm:lm?x.r.v[lm][c.P]>0:false}));
   }
   const tot=c.total,k=RVS.sort.key,d=RVS.sort.dir;
   rows.forEach(r=>r.share=tot!==0?r.rev/tot:0);
-  const sv=r=>k==="partner"?r.partner:k==="name"?r.name:k==="months"?r.mw:k==="status"?r.status:k==="lt"?(r.lt==null?-Infinity:r.lt):k==="fp"?(r.fp||"9999"):k==="share"?r.share:r.rev;
+  const sv=r=>k==="partner"?r.partner:k==="name"?r.name:k==="months"?r.mw:k==="status"?r.status:k==="lt"?(r.lt==null?-Infinity:r.lt):k==="fp"?(r.fp||"9999"):k==="cut"?(r.cut||0):k==="share"?r.share:r.rev;
   rows.sort((a,b)=>{const x=sv(a),y=sv(b);return(typeof x==="string"?d*x.localeCompare(y):d*(x-y))||b.rev-a.rev;});
-  const cols=[["partner","Partner",""],["name",RVS.group==="partner"?"Stores":"Merchant",""],["months",RVS.view==="q"?"Quarters paid":"Months paid",""],["prod","Products","",1],["fp",M.X?"First revenue":"First paid",""],["status","Status",""],["rev","Revenue","r"],["share","Share","r"],["lt","All time","r"]];
+  const cols=[["partner","Partner",""],["name",RVS.group==="partner"?"Stores":"Merchant",""],["months",RVS.view==="q"?"Quarters paid":"Months paid",""],["prod","Products","",1],["fp",M.X?"First revenue":"First paid",""],["status","Status",""],["rev","Revenue","r"],["cut","Shopify cut","r"],["share","Share","r"],["lt","All time","r"]];
   $("rv-bd-h").innerHTML=cols.map(([key,l,al,ns])=>ns?`<th class="${al}">${esc(l)}</th>`:`<th class="${al}"${k===key?` aria-sort="${d>0?"ascending":"descending"}"`:""}><button type="button" data-rk="${key}">${esc(l)}<span class="arr" aria-hidden="true">${k===key?(d>0?"&#9650;":"&#9660;"):"&#9660;"}</span></button></th>`).join("");
   const show=rows.slice(0,RVS.shown),lmL=lm?rvMon(lm):"";
   $("rv-bd-b").innerHTML=show.length?show.map(r=>`<tr><td class="rv-pn" title="${esc(r.partner)}">${esc(r.partner)}</td><td class="rv-mn" title="${esc(r.name)}"><span style="font-weight:500">${esc(r.name)}</span>${r.notPos?` <span class="pill sm outline rv-np">Not in PartnerOS</span>`:""}</td><td>${rvSpan(r,c.ms)}</td><td>${rvMini(r.pr)}</td><td class="num">${r.fp?esc(lbMY(r.fp)):`<span class="muted">-</span>`}</td>
     <td>${RVS.group==="partner"?`<span class="rv-sts">${esc(r.status)}</span>`:rvStPill(r.status)}${lm?` <span class="rv-pay ${r.payLm?"on":""}">${r.payLm?"Paying":"Not paying"} in ${lmL}</span>`:""}</td>
-    <td class="r num" title="${fmt$c(r.rev)}">${rvF$(r.rev)}</td><td class="r num">${rvPct(r.rev,tot)}</td><td class="r num">${r.lt==null?`<span class="muted">-</span>`:rvF$(r.lt)}</td></tr>`).join(""):`<tr><td colspan="9" class="empty">No revenue for this selection.</td></tr>`;
+    <td class="r num" title="${fmt$c(r.rev)}">${rvF$(r.rev)}</td><td class="r num rv-cutc">${r.cut?rvF$(r.cut):`<span class="muted">-</span>`}</td><td class="r num">${rvPct(r.rev,tot)}</td><td class="r num">${r.lt==null?`<span class="muted">-</span>`:rvF$(r.lt)}</td></tr>`).join(""):`<tr><td colspan="10" class="empty">No revenue for this selection.</td></tr>`;
   const ltT=rows.reduce((a,r)=>a+(r.lt||0),0);
-  $("rv-bd-f").innerHTML=`<tr class="lb-sum"><td>Total</td><td>${fmtN(rows.length)} ${RVS.group==="partner"?"partner":"store"}${rows.length===1?"":"s"}</td><td></td><td>${rvMini(c.prod)}</td><td></td><td></td><td class="r num" id="rv-bd-tot" data-v="${rows.reduce((a,r)=>a+r.rev,0).toFixed(2)}" title="${fmt$c(tot)}">${rvF$(rows.reduce((a,r)=>a+r.rev,0))}</td><td class="r num">${rows.length?"100%":"-"}</td><td class="r num">${rvF$(ltT)}</td></tr>`;
+  $("rv-bd-f").innerHTML=`<tr class="lb-sum"><td>Total</td><td>${fmtN(rows.length)} ${RVS.group==="partner"?"partner":"store"}${rows.length===1?"":"s"}</td><td></td><td>${rvMini(c.prod)}</td><td></td><td></td><td class="r num" id="rv-bd-tot" data-v="${rows.reduce((a,r)=>a+r.rev,0).toFixed(2)}" title="${fmt$c(tot)}">${rvF$(rows.reduce((a,r)=>a+r.rev,0))}</td><td class="r num rv-cutc" id="rv-bd-cut" data-v="${rows.reduce((a,r)=>a+(r.cut||0),0).toFixed(2)}">${rvF$(rows.reduce((a,r)=>a+(r.cut||0),0))}</td><td class="r num">${rows.length?"100%":"-"}</td><td class="r num">${rvF$(ltT)}</td></tr>`;
   const more=rows.length-show.length;
   $("rv-bd-more").innerHTML=more>0?`<button type="button" class="btn sm" id="rv-bd-plus">Show ${Math.min(25,more)} more</button><button type="button" class="btn sm" id="rv-bd-all">Show all ${fmtN(rows.length)}</button>`:rows.length>25?`<button type="button" class="btn sm" id="rv-bd-less">Show fewer</button>`:"";
   const none=c.per.filter(x=>x.rev===0).length;
   $("rv-bd-sub").textContent=`${rvRangeL(c.st.from,c.st.to,RVS.view)}, ${c.st.partner?rvPN(L,c.st.partner):"all partners"}, ${rvPL(c.st.product).toLowerCase()}, ${rvBasisL(M)}. Showing ${fmtN(show.length)} of ${fmtN(rows.length)}. Click a header to sort.`;
-  $("rv-bd-note").textContent=`${none?`${fmtN(none)} ${M.X?"merchant":"payout-list store"}${none===1?"":"s"} with no revenue in the selection ${none===1?"is":"are"} left out. `:""}${M.X?`${fmtN(c.per.filter(x=>x.rev!==0&&x.r.inPos===false).length)} merchant${c.per.filter(x=>x.rev!==0&&x.r.inPos===false).length===1?"":"s"} in this table are not in PartnerOS (tagged); their names and status come from the Finance data. `:""}Status is the Partner.io lead status (won, lost, approved, rejected); the snapshot has no open status. Paying means revenue in the last full month of the selection. ${M.X?"First revenue is the Finance MRR query's first revenue month, else the ledger's first invoice.":"First paid is the first paid invoice month from the ledger (lifetime block), else paying_since."}${RVS.nn?" Net new shows only the stores that are new in the range.":""} ${M.X?`All time is every month in the Finance ledger, ${rvNetL()} revenue, ${rvMeasL(M)}, both rails`:`All time is lifetime collected revenue per store (Stripe${RVS.shop===false?" only":" plus Shopify Billing"})`}, not by range or Alerts basis.`;
+  $("rv-bd-note").textContent=`${none?`${fmtN(none)} ${M.X?"merchant":"payout-list store"}${none===1?"":"s"} with no revenue in the selection ${none===1?"is":"are"} left out. `:""}${M.X?`${fmtN(c.per.filter(x=>x.rev!==0&&x.r.inPos===false).length)} merchant${c.per.filter(x=>x.rev!==0&&x.r.inPos===false).length===1?"":"s"} in this table are not in PartnerOS (tagged); their names and status come from the Finance data. `:""}${M.X?`Shopify cut is Shopify's fees on that merchant's Shopify Billing revenue in the selection (${RVS.cut?"deducted from Revenue":"not deducted; Revenue is before the cut"}). `:""}Status is the Partner.io lead status (won, lost, approved, rejected); the snapshot has no open status. Paying means revenue in the last full month of the selection. ${M.X?"First revenue is the Finance MRR query's first revenue month, else the ledger's first invoice.":"First paid is the first paid invoice month from the ledger (lifetime block), else paying_since."}${RVS.nn?" Net new shows only the stores that are new in the range.":""} ${M.X?`All time is every month in the Finance ledger, ${rvNetL()} revenue, ${rvMeasL(M)}, both rails`:`All time is lifetime collected revenue per store (Stripe${RVS.shop===false?" only":" plus Shopify Billing"})`}, not by range or Alerts basis.`;
   RVtabN=rows.length;
   return rows.reduce((a,r)=>a+r.rev,0);
 }
@@ -6841,6 +6855,7 @@ function rvControls(L,M){
   $("rv-nn").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.v==="nn")===RVS.nn)));
   $("rv-meas-w").hidden=!M.X;$("rv-meas").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===M.meas)));$("rv-shop-w").hidden=!!M.X;
   $("rv-xy").setAttribute("aria-checked",String(!!RVS.xy));$("rv-xy-w").hidden=!M.X;
+  $("rv-cut-w").hidden=!M.X;$("rv-cut").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.v==="ded")===!!RVS.cut)));
   $("rv-add").setAttribute("aria-checked",String(!!RVS.add));
   const cut=(L.DATA.cut_label)||"Oct 6";$("rv-add-l").textContent=`Stores added since the ${cut} cut`;
   {const shA=(ST.dash&&ST.dash.shopify_asof)?dShort(ST.dash.shopify_asof):"Aug 2";$("rv-shop").setAttribute("aria-checked",String(RVS.shop!==false));
@@ -6854,7 +6869,7 @@ function rvControls(L,M){
 }
 function rvRender(){
   const L=lbGet();if(!L||!RVhost||!$("rv-hero"))return;
-  const M=rvModel(L);rvNorm(M);
+  const M=rvModel(L);rvNorm(M);{const rt=RVhost.querySelector(".rv-root");if(rt)rt.classList.toggle("has-led",!!M.X);}
   if(RVS.sel){const p=RVS.sel.prev;if(!M.MU.includes(p.from)||!M.MU.includes(p.to))RVS.sel=null;}
   rvControls(L,M);
   const c=rvCalc(M,Object.assign({},RVS,{nn:RVS.nn})),C=rvChartState();
@@ -6872,7 +6887,7 @@ function rvRender(){
   else{sb.hidden=true;sb.innerHTML="";}
   $("rv-ctl-sub").textContent=`${rvRangeL(RVS.from,RVS.to,RVS.view)}, ${RVS.partner?rvPN(L,RVS.partner):"all partners"}, ${rvPL(RVS.product).toLowerCase()}, ${rvNetL()} revenue, ${rvMeasL(M)}${M.X?`. ${M.X.src.label||"Finance ledger"}${M.X.src.asof?", as of "+dShort(M.X.src.asof):""}`:""}`;
   let nnCk=null;if(RVS.nn&&c.all){const k=rvCoh(),sum=f=>c.all.per.filter(f).reduce((a,x)=>a+x.rev,0);nnCk={all:c.all.total,nn:c.total,before:sum(x=>x.r.fp&&x.r.fp<k.from),after:sum(x=>x.r.fp&&x.r.fp>k.to),nofp:sum(x=>!x.r.fp),rows:RVtabN};}
-  window.__rv={hero:c.total,table:tt,nn:nnCk,prod:c.prod,merchRev:c.per.filter(x=>RV_PK.some(k=>Math.abs(x.pr[k])>0.005)).length,rows:M.rows.length,notInPos:M.notInPos,ledger:M.X?{matched:M.matched,unmatched:M.unmatched,meas:M.meas,first:M.MU[0],last:M.MU[M.MU.length-1]}:null,sel:RVS.sel?{bk:RVS.sel.bk,seg:RVS.sel.seg,label:RVS.sel.label}:null,state:{from:RVS.from,to:RVS.to,view:RVS.view,partner:RVS.partner,product:RVS.product,gm:RVS.gm,mode:RVS.mode,stackBy:RVS.stackBy}};
+  window.__rv={hero:c.total,cut:c.cut,table:tt,nn:nnCk,prod:c.prod,merchRev:c.per.filter(x=>RV_PK.some(k=>Math.abs(x.pr[k])>0.005)).length,rows:M.rows.length,notInPos:M.notInPos,ledger:M.X?{matched:M.matched,unmatched:M.unmatched,meas:M.meas,first:M.MU[0],last:M.MU[M.MU.length-1]}:null,sel:RVS.sel?{bk:RVS.sel.bk,seg:RVS.sel.seg,label:RVS.sel.label}:null,state:{from:RVS.from,to:RVS.to,view:RVS.view,partner:RVS.partner,product:RVS.product,gm:RVS.gm,mode:RVS.mode,stackBy:RVS.stackBy}};
 }
 function rvOnChange(e){
   const id=e.target.id,v=e.target.value,L=lbGet();if(!L)return;const M=rvModel(L);
@@ -6888,6 +6903,7 @@ function rvOnClick(e,t){
   const g=(sel,f)=>{const b=t.closest(sel);if(b&&t.dataset.v){f(t.dataset.v);return true;}return false;};
   if(g("#rv-view",v=>{RVS.view=v==="q"?"q":"m";RVS.sel=null;}))return rvSave(),rvRender();
   if(g("#rv-gm",v=>{RVS.gm=v==="gm";}))return rvSave(),rvRender();
+  if(g("#rv-cut",v=>{RVS.cut=v==="ded";RVS.sel=null;}))return rvSave(),rvRender();
   if(g("#rv-meas",v=>{RVS.meas=v==="b"?"b":"c";RVS.sel=null;RVS.shown=25;}))return rvSave(),rvRender();
   if(g("#rv-nn",v=>{RVS.nn=v==="nn";RVS.sel=null;RVS.shown=25;}))return rvSave(),rvRender();
   if(g("#rv-mode",v=>{RVS.mode=v;}))return rvSave(),rvRender();
@@ -6942,9 +6958,9 @@ function rvExpOpen(kind,opener){
   const per=L.periods.find(p=>p.key===LBS.period)||null,MU=M0.MU,win=M0.win;
   let ms=per&&Array.isArray(per.months)&&per.months.length?per.months.filter(m=>MU.includes(m)):[];
   if(!ms.length){const full=MU.filter(m=>m!==M0.partial);ms=kind==="trend"?full.slice(-24):full;}
-  Object.assign(RVS,{from:ms[0],to:ms[ms.length-1],view:"m",partner:LBS.partner&&M0.partners.includes(LBS.partner)?LBS.partner:"",product:"all",gm:true,nn:false,xy:false,meas:"c",
+  Object.assign(RVS,{from:ms[0],to:ms[ms.length-1],view:"m",partner:LBS.partner&&M0.partners.includes(LBS.partner)?LBS.partner:"",product:"all",gm:true,nn:false,xy:false,meas:"c",cut:true,
     mode:kind==="trend"?"curve":kind==="product"?"stack":"bars",stackBy:"product",fc:true,group:"merchant",sort:{key:"rev",dir:-1},shown:25,dtab:false,sel:null});
-  {const X=flIndex(),s=X?X.src:null;$("rv-ov-src").textContent=(s?`${s.label||"Finance ledger"}${s.asof?", as of "+dShort(s.asof):""}: every referred merchant in the ledger, net or total revenue, Stripe and Shopify, history from ${lbMY(String(s.first||""))}. Not the Stripe-only figures on the Revenue page. `:"")+"Changes here stay here: the Revenue page behind keeps its filters.";}
+  {const X=flIndex(),s=X?X.src:null;$("rv-ov-src").textContent=(s?`${s.label||"Finance ledger"}${s.asof?", as of "+dShort(s.asof):""}: every referred merchant in the ledger, net or total revenue, Stripe and Shopify, Shopify's cut deducted or included, history from ${lbMY(String(s.first||""))}. Not the Stripe-only figures on the Revenue page. `:"")+"Changes here stay here: the Revenue page behind keeps its filters.";}
   ov.hidden=false;document.body.classList.add("rv-ov-open");rvMount($("rv-ov-b"),true);
   setTimeout(()=>{try{$("rv-ov-x").focus();}catch(e){}},0);
 }
