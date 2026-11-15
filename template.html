@@ -994,6 +994,13 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .rv-ctl .sw{font-size:12px;gap:8px}
 .rv-ctl .btn svg{flex:none}
 .rv-box .hit{fill:transparent;cursor:pointer}
+.rv-box .rv-vlt{font-weight:500;fill:var(--secondary-foreground);font-variant-numeric:tabular-nums}
+.rv-box .rv-vlt.fc{fill:var(--muted-foreground);font-weight:400}
+.rv-box .rv-sl{font-weight:600;font-variant-numeric:tabular-nums}
+.rv-box.wide{position:relative}
+.rv-box .rv-sc{overflow-x:auto;overflow-y:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin}
+.rv-box .rv-sc svg{max-width:none}
+.rv-box .rv-yax{position:absolute;left:0;top:0;background:var(--card);pointer-events:none}
 .rv-box .hit.cur{fill:color-mix(in srgb,var(--primary) 7%,transparent)}
 .rv-box .hit.fc{cursor:default}
 .rv-box .rv-seg{cursor:pointer}
@@ -5155,6 +5162,7 @@ function themeSet(t){
   lsSet(TH_LS,t);
   document.querySelectorAll("#umenu .appr button").forEach(b=>{const on=b.dataset.th===t;b.setAttribute("aria-checked",String(on));b.tabIndex=on?0:-1;});
   if(ST.sec==="dashboard"&&lbGet())renderLB();
+  if(typeof RVhost!=="undefined"&&RVhost)rvRender();
 }
 function themeCycle(){const o=["light","dark","system"],n=o[(o.indexOf(themeGet())+1)%3];themeSet(n);toast("Appearance: "+TH_L[n]+".");}
 
@@ -6685,48 +6693,106 @@ function rvShell(){
 }
 /* the merged chart: curve, bars or stacked bars; hover, click and keys move a cursor; click or Enter selects */
 let RVD=null,RVcur={i:-1,j:null};
+/* build 15: value labels on every point, bar and stack. Format: $950, $12.4K, $108K, $1.16M. Layout, in order, until no two labels
+   overlap: 11px horizontal, 10px horizontal, two staggered heights, 45 degrees (two heights), then a wider plot that scrolls inside the
+   card with the y axis pinned. Quarter view and ranges of 24 points or fewer stay horizontal (wider plot if needed). In stacked bars
+   each segment tall and wide enough gets its value inside, in black or white, whichever meets AA against the segment; thinner ones
+   keep their value in the tooltip and the data table. */
+const rvK=v=>{const a=Math.abs(+v||0),sg=v<0?"-":"";if(a<999.5)return sg+"$"+Math.round(a);if(a<99950)return sg+"$"+(a/1e3).toFixed(1)+"K";if(a<999500)return sg+"$"+Math.round(a/1e3)+"K";return sg+"$"+(a/1e6).toFixed(2)+"M";};
+let RVctx=null,RVff="";
+function rvTW(t,fs){if(!RVctx){RVctx=document.createElement("canvas").getContext("2d");}if(!RVff)RVff=getComputedStyle(document.body).fontFamily||"system-ui";RVctx.font=`500 ${fs}px ${RVff}`;return RVctx.measureText(t).width+2;}
+/* label polygons and separating-axis overlap (works for horizontal and rotated labels alike) */
+function rvPoly(l){const{x,y,w,fs,rot}=l,hgt=fs+2;if(!rot)return[[x-w/2,y-hgt*.8],[x+w/2,y-hgt*.8],[x+w/2,y+hgt*.2],[x-w/2,y+hgt*.2]];
+  const c=Math.SQRT1_2,d=[c,-c],n=[c,c],P=(u,v)=>[x+d[0]*u+n[0]*v,y+d[1]*u+n[1]*v];return[P(0,-hgt*.8),P(w,-hgt*.8),P(w,hgt*.2),P(0,hgt*.2)];}
+function rvOverlap(A,B){const ax=[...A,...B];for(const Pg of [A,B])for(let i=0;i<4;i++){const p=Pg[i],q=Pg[(i+1)%4],nx=q[1]-p[1],ny=p[0]-q[0];
+  let a0=1/0,a1=-1/0,b0=1/0,b1=-1/0;A.forEach(([x,y])=>{const t=x*nx+y*ny;a0=Math.min(a0,t);a1=Math.max(a1,t);});B.forEach(([x,y])=>{const t=x*nx+y*ny;b0=Math.min(b0,t);b1=Math.max(b1,t);});
+  if(a1<=b0+0.01||b1<=a0+0.01)return false;}return true;}
+/* colour of a CSS colour value in the current theme, as [r,g,b] 0..255 */
+const RVcol={};
+function rvRGB(css){const th=document.documentElement.getAttribute("data-theme")||(window.matchMedia&&matchMedia("(prefers-color-scheme: dark)").matches?"sys-dark":"sys-light"),k=th+"|"+css;if(RVcol[k])return RVcol[k];
+  const e=document.createElement("span");e.style.color=css;e.style.display="none";document.body.appendChild(e);const c=getComputedStyle(e).color;e.remove();let v=[0,0,0];
+  const m=/color\(srgb ([\d.]+) ([\d.]+) ([\d.]+)/.exec(c);if(m)v=[+m[1]*255,+m[2]*255,+m[3]*255];else{const r=/rgba?\(([\d.]+),\s*([\d.]+),\s*([\d.]+)/.exec(c);if(r)v=[+r[1],+r[2],+r[3]];}
+  return RVcol[k]=v;}
+const rvLum=([r,g,b])=>{const f=x=>{x/=255;return x<=.03928?x/12.92:Math.pow((x+.055)/1.055,2.4);};return .2126*f(r)+.7152*f(g)+.0722*f(b);};
+const rvCR=(a,b)=>{const x=rvLum(a),y=rvLum(b);return(Math.max(x,y)+.05)/(Math.min(x,y)+.05);};
+/* place labels: items {x,yTop,text,i,kind}; fixed: polygons already taken (segment labels). Returns placed labels or null */
+function rvPlace(items,fixed,fs,rows,rot,gap){const out=[],polys=fixed.slice();
+  for(const it of items){let ok=null;for(let r=0;r<rows&&!ok;r++){const l={x:it.x,y:it.yTop-gap-r*(fs+3),w:rvTW(it.text,fs),fs,rot,text:it.text,i:it.i,kind:it.kind,v:it.v,row:r,dim:it.dim};
+      if(rot)l.x=it.x-(fs*.35);const P=rvPoly(l);if(!polys.some(Q=>Math.abs(Q[0][0]-P[0][0])<400&&rvOverlap(P,Q))){l.poly=P;ok=l;}}
+    if(!ok)return null;out.push(ok);polys.push(ok.poly);}
+  return out;}
 function rvDraw(L,M){
   const box=$("rv-box");if(!box)return;
   const C=rvChartState(),D=rvSeries(L,M,C),fc=rvFc(L,M,C),B=D.B,S=D.S,n=B.length,K=fc?fc.ms.length:0,N=n+K;RVD=Object.assign(D,{fc,n,N});
-  const W=Math.max(280,box.clientWidth||900),ph=W<560,big=RVS.big;
-  const H=big?Math.max(300,Math.min(Math.round(window.innerHeight*.56),680)):ph?260:360,ml=ph?44:58,mr=ph?10:18,mt=26,mb=40,ih=H-mt-mb,iw=W-ml-mr;
-  const vals=D.T.map(v=>Math.max(0,v)).concat(fc?fc.base.concat(fc.high||[]).filter(v=>v!=null):[]);
-  const ymax=L.niceMax(Math.max(1,...vals)),y=v=>mt+ih-(Math.max(0,v)/ymax)*ih,y0=y(0),band=iw/Math.max(1,N),cx=i=>ml+band*i+band/2;
+  const BW=Math.max(280,box.clientWidth||900),ph=BW<560,big=RVS.big,stack=RVS.mode==="stack",curve=RVS.mode==="curve";
+  const H=big?Math.max(320,Math.min(Math.round(window.innerHeight*.58),700)):ph?280:380,ml=ph?44:58,mr=ph?10:18,mb=40;
   const sel=RVS.sel,selI=sel?B.findIndex(b=>b.k===sel.bk):-1,selJ=sel&&sel.seg!=null?S.findIndex(s=>s.k===sel.seg):-1;
   const dimB=i=>selI>=0&&i!==selI;
+  const vals=D.T.map(v=>Math.max(0,v)).concat(fc?fc.base.concat(fc.high||[]).filter(v=>v!=null):[]);
+  const sparse=RVS.view==="q"||N<=24;
+  /* layout loop: try the label modes at the box width; if none fits, widen the plot; if labels hit the top, add headroom */
+  let W=BW,mt=26,lay=null,segL=[],geo=null;
+  for(let pass=0;pass<14;pass++){
+    const ih=H-mt-mb,iw=W-ml-mr,ymax=L.niceMax(Math.max(1,...vals)),y=v=>mt+ih-(Math.max(0,v)/ymax)*ih,y0=y(0),band=iw/Math.max(1,N),cx=i=>ml+band*i+band/2;
+    const bw=Math.max(4,Math.min(56,band*(stack?.62:.56)));
+    geo={ih,iw,ymax,y,y0,band,cx,bw};
+    /* in-segment labels (stacked bars): fixed polygons the totals must avoid */
+    segL=[];
+    if(stack)B.forEach((b,i)=>{let acc=0;S.forEach((sr,j)=>{const v=D.V[i][j];if(!(v>0))return;const yt=y(acc+v),yb=y(acc);acc+=v;const hh=yb-yt-2;
+      const t=rvK(v),fs=10,w=rvTW(t,fs);if(hh<fs+4||w+4>bw||dimB(i)||(i===selI&&selJ>=0&&j!==selJ))return;
+      const bg=rvRGB(sr.col),wC=rvCR(bg,[255,255,255]),kC=rvCR(bg,[11,11,11]);const fill=wC>=kC?(wC>=4.5?"#ffffff":null):(kC>=4.5?"#0b0b0b":null);if(!fill)return;
+      const l={x:cx(i),y:(yt+yb)/2+fs*.35,w,fs,rot:false,text:t,i,j,kind:"seg",v,fill};l.poly=rvPoly(l);segL.push(l);});});
+    /* one label per point: totals above bars and stacks, values above curve points, forecast points lighter */
+    const items=B.map((b,i)=>{const v=D.T[i],top=curve?y(v)-(i===selI?6.5:4.5):y(Math.max(0,v))-(i===selI?3:0);return{x:cx(i),yTop:top,text:rvK(v),v,i,kind:"total",dim:dimB(i)};});
+    if(fc)fc.base.forEach((v,j)=>{if(v!=null)items.push({x:cx(n+j),yTop:y(v)-4,text:rvK(v),v,i:n+j,kind:"fc"});});
+    const modes=[[11,1,false],[10,1,false]].concat(sparse?[]:[[10,2,false],[10,1,true],[10,2,true]]);
+    lay=null;for(const [fs,rows,rot] of modes){const r=rvPlace(items,segL.map(l=>l.poly),fs,rows,rot,curve?5:5);if(r){lay={fs,rows,rot,labels:r};break;}}
+    if(!lay){W=Math.round(ml+mr+Math.max(band*1.22,band+4)*N);continue;}
+    const minTop=Math.min(...lay.labels.map(l=>Math.min(...l.poly.map(p=>p[1]))));
+    if(minTop<4){mt+=Math.ceil(4-minTop)+2;if(mt>H*.45){mt=Math.round(H*.45);}else continue;}
+    break;}
+  const{ih,y,y0,band,cx,bw,ymax}=geo,wide=W>BW+1;
   let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc($("rv-ch-t").textContent)}, ${esc(rvRangeL(C.from,C.to,RVS.view))}">${lbAxis(W,ml,mr,y,ymax,4)}`;
   s+=`<g class="rv-cols">${B.map((b,i)=>`<rect class="hit" data-i="${i}" x="${(ml+band*i).toFixed(1)}" y="${mt}" width="${band.toFixed(1)}" height="${ih}"/>`).join("")}${fc?fc.ms.map((m,j)=>`<rect class="hit fc" data-i="${n+j}" x="${(ml+band*(n+j)).toFixed(1)}" y="${mt}" width="${band.toFixed(1)}" height="${ih}"/>`).join(""):""}</g>`;
-  if(RVS.mode==="curve"){
+  if(curve){
     const pts=B.map((b,i)=>[cx(i),y(D.T[i])]),full=B.map((b,i)=>b.part&&i===n-1?null:pts[i]);
     const seg=[];let cur=[];full.forEach(p=>{if(p)cur.push(p);else{if(cur.length)seg.push(cur);cur=[];}});if(cur.length)seg.push(cur);
     seg.forEach(a=>{if(a.length>1)s+=`<path class="rv-line${selI>=0?" dim":""}" d="${rvSmooth(a)}"/>`;});
     if(n>1&&B[n-1].part&&pts[n-2])s+=`<path class="rv-line part${selI>=0?" dim":""}" d="M${pts[n-2][0].toFixed(1)},${pts[n-2][1].toFixed(1)}L${pts[n-1][0].toFixed(1)},${pts[n-1][1].toFixed(1)}"/>`;
     if(fc){const lastFull=full.map((p,i)=>p?i:-1).filter(i=>i>=0).pop(),fp=lastFull!=null?[[cx(lastFull),y(D.T[lastFull]),D.T[lastFull],D.T[lastFull]]]:[];
       fc.base.forEach((v,j)=>{if(v!=null)fp.push([cx(n+j),y(v),fc.low?fc.low[j]:v,fc.high?fc.high[j]:v]);});
-      const xd=ml+band*n;s+=`<line x1="${xd.toFixed(1)}" x2="${xd.toFixed(1)}" y1="${mt-8}" y2="${y0}" class="lb-div"/><text x="${(xd+6).toFixed(1)}" y="${mt-12}" class="lb-ax2">Forecast</text>`;
+      const xd=ml+band*n;s+=`<line x1="${xd.toFixed(1)}" x2="${xd.toFixed(1)}" y1="${mt-8}" y2="${y0}" class="lb-div"/>`;
       if(fc.low&&fp.length>1)s+=`<path class="lb-band" d="M${fp.map(p=>p[0].toFixed(1)+","+y(p[3]).toFixed(1)).join("L")}L${fp.slice().reverse().map(p=>p[0].toFixed(1)+","+y(p[2]).toFixed(1)).join("L")}Z"/>`;
       if(fp.length>1)s+=`<path class="lb-fc" d="M${fp.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L")}"/>`;
       fc.base.forEach((v,j)=>{if(v!=null)s+=`<circle cx="${cx(n+j).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" class="lb-fcd"/>`;});}
     B.forEach((b,i)=>{const on=i===selI;s+=`<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="${on?6.5:band<16?3:4.5}" class="rv-dot${b.part?" part":""}${dimB(i)?" dim":""}${on?" on":""}" data-i="${i}"/>`;});
-    const li=selI>=0?selI:full.map((p,i)=>p?i:-1).filter(i=>i>=0).pop();
-    if(li!=null&&li>=0)s+=`<text x="${(cx(li)-(fc&&selI<0?10:0)).toFixed(1)}" y="${(y(D.T[li])-12).toFixed(1)}" text-anchor="${fc&&selI<0?"end":"middle"}" class="lb-cap num">${fmtK(D.T[li])}</text>`;
   }else{
-    const bw=Math.max(4,Math.min(56,band*(RVS.mode==="stack"?.62:.56)));
     B.forEach((b,i)=>{const x=cx(i)-bw/2;let acc=0;const live=S.map((sr,j)=>({j,v:D.V[i][j]})).filter(o=>o.v>0);
-      live.forEach((o,q)=>{const yt=y(acc+o.v),yb=y(acc),h=Math.max(0,yb-yt-(q?2:0));acc+=o.v;if(h<=.3)return;
+      live.forEach((o,q)=>{const yt=y(acc+o.v),yb=y(acc),hh=Math.max(0,yb-yt-(q?2:0));acc+=o.v;if(hh<=.3)return;
         const top=q===live.length-1,d=dimB(i)||(i===selI&&selJ>=0&&o.j!==selJ),on=i===selI&&(selJ<0||o.j===selJ);
-        const attrs=` class="rv-seg${d?" dim":""}${on?" on":""}${b.part?" part":""}" data-i="${i}" data-j="${RVS.mode==="stack"?o.j:""}"`;
-        s+=top?lbBar(x,yt+h,bw,h,S[o.j].col,attrs):`<rect x="${x.toFixed(1)}" y="${yt.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" style="fill:${S[o.j].col}"${attrs}/>`;});
+        const attrs=` class="rv-seg${d?" dim":""}${on?" on":""}${b.part?" part":""}" data-i="${i}" data-j="${stack?o.j:""}"`;
+        s+=top?lbBar(x,yt+hh,bw,hh,S[o.j].col,attrs):`<rect x="${x.toFixed(1)}" y="${yt.toFixed(1)}" width="${bw.toFixed(1)}" height="${hh.toFixed(1)}" style="fill:${S[o.j].col}"${attrs}/>`;});
       if(b.part&&acc>0)s+=`<rect x="${x.toFixed(1)}" y="${y(acc).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,y0-y(acc)).toFixed(1)}" fill="url(#rv-hatch)" pointer-events="none"/>`;
-      if(i===selI)s+=`<rect x="${(x-3).toFixed(1)}" y="${(y(acc)-3).toFixed(1)}" width="${(bw+6).toFixed(1)}" height="${Math.max(0,y0-y(acc)+3).toFixed(1)}" rx="5" class="rv-ring" pointer-events="none"/>`;
-      if((band>=44||i===selI)&&acc>0)s+=`<text x="${cx(i).toFixed(1)}" y="${(y(acc)-7).toFixed(1)}" text-anchor="middle" class="lb-cap num${dimB(i)?" dimt":""}">${fmtK(D.T[i])}</text>`;});
+      if(i===selI)s+=`<rect x="${(x-3).toFixed(1)}" y="${(y(acc)-3).toFixed(1)}" width="${(bw+6).toFixed(1)}" height="${Math.max(0,y0-y(acc)+3).toFixed(1)}" rx="5" class="rv-ring" pointer-events="none"/>`;});
   }
+  /* labels */
+  s+=`<g class="rv-vl" pointer-events="none">`;
+  segL.forEach(l=>{s+=`<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" text-anchor="middle" class="rv-sl num" style="fill:${l.fill};font-size:${l.fs}px" data-i="${l.i}" data-j="${l.j}" data-kind="seg">${esc(l.text)}</text>`;});
+  (lay?lay.labels:[]).forEach(l=>{const cls=`rv-vlt num${l.kind==="fc"?" fc":""}${l.dim?" dimt":""}`;
+    s+=l.rot?`<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" text-anchor="start" transform="rotate(-45 ${l.x.toFixed(1)} ${l.y.toFixed(1)})" class="${cls}" style="font-size:${l.fs}px" data-i="${l.i}" data-kind="${l.kind}">${esc(l.text)}</text>`
+      :`<text x="${l.x.toFixed(1)}" y="${l.y.toFixed(1)}" text-anchor="middle" class="${cls}" style="font-size:${l.fs}px" data-i="${l.i}" data-kind="${l.kind}">${esc(l.text)}</text>`;});
+  s+=`</g>`;
   const every=Math.max(1,Math.ceil((ph?34:40)/band));
   const ax=B.map(b=>[b.ax,b.yr,b.part]).concat(fc?fc.ms.map(m=>[rvMon(m),m.slice(0,4),false]):[]);
   let lyr=null;ax.forEach(([a,yr,pt],i)=>{if(i%every)return;s+=`<text x="${cx(i).toFixed(1)}" y="${y0+16}" text-anchor="middle" class="lb-ax">${a}</text>`;
     if(yr!==lyr){lyr=yr;s+=`<text x="${cx(i).toFixed(1)}" y="${y0+29}" text-anchor="middle" class="lb-ax2">${yr}</text>`;}else if(pt)s+=`<text x="${cx(i).toFixed(1)}" y="${y0+29}" text-anchor="middle" class="lb-ax2">partial</text>`;});
-  s+=`<defs><pattern id="rv-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" style="fill:var(--card)" fill-opacity=".5"/></pattern></defs><line x1="${ml}" x2="${W-mr}" y1="${y0}" y2="${y0}" class="lb-base"/></svg><div class="lb-tip rv-tip" role="status" aria-live="polite"></div>`;
-  box.innerHTML=s;
+  s+=`<defs><pattern id="rv-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" style="fill:var(--card)" fill-opacity=".5"/></pattern></defs><line x1="${ml}" x2="${W-mr}" y1="${y0}" y2="${y0}" class="lb-base"/></svg>`;
+  /* a wider plot scrolls inside the card; the y axis stays pinned on the left */
+  if(wide){const f=ymax/Math.pow(10,Math.floor(Math.log10(ymax)));const nt=f===2.5||f===5?5:4;let yx="";for(let k=0;k<=nt;k++){const v=ymax*k/nt;yx+=`<text x="${ml-8}" y="${(y(v)+4).toFixed(1)}" text-anchor="end" class="lb-ax num">${fmtK(v)}</text>`;}
+    s=`<div class="rv-sc">${s}</div><svg class="rv-yax" width="${ml}" height="${H}" viewBox="0 0 ${ml} ${H}" aria-hidden="true">${yx}</svg>`;}
+  box.innerHTML=s+`<div class="lb-tip rv-tip" role="status" aria-live="polite"></div>`;box.classList.toggle("wide",wide);
+  {const sub=$("rv-ch-sub");if(sub&&wide&&!/scroll it sideways/.test(sub.textContent))sub.textContent+=` Every point carries its value: the chart is wider than the card, so scroll it sideways (or use the arrow keys) for earlier ${RVS.view==="q"?"quarters":"months"}.`;}
+  if(wide){const sc=box.querySelector(".rv-sc");const ti=selI>=0?selI:N-1;sc.scrollLeft=Math.max(0,cx(ti)-BW*.7);sc.addEventListener("scroll",()=>rvTipHide(),{passive:true});}
   if(RVcur.i>=N)RVcur={i:-1,j:null};
   if(RVcur.i>=0&&box.contains(document.activeElement))rvTipShow(RVcur.i,RVcur.j);
   /* legend: series with a value in range; a single series needs none */
@@ -6735,6 +6801,8 @@ function rvDraw(L,M){
   if(B.some(b=>b.part))lg.push([RVS.view==="q"?"Part of a quarter (hatched or hollow)":"Partial month (hatched or hollow)","transparent","ring"]);
   $("rv-lg").innerHTML=lg.length?lbLg(lg):"";
   window.__rvChart={keys:B.map(b=>b.k),totals:D.T.slice(),series:S.map(x=>x.k),values:D.V.map(a=>a.slice())};
+  window.__rvLabels={mode:lay?`${lay.rot?"rotated":lay.rows>1?"staggered":"horizontal"} ${lay.fs}px`:"none",wide,plotW:W,boxW:BW,N,
+    labels:(lay?lay.labels:[]).map(l=>({i:l.i,kind:l.kind,text:l.text,v:l.v,poly:l.poly})),segs:segL.map(l=>({i:l.i,j:l.j,text:l.text,v:l.v,poly:l.poly}))};
 }
 /* monotone cubic through the points (no overshoot above or below the data) */
 function rvSmooth(p){const n=p.length;if(n<2)return"";const dx=[],m=[],t=[];
@@ -6758,6 +6826,7 @@ function rvTipShow(i,j){
   tip.innerHTML=rvTipHtml(i,j);tip.classList.add("on");
   box.querySelectorAll(".hit.cur").forEach(x=>x.classList.remove("cur"));const h=box.querySelector(`.hit[data-i="${i}"]`);if(h)h.classList.add("cur");
   box.querySelectorAll(".rv-seg.kb").forEach(x=>x.classList.remove("kb"));if(j!=null){const sg=box.querySelector(`.rv-seg[data-i="${i}"][data-j="${j}"]`);if(sg)sg.classList.add("kb");}
+  {const sc=box.querySelector(".rv-sc");if(sc&&h){const r=h.getBoundingClientRect(),sr=sc.getBoundingClientRect(),pad=70;if(r.left<sr.left+pad)sc.scrollLeft-=sr.left+pad-r.left;else if(r.right>sr.right-20)sc.scrollLeft+=r.right-sr.right+20;}}
   const bx=box.getBoundingClientRect(),hr=h?h.getBoundingClientRect():bx,tw=tip.offsetWidth,th=tip.offsetHeight;
   let left=hr.left-bx.left+hr.width/2+14;if(left+tw>bx.width)left=hr.left-bx.left+hr.width/2-tw-14;
   tip.style.transform=`translate(${Math.max(0,left).toFixed(0)}px,${Math.max(0,Math.min(bx.height-th,12)).toFixed(0)}px)`;
