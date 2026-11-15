@@ -910,15 +910,10 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
   .main.dfit #my-dash .wd{min-height:0;overflow:hidden;padding:14px;gap:10px}
   .main.dfit #my-dash .wd-b{flex:1;min-height:0;overflow:auto}
 }
-@media (min-width:1200px) and (max-width:1599px){.b-pay .lb-table th:nth-child(3),.b-pay .lb-table td:nth-child(3){display:none}}
 @media (min-width:1200px) and (max-width:1439px){
   .dc-sum{display:none}
-  .b-pay .pl-x{display:none}
-  .b-pay .lb-table th,.b-pay .lb-table td{padding:0 5px;font-size:12px}
-  .b-pay .lb-table th{font-size:10px;letter-spacing:.5px}
   .lb-ptab{font-size:11px}
   .ktiles>.kt{padding:2px 12px}.kt .v{font-size:22px;letter-spacing:-.6px}
-  .b-top .lb-table th:nth-child(4),.b-top .lb-table td:nth-child(4){display:none}
   .bento .lb-table td.lb-pn{max-width:120px}
 }
 @media (max-width:1199px){.ktiles{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:12px}.ktiles>.kt:nth-child(3n+1){border-left:0;padding-left:0}}
@@ -937,6 +932,134 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
   .ktiles>.kt:nth-child(odd){border-left:0!important;padding-left:0!important}
   .bento .tscroll{margin:0 -16px;padding:0 16px}
 }
+
+/* ---- build 12: Revenue v2 (hero, merged chart, breakdown, enlarge) and the payout blocks on Payouts.
+   Partner stack colours: a categorical set checked with the dataviz validator (CVD separation and lightness pass in both themes);
+   the light set is under 3:1 on white for three hues, so every chart carries a legend, tooltips and a data table. */
+:root{--cat-1:#3448ff;--cat-2:#eb6834;--cat-3:#1baf7a;--cat-4:#eda100;--cat-5:#e87ba4}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--cat-1:#6b78ff;--cat-2:#d95926;--cat-3:#199e70;--cat-4:#c98500;--cat-5:#d55181}}
+:root[data-theme="dark"]{--cat-1:#6b78ff;--cat-2:#d95926;--cat-3:#199e70;--cat-4:#c98500;--cat-5:#d55181}
+.seg button[aria-pressed="true"]{background:var(--seg-active);color:var(--foreground);box-shadow:0 1px 3px rgb(0 0 0 / .1)}
+.seg button:focus-visible{outline:2px solid color-mix(in srgb,var(--ring) 45%,transparent);outline-offset:1px}
+.seg.sm{padding:2px;border-radius:10px}
+.seg.sm button{height:26px;font-size:12px;padding:0 10px;border-radius:8px}
+.rv-to{font-size:12px;color:var(--muted-foreground);margin:0 -6px}
+.chip.rv-nochip select{padding-left:12px}
+.rv-gm,.rv-sb{display:inline-flex;align-items:center;gap:8px;font-size:12px;font-weight:500;color:var(--secondary-foreground)}
+.rv-sb[hidden],#rv-fc-w[hidden]{display:none!important}
+.rv-selbar{grid-column:1/-1;display:flex;align-items:center;justify-content:space-between;gap:8px 12px;flex-wrap:wrap;padding:8px 8px 8px 14px;border-radius:12px;background:var(--pill-blue-bg);color:var(--pill-blue-fg);font-size:13px;line-height:18px}
+.rv-selbar b{font-weight:600}
+.rv-hero,.rv-chart,.rv-bd{grid-column:1/-1}
+.bento>.rv-hero{padding:18px 20px}
+.rv-h{display:grid;grid-template-columns:minmax(260px,1fr) minmax(0,2.6fr);gap:16px 24px;align-items:stretch}
+.rv-hl{display:flex;flex-direction:column;gap:6px;padding-right:24px;border-right:1px solid var(--border);min-width:0}
+.rv-lab{font-size:13px;line-height:18px;font-weight:500;color:var(--muted-foreground)}
+.rv-big{font-family:var(--font-heading);font-size:44px;line-height:48px;font-weight:600;letter-spacing:-1px;border-radius:6px;outline:none;display:inline-block}
+.rv-hs{font-size:12px;line-height:17px;color:var(--secondary-foreground);display:flex;flex-direction:column;align-items:flex-start;gap:6px}
+.rv-kt{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));align-content:center}
+.rv-tile{position:relative;padding:2px 14px;border-left:1px solid var(--border);min-width:0;outline:none;border-radius:4px;cursor:help}
+.rv-tile:first-child{border-left:0}
+.rv-tile .l{font-size:12px;line-height:16px;color:var(--muted-foreground);font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv-tile .v{font-size:22px;line-height:28px;font-weight:600;margin-top:4px;letter-spacing:-.4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv-tile .s{font-size:12px;line-height:16px;margin-top:2px;color:var(--secondary-foreground)}
+.rv-tile:focus-visible,.rv-big:focus-visible{outline:2px solid color-mix(in srgb,var(--ring) 45%,transparent);outline-offset:3px}
+.rv-tthost{position:relative}
+.rv-bigw{align-self:flex-start;cursor:help}
+.rv-tt{display:none;position:absolute;z-index:8;top:calc(100% + 8px);left:0;width:300px;max-width:calc(100vw - 32px);background:var(--card);color:var(--card-foreground);border:1px solid var(--border);border-radius:10px;box-shadow:var(--shadow-cards);padding:10px 12px;font-size:12px;line-height:18px;font-family:var(--font-sans);letter-spacing:0;font-weight:400;cursor:default}
+.rv-tthost:hover>.rv-tt,.rv-tthost:focus-within>.rv-tt{display:block}
+.rv-tthost.tt-off>.rv-tt{display:none!important}
+.rv-tthost.ttr>.rv-tt{left:auto;right:0}
+.rv-tt .t{font-weight:600;margin-bottom:4px}
+.rv-tt .r{display:flex;justify-content:space-between;gap:12px}
+.rv-tt .r>span:first-child{display:inline-flex;align-items:center;gap:6px;color:var(--secondary-foreground);min-width:0}
+.rv-tt .r .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rv-tt .r>span:last-child{white-space:nowrap}
+.rv-tt i{width:9px;height:9px;border-radius:3px;display:inline-block;flex:none}
+.rv-tt .ft,.rv-tip .ft{margin-top:6px;color:var(--muted-foreground);font-size:11px;line-height:15px}
+.rv-ctl{display:flex;align-items:center;justify-content:flex-end;gap:8px 12px;flex-wrap:wrap}
+.rv-ctl .sw{font-size:12px;gap:8px}
+.rv-ctl .btn svg{flex:none}
+.rv-box .hit{fill:transparent;cursor:pointer}
+.rv-box .hit.cur{fill:color-mix(in srgb,var(--primary) 7%,transparent)}
+.rv-box .hit.fc{cursor:default}
+.rv-box .rv-seg{cursor:pointer}
+.rv-box .rv-seg.kb{stroke:var(--foreground);stroke-width:1.5}
+.rv-box .dim{opacity:.3}
+.rv-box .dimt{opacity:.45}
+.rv-ring{fill:none;stroke:var(--foreground);stroke-width:1.5;stroke-opacity:.7}
+.rv-line{fill:none;stroke:var(--primary);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;pointer-events:none}
+.rv-line.part{stroke-dasharray:3 4}
+.rv-dot{fill:var(--primary);stroke:var(--card);stroke-width:2;cursor:pointer}
+.rv-dot.part{fill:var(--card);stroke:var(--primary)}
+.rv-dot.on{stroke:var(--foreground);stroke-width:2}
+.rv-tip .r.tot{font-weight:600;margin-bottom:2px}
+.rv-tip .r.cur{font-weight:600}
+.rv-tip .r.cur>span:first-child{color:var(--foreground)}
+.rv-dt{margin-top:12px}
+.rv-tab td.rv-pn{max-width:180px;overflow:hidden;text-overflow:ellipsis}
+.rv-tab td.rv-mn{max-width:220px;overflow:hidden;text-overflow:ellipsis}
+.rv-pc{display:inline-flex;align-items:center;gap:8px}
+.rv-mini{display:inline-flex;width:56px;height:8px;border-radius:4px;overflow:hidden;gap:1px;background:var(--secondary);flex:none}
+.rv-mini i{display:block;height:100%;min-width:2px}
+.rv-pk{font-size:12px}
+.rv-nn{display:block;font-size:12px;line-height:17px;color:var(--secondary-foreground)}
+.rv-nn b{color:var(--foreground);font-weight:600}
+.rv-pay{font-size:11px;color:var(--muted-foreground);margin-left:6px}
+.rv-pay.on{color:var(--secondary-foreground)}
+.rv-sts{font-size:12px;color:var(--secondary-foreground)}
+.rv-bd .tscroll,.rv-dt .tscroll{position:relative}
+.rv-more{display:flex;gap:8px;justify-content:center;margin-top:12px}
+.rv-more:empty{display:none}
+.rv-tab tfoot td{border-bottom:0;font-weight:600;height:44px}
+.rv-ov{position:fixed;inset:0;z-index:70;background:var(--scrim);display:flex;padding:24px}
+.rv-ov[hidden]{display:none}
+.rv-ov-in{background:var(--background);border-radius:16px;flex:1;display:flex;flex-direction:column;min-width:0;overflow:hidden;box-shadow:var(--shadow-cards)}
+.rv-ov-h{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:12px 20px;border-bottom:1px solid var(--border);background:var(--card)}
+.rv-ov-h h2{font-size:18px;line-height:24px;margin:0}
+.rv-ov-b{flex:1;overflow:auto;padding:16px 20px 24px;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:12px;align-content:start}
+.rv-ov-b>*{grid-column:1/-1;min-width:0}
+.rv-ov-b>.card{margin-top:0;padding:16px;position:relative}
+.rv-ov-b .card-head{margin-bottom:8px;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 12px}
+.rv-ov-b .card-head>div:first-child{display:contents}
+.rv-ov-b .card-head h2{grid-column:1;grid-row:1;font-size:16px;line-height:20px}
+.rv-ov-b .card-head>:not(:first-child){grid-column:2;grid-row:1}
+.rv-ov-b .card-head .card-sub{grid-column:1/-1;grid-row:2;font-size:12px;margin-top:0}
+.rv-ov-b .dash-ctl{flex-basis:auto}
+.rv-ov-b #lb-notes-btn,.rv-ov-b #rv-big-btn{display:none}
+.rv-ov-b .tscroll{margin:0 -16px;padding:0 16px}
+.rv-ov-b .lb-table{font-size:13px}
+body.rv-ov-open{overflow:hidden}
+#pay-lb{margin-top:20px}
+.pay-tot{display:inline-flex;gap:14px;font-size:12px;color:var(--muted-foreground)}
+.pay-tot b{color:var(--foreground);font-weight:600;font-size:13px;margin-left:4px}
+.pay-ctl{grid-column:1/-1;display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap;min-width:0}
+.pay-ctl .chips{margin-top:0;align-items:center}
+.pay-ctl .chip select{height:30px;font-size:12px}
+.pay-ctl .sw{font-size:12px;gap:8px}
+#pay-lb .b-ep{grid-column:1/-1!important}#pay-lb .b-pay{grid-column:span 7!important}#pay-lb .b-top{grid-column:span 5!important}
+@media (max-width:1199px){
+  .rv-h{grid-template-columns:minmax(0,1fr)}
+  .rv-hl{border-right:0;padding-right:0;border-bottom:1px solid var(--border);padding-bottom:14px}
+  .rv-kt{grid-template-columns:repeat(3,minmax(0,1fr));row-gap:14px}
+  .rv-tile:nth-child(3n+1){border-left:0;padding-left:0}
+  .rv-tile:nth-child(3n)>.rv-tt{left:auto;right:0}
+}
+@media (max-width:860px){
+  #pay-lb .b-pay,#pay-lb .b-top{grid-column:1/-1!important}
+  .rv-ctl{justify-content:flex-start}
+  .bento .rv-chart .card-head,.rv-ov-b .card-head{grid-template-columns:minmax(0,1fr)}
+  .bento .rv-chart .card-head>:not(:first-child),.rv-ov-b .card-head>:not(:first-child){grid-column:1;grid-row:3}
+}
+@media (max-width:600px){
+  .rv-kt{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .rv-tile{border-left:1px solid var(--border)!important;padding-left:12px!important}
+  .rv-tile:nth-child(odd){border-left:0!important;padding-left:0!important}
+  .rv-tile:nth-child(even)>.rv-tt{left:auto;right:0}.rv-tile:nth-child(odd)>.rv-tt{left:0;right:auto}
+  .rv-big{font-size:36px;line-height:40px}
+  .rv-ov{padding:0}.rv-ov-in{border-radius:0}
+}
+@media (prefers-reduced-motion: reduce){.lb-tip,.rv-tt{transition:none!important}}
+@media (forced-colors: active){.rv-box .rv-seg,.rv-dot{stroke:CanvasText;stroke-width:1}}
 
 /* ---- build 11: Ask Ido avatar v2. The controller (JS, "Ask Ido avatar v2") paints eyes, lids, cheeks and body as SVG attributes: no keyframes, no state classes.
    .still marks reduced motion. Visor and eyes keep fixed colors in both themes; the mark follows --primary. */
@@ -1261,10 +1384,16 @@ body.ov-dragging .ovb-h{cursor:grabbing}
     <div class="head-r"><div class="head-meta" id="head-meta"></div><div class="seg dv-seg" role="tablist" aria-label="Revenue view" id="dash-view" hidden><button type="button" role="tab" data-v="lead" aria-selected="true">Leadership</button><button type="button" role="tab" data-v="mine" aria-selected="false">My view</button></div></div>
     <div class="dash-ctl" id="dash-ctl" hidden>
       <div class="chips lb-chips" role="group" aria-label="Revenue filters">
-        <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="sr-only">Period</span><select id="lb-period"></select></label>
-        <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5"/><path d="M3.5 13.5c.6-2.6 2.4-4 4.5-4s3.9 1.4 4.5 4"/></svg><span class="sr-only">Partner</span><select id="lb-partner"></select></label>
+        <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="sr-only">Start period</span><select id="rv-from"></select></label>
+        <span class="rv-to" aria-hidden="true">to</span>
+        <label class="chip rv-nochip"><span class="sr-only">End period</span><select id="rv-to"></select></label>
+        <div class="seg sm" role="group" aria-label="Period view" id="rv-view"><button type="button" data-v="m" aria-pressed="true">Month</button><button type="button" data-v="q" aria-pressed="false">Quarter</button></div>
+        <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5"/><path d="M3.5 13.5c.6-2.6 2.4-4 4.5-4s3.9 1.4 4.5 4"/></svg><span class="sr-only">Partner</span><select id="rv-partner"></select></label>
+        <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="2.5" width="11" height="11" rx="2"/><path d="M2.5 8h11M8 2.5v11"/></svg><span class="sr-only">Product</span><select id="rv-product"></select></label>
+        <span class="rv-gm"><span id="rv-gm-l">Alerts at</span><span class="seg sm" role="group" aria-labelledby="rv-gm-l" id="rv-gm"><button type="button" data-v="col" aria-pressed="true">Collected</button><button type="button" data-v="gm" aria-pressed="false">Gross margin</button></span></span>
+        <span class="seg sm" role="group" aria-label="Revenue scope" id="rv-nn"><button type="button" data-v="all" aria-pressed="true">All revenue</button><button type="button" data-v="nn" aria-pressed="false" title="Revenue from stores whose first paid month is in the selected range">Net new</button></span>
         <span class="sw"><button type="button" class="switch" role="switch" id="lb-add" aria-checked="true" aria-labelledby="lb-add-l"></button><span id="lb-add-l">Include stores added since the Oct 6 cut</span></span>
-        <span class="sw" id="lb-shop-w"><button type="button" class="switch" role="switch" id="lb-shop" aria-checked="true" aria-labelledby="lb-shop-l"></button><span id="lb-shop-l">Shopify payments</span></span>
+        <span class="sw" id="lb-shop-w"><button type="button" class="switch" role="switch" id="lb-shop" aria-checked="true" aria-labelledby="lb-shop-l"></button><span id="lb-shop-l">Shopify in all time</span></span>
       </div>
       <span class="dc-sum" id="lb-ctl-sub"></span>
       <button type="button" class="btn sm" id="lb-notes-btn" aria-haspopup="dialog"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="2.5" width="9" height="11" rx="1.5"/><path d="M6 5.5h4M6 8h4M6 10.5h2.5"/></svg>Notes and limits</button>
@@ -1331,6 +1460,23 @@ body.ov-dragging .ovb-h{cursor:grabbing}
       <div class="card-head"><div><h2>Where payouts stand</h2><div class="card-sub">Quarter-level totals from the payouts collection.</div></div></div>
       <div class="tiles" id="pay-tiles"></div>
     </section>
+    <div class="bento" id="pay-lb" hidden>
+      <div class="pay-ctl">
+        <div class="chips lb-chips" role="group" aria-label="Payout filters">
+          <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="2.5" y="3.5" width="11" height="10" rx="1.5"/><path d="M2.5 6.5h11M5.5 2v3M10.5 2v3"/></svg><span class="sr-only">Payout period</span><select id="lb-period"></select></label>
+          <label class="chip"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="8" cy="5.5" r="2.5"/><path d="M3.5 13.5c.6-2.6 2.4-4 4.5-4s3.9 1.4 4.5 4"/></svg><span class="sr-only">Partner</span><select id="lb-partner"></select></label>
+          <span class="sw"><button type="button" class="switch" role="switch" id="pay-add" aria-checked="true" aria-labelledby="pay-add-l"></button><span id="pay-add-l">Include stores added since the cut</span></span>
+        </div>
+        <span class="pay-tot" id="pay-tot" aria-live="polite"></span><span class="dc-sum" id="pay-ctl-sub"></span>
+        <button type="button" class="btn sm" id="pay-notes-btn" aria-haspopup="dialog">Notes and limits</button>
+      </div>
+      <section class="card bc b-ep" id="lb-ep" aria-label="Earned vs paid by month"><div class="card-head"><div><h2>Earned vs paid by month</h2><div class="card-sub" id="lb-ep-sub"></div></div><div id="lb-ep-lg"></div></div>
+        <div class="lb-box" id="lb-ep-box" tabindex="0" aria-label="Earned and paid per month. Arrow keys move between months."></div></section>
+      <section class="card bc b-pay" id="lb-pay" aria-label="Payout by period"><div class="card-head"><div><h2>Payout by period</h2><div class="card-sub">One row per payout period, for the partner and additions selected above.</div></div></div>
+        <div class="tscroll"><table class="ptable lb-table"><thead><tr><th>Period</th><th>Status</th><th>Basis</th><th class="r">Earned</th><th class="r">Paid</th><th class="r">Rate</th></tr></thead><tbody id="lb-pay-b"></tbody></table></div></section>
+      <section class="card bc b-top" id="lb-top" aria-label="Top partners by payout"><div class="card-head"><div><h2>Top partners</h2><div class="card-sub" id="lb-top-sub">Click a header to sort.</div></div><span id="lb-top-more"></span></div>
+        <div class="tscroll"><table class="ptable lb-table"><thead><tr id="lb-top-h"></tr></thead><tbody id="lb-top-b"></tbody></table></div></section>
+    </div>
     <section class="card" aria-label="Payout quarters">
       <div class="card-head"><div><h2>Quarters</h2><div class="card-sub">One row per payout quarter, newest first. Click a row for the basis, totals, due dates and sources.</div></div><span class="pill" id="pay-count"></span></div>
       <div id="pay-body"><div class="msg">Loading payouts.</div></div>
@@ -1426,7 +1572,7 @@ const LS="partneros.section";
 /* ---- sections: order and copy. Stub feature rows come from docs/projects/partneros/feature-map.md (inlined by build.py as FEATURES, keyed by section key); the holds/readiness text below is the fallback. */
 const SECTIONS=[
   {k:"overview",l:"Dashboard",live:true,sub:"Program status at a glance. Every number names its source."},
-  {k:"dashboard",l:"Revenue",live:true,sub:"The leadership layer: revenue, payouts, the trend and the forecast."},
+  {k:"dashboard",l:"Revenue",live:true,sub:"The leadership layer: revenue by period, partner and product, with the trend and the forecast."},
   {k:"partners",l:"Partners",live:true,sub:"Every partner, its agreement, stores and history."},
   {k:"outreach",l:"Outreach",live:true,sub:"Who to recruit next and the campaigns running.",
     purpose:"A suggested-partner queue with a status per candidate, plus the outreach campaigns summarized in one place.",
@@ -1435,7 +1581,7 @@ const SECTIONS=[
     sources:["docs/recurring/shopify-agencies/agencies_classified.csv","Airtable Partner Leads table","ASE and DotDev partner-candidate lists","HeyReach campaign syncs"],
     rule:"Contact names, emails and LinkedIn URLs stay in a local file; this database gets a has-contact flag only."},
   {k:"events",l:"Events",live:true,sub:"The 2027 partner-events plan."},
-  {k:"payouts",l:"Payouts",live:true,sub:"One row per quarter, from accrual to paid.",
+  {k:"payouts",l:"Payouts",live:true,sub:"Where payouts stand, earned vs paid by month, payout by period and partner, and one row per quarter.",
     purpose:"Each payout quarter as one row: status, totals, statements, run folder, who pays and the paid date.",
     holds:["Quarter status and total due","Amount paid and paid date","Statement count and run folder"],
     readiness:"Data exists, no view",
@@ -1459,11 +1605,11 @@ const SEC=Object.fromEntries(SECTIONS.map(s=>[s.k,s]));
 /* build 9: one help text per section, shown by the "?" mark after the section title (the Overview mark sits in the hero greeting). Edit here. */
 const SECTION_HELP={
   overview:"Program status on one screen: Needs attention, Top partners and Recent leads, the KPI cards with Period and Scope chips, Targets, This week's decisions and the section map. Numbers come from snapshots/latest, the partner registry and the live database (leads, candidates, payouts); each card's ? names its source. Customize reorders or hides blocks, for you only.",
-  dashboard:"The revenue layer for leadership: revenue, paying stores, earned vs paid, the trend and forecast, payout by period, top partners by revenue and the product split. Data is snapshots/latest and snapshots/trend, written by the PartnerOS refresh routine on the 1st and 15th. Leadership and My view are the two views; Notes and limits holds the caveats.",
+  dashboard:"The revenue layer for leadership: one hero total that follows the filters, KPI tiles, one revenue chart (curve, bars, or stacked by product or partner, by month or quarter, with the forecast on the curve) and a breakdown by merchant or partner. Click the chart to select a period or segment. Data is snapshots/latest and snapshots/trend, written by the PartnerOS refresh routine on the 1st and 15th. Leadership and My view are the two views; Notes and limits holds the caveats.",
   partners:"Every partner with its agreement, portal status, rate, stores, earned in the latest closed quarter and payouts. Data is the partner registry, plus the agreements collection. Registry and Agreements are the two views; click a row to open the partner and edit it.",
   outreach:"Who to recruit next. Queue lists suggested partners by fit, with status, reply and next due from the Monday run; Campaigns shows each outreach campaign as a tile. Open a candidate to log contact, notes and the next step.",
   events:"The 2027 partner-events plan: the journey map from the Affiliate Summits 2027 project. It is a copy taken at build time, so a map change needs a rebuild and republish. The old outreach tracker is gone; its data stays in the database.",
-  payouts:"One row per payout quarter, newest first, under owed now, paid to date and the next due date. Data is the payouts collection in the live database. Open a quarter to check its totals and record status, amount paid, paid date and payer.",
+  payouts:"Owed now, paid to date and the next due date; earned vs paid by month, payout by period and top partners by payout, for a payout period and partner; then one row per payout quarter, newest first. Data is the payouts collection in the live database. Open a quarter to check its totals and record status, amount paid, paid date and payer.",
   leads:"Partner-referred leads from Partner.io, with status, paying, collected revenue and the leads still missing a HubSpot deal. Data is the leads collection in the live database. Filter by status or CF status, and open a lead for every field and its HubSpot link.",
   settings:"The rules the program runs on: commission terms, tiers, partner types, revenue sync, the refresh routine and the Partner.io roadmap. Data is the settings collection plus the latest refresh run. Admins edit terms and roadmap item status here; each change is logged in history.",
   runs:"Which copy of each dataset the page is showing, live database or build seed. Below it, the run log: Monday runs and dashboard refreshes from the PartnerOS routine. Check here when a number looks stale."
@@ -1690,6 +1836,8 @@ function setSection(k,user){
   if(k!=="overview"&&OVS.edit)ovEdit(false);
   if(k==="overview")renderOverview();
   if(k==="dashboard"&&DV.v==="lead"&&lbGet())requestAnimationFrame(()=>{if(ST.sec==="dashboard"&&DV.v==="lead")renderLB();});
+  if(k!=="dashboard"&&RVS.big)rvOvClose();
+  if(k==="payouts"&&lbGet())requestAnimationFrame(()=>{if(ST.sec==="payouts")lbPayRender();});
   if(shownSec!==k){shownSec=k;reveal($("p-"+k));icPulse($("p-"+k));}
   countUp($("p-"+k));
   if(user){try{localStorage.setItem(LS,k);}catch(e){}try{history.replaceState(null,"",k==="outreach"?otHash(ST.otab):k==="dashboard"&&DV.v==="mine"?"#dashboard/mine":"#"+k);}catch(e){}window.scrollTo(0,0);}
@@ -1705,7 +1853,7 @@ function renderTitle(){
   sh.hidden=ov||!SECTION_HELP[k];sh.dataset.help=SECTION_HELP[k]||"";sh.setAttribute("aria-label","About "+SEC[k].l);
   $("sec-sub").textContent=ov?"":(k==="partners"&&ST.pview==="agreements"?AGR_SUB:SEC[k].sub);$("sec-sub").hidden=ov;
   document.querySelector(".head-row").classList.toggle("ov",ov);
-  const db=k==="dashboard";document.querySelector(".head-row").classList.toggle("db",db);$("main").classList.toggle("dfit",db);
+  const db=k==="dashboard";document.querySelector(".head-row").classList.toggle("db",db);$("main").classList.toggle("dfit",db&&DV.v==="mine");
   $("dash-view").hidden=!db;$("dash-ctl").hidden=!db||DV.v==="mine";
 }
 /* user card: display name from the user capability (empty unless the profile scope is granted), initials or avatar, role by canEdit */
@@ -1887,6 +2035,7 @@ function dvApply(){
   const m=DV.v==="mine";$("dv-lead").hidden=m;$("dv-mine").hidden=!m;
   $("dash-view").querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.v===DV.v)));
   $("dash-ctl").hidden=ST.sec!=="dashboard"||m;
+  $("main").classList.toggle("dfit",ST.sec==="dashboard"&&m);if(m&&RVS.big)rvOvClose();
 }
 function setDV(v,user){
   DV.v=v==="mine"?"mine":"lead";
@@ -2933,7 +3082,7 @@ function renderPayTiles(){
   countUpSec("payouts");
 }
 function renderPayouts(){
-  renderPayTiles();
+  renderPayTiles();lbPayRender();
   const body=$("pay-body"),cnt=$("pay-count");if(!body)return;
   if(ST.payState!=="ready"){cnt.textContent="";body.innerHTML=`<div class="msg">${stMsg(ST.payState,"payouts")}</div>`;return;}
   const P=ST.pays.slice().sort((a,b)=>String(b.quarter||b.id).localeCompare(String(a.quarter||a.id)));
@@ -5879,96 +6028,511 @@ function lbAxis(W,ml,mr,y,ymax,n){const f=ymax/Math.pow(10,Math.floor(Math.log10
 let lbW=0,lbRaf=0;
 const lbRO=window.ResizeObserver?new ResizeObserver(es=>{const w=Math.round(es[0].contentRect.width);if(!w||w===lbW)return;lbW=w;if(railAnim())return;cancelAnimationFrame(lbRaf);lbRaf=requestAnimationFrame(()=>{if(lbGet())renderLB();});}):null;
 /* one-screen fit (the bento) from 1200px wide: charts take their box height; below it they keep the fixed heights */
-const lbFit=()=>{try{return !!(window.matchMedia&&window.matchMedia("(min-width:1200px)").matches);}catch(e){return false;}};
+/* build 12: the Revenue section scrolls (taller merged chart, breakdown table), so the one-screen fit is retired; charts keep fixed heights */
+const lbFit=()=>false;
 /* plot height = the chart box (the flex child that stretches under the head, sub, stat line and legend). The box is at least 160px
    from 1440x900 up; on shorter screens (1280x800) the plot takes the box height, never more, so it cannot run into the legend. */
 const lbH=(box,def)=>lbFit()?Math.max(120,Math.floor(box.getBoundingClientRect().height||0)):def;
 const lbHRO=window.ResizeObserver?new ResizeObserver(es=>{let ch=false;es.forEach(e=>{const h=Math.round(e.contentRect.height),t=e.target;if(Math.abs((t.__h||0)-h)>2){t.__h=h;ch=true;}});
   if(ch&&ST.sec==="dashboard"&&lbFit()&&!railAnim()){cancelAnimationFrame(lbRaf);lbRaf=requestAnimationFrame(()=>{if(lbGet())renderLB();});}}):null;
-const lbSel=(L,c)=>`${c.AT?"All time":c.per.label+(c.per.key==="oct"||c.per.status==="open"||c.per.xp||/\b\d{4}\b/.test(String(c.per.label))||!Array.isArray(c.per.months)||!c.per.months.length?"":" "+yrsOf(c.per.months))},${L.S.partner?((L.pIndex[L.S.partner]&&L.pIndex[L.S.partner].display_name)||L.S.partner):"all partners"}`;
+const lbSel=(L,c)=>`${c.AT?"All time":c.per.label+(c.per.key==="oct"||c.per.status==="open"||c.per.xp||/\b\d{4}\b/.test(String(c.per.label))||!Array.isArray(c.per.months)||!c.per.months.length?"":" "+yrsOf(c.per.months))}, ${L.S.partner?((L.pIndex[L.S.partner]&&L.pIndex[L.S.partner].display_name)||L.S.partner):"all partners"}`;
+/* ==== build 12 (2026-11-15): Revenue v2. One model feeds the hero, the KPI tiles, the merged chart and the breakdown table, so their
+   totals agree by construction: per payout-list store and month, the four products (Alerts, Automation, Prevent, Other), with Other
+   taking whatever the line-item split leaves of the month's paid revenue, so a month's products always sum to its revenue.
+   Months: the trend history (snapshots/trend per store, Stripe paid invoices, no product split, counted as Other) before the snapshot
+   window, the snapshot's by_month and product_by_month inside it. Alerts at gross margin multiplies a store-month's Alerts revenue by
+   that month's alerts_margin (gm_by_month, line items); months without one keep Alerts at the collected amount and are counted.
+   State: RVS (range, view, partner, product, basis, chart mode, stack, table grouping), per viewer in localStorage. A chart click
+   (RVS.sel) narrows the filters to that bucket and segment; the chart keeps drawing the range from before the click, with the pick
+   highlighted, and the same click or Clear goes back. */
+const RV_PK=["alerts","automation","prevent","other"];
+const RV_CAT=["var(--cat-1)","var(--cat-2)","var(--cat-3)","var(--cat-4)","var(--cat-5)"];
+const RV_OP="__other";
+const RVS={from:null,to:null,view:"m",partner:"",product:"all",gm:false,mode:"bars",stackBy:"product",fc:true,group:"merchant",sort:{key:"rev",dir:-1},shown:25,dtab:false,sel:null,big:false,nn:false};
+const RV_LS="partneros.revenue";
+function rvLoad(){try{const v=JSON.parse(localStorage.getItem(RV_LS)||"null");if(!v||typeof v!=="object")return;
+  if(typeof v.from==="string")RVS.from=v.from;if(typeof v.to==="string")RVS.to=v.to;if(v.view==="q")RVS.view="q";
+  if(typeof v.partner==="string")RVS.partner=v.partner;if(RV_PK.includes(v.product))RVS.product=v.product;RVS.gm=v.gm===true;
+  if(["curve","bars","stack"].includes(v.mode))RVS.mode=v.mode;if(v.stackBy==="partner")RVS.stackBy="partner";if(v.fc===false)RVS.fc=false;if(v.group==="partner")RVS.group="partner";RVS.nn=v.nn===true;}catch(e){}}
+function rvSave(){try{localStorage.setItem(RV_LS,JSON.stringify({from:RVS.from,to:RVS.to,view:RVS.view,partner:RVS.partner,product:RVS.product,gm:RVS.gm,mode:RVS.mode,stackBy:RVS.stackBy,fc:RVS.fc,group:RVS.group,nn:RVS.nn}));}catch(e){}}
+const rvQ=m=>m.slice(0,4)+"-Q"+(Math.floor((+m.slice(5,7)-1)/3)+1);
+const rvQL=k=>`Q${k.slice(-1)} ${k.slice(0,4)}`;
+const rvMon=m=>MON[+m.slice(5,7)-1];
+const rvPN=(L,n)=>n===RV_OP?"Partners outside the top five":((L.pIndex[n]&&L.pIndex[n].display_name)||n);
+const rvPL=k=>k==="all"?"All products":LB_PL[k];
+const rvF$=v=>fmt$(Math.round(v||0));
+const rvPct=(n,d)=>d>0?(n/d*100).toFixed(1)+"%":"-";
+let RVX=null;
+function rvModel(L){
+  const D=L.DATA,T=L.TREND,key=[LBS.includeAdded,RVS.gm].join("|");
+  if(RVX&&RVX._D===D&&RVX._T===T&&RVX._k===key)return RVX;
+  const win=(D.months||[]).slice(),last=win[win.length-1],TM=T&&Array.isArray(T.months)?T.months:[],TS=(T&&T.stores)||{};
+  const winSet=new Set(win),MU=[...new Set(TM.concat(win))].filter(m=>m<=last).sort(),tIdx={};TM.forEach((m,i)=>tIdx[m]=i);
+  let noGm=0;
+  const rows=(D.stores||[]).filter(s=>s.scope!=="program"&&(LBS.includeAdded||!s.added_since_cut)).map(s=>{
+    const ts=s.hs_id!=null?TS[String(s.hs_id)]:null,v={};
+    MU.forEach(m=>{let p;
+      if(winSet.has(m)){const tot=+((s.by_month||{})[m])||0,pb=s.product_by_month&&s.product_by_month[m];
+        if(pb){const a=+pb.alerts||0,au=+pb.automation||0,pr=+pb.prevent||0;p={alerts:a,automation:au,prevent:pr,other:tot-a-au-pr};}
+        else p={alerts:0,automation:0,prevent:0,other:tot};
+        if(RVS.gm&&p.alerts){const g=(s.gm_by_month||{})[m];if(g&&g.gm_source==="line_items"&&g.alerts_margin!=null)p.alerts*=+g.alerts_margin;else noGm++;}}
+      else{const x=Array.isArray(ts)&&tIdx[m]!=null?(+ts[tIdx[m]]||0):0;p={alerts:0,automation:0,prevent:0,other:x};}
+      p.all=p.alerts+p.automation+p.prevent+p.other;v[m]=p;});
+    const lf=s.lifetime&&s.lifetime.first_paid_invoice,ps=s.paying_since,fp=/^\d{4}-\d{2}/.test(String(lf||""))?String(lf).slice(0,7):/^\d{4}-\d{2}/.test(String(ps||""))?String(ps).slice(0,7):null;
+    return{s,partner:s.partner,name:s.company||s.handle||"Unnamed store",v,fp,fpSrc:lf?"ledger":ps?"paying_since":null};});
+  const ptot={};rows.forEach(r=>{let t=0;MU.forEach(m=>t+=r.v[m].all);ptot[r.partner]=(ptot[r.partner]||0)+t;});
+  const top=Object.keys(ptot).filter(n=>ptot[n]>0).sort((a,b)=>ptot[b]-ptot[a]).slice(0,5),pcol={};
+  top.forEach((n,i)=>pcol[n]=RV_CAT[i]);pcol[RV_OP]=LBC.other;
+  const partners=Object.keys(ptot).filter(n=>ptot[n]!==0).sort((a,b)=>rvPN(L,a).localeCompare(rvPN(L,b)));
+  RVX={_D:D,_T:T,_k:key,MU,win,winSet,rows,top,pcol,partners,partial:L.partialMonth,noGm};
+  return RVX;
+}
+function rvNorm(M){
+  const MU=M.MU,l=MU[MU.length-1],w0=M.win[0]||MU[0];
+  if(!RVS.from||!MU.includes(RVS.from))RVS.from=w0;if(!RVS.to||!MU.includes(RVS.to))RVS.to=l;
+  if(RVS.from>RVS.to){const t=RVS.from;RVS.from=RVS.to;RVS.to=t;}
+  if(RVS.view==="q"){RVS.from=MU.find(m=>rvQ(m)===rvQ(RVS.from));const qs=MU.filter(m=>rvQ(m)===rvQ(RVS.to));RVS.to=qs[qs.length-1];}
+  if(RVS.partner&&RVS.partner!==RV_OP&&!M.partners.includes(RVS.partner))RVS.partner="";
+  if(RVS.product!=="all"&&!RV_PK.includes(RVS.product))RVS.product="all";
+}
+/* buckets of a range: months, or quarters (a quarter cut by the range, missing data or holding the partial month is marked part) */
+function rvBuckets(M,from,to,view){
+  const ms=M.MU.filter(m=>m>=from&&m<=to);
+  if(view!=="q")return ms.map(m=>({k:m,ms:[m],label:lbMY(m)+(m===M.partial?", partial":""),ax:rvMon(m),yr:m.slice(0,4),part:m===M.partial,pre:!M.winSet.has(m)}));
+  const out=[];ms.forEach(m=>{const k=rvQ(m);let b=out[out.length-1];if(!b||b.k!==k){b={k,ms:[]};out.push(b);}b.ms.push(m);});
+  out.forEach(b=>{b.part=b.ms.length<3||b.ms.includes(M.partial);b.pre=b.ms.some(m=>!M.winSet.has(m));b.label=rvQL(b.k)+(b.part?", part":"");b.ax="Q"+b.k.slice(-1);b.yr=b.k.slice(0,4);});
+  return out;
+}
+/* rows for a state: the partner filter, and in Net new mode the cohort of stores whose first paid month falls inside the cohort range.
+   The cohort range is the filter range, or, while a chart selection is active, the range from before the click (so a selected bar keeps
+   the value it showed). Quarter view: the range is snapped to whole quarters, so a store is new in the quarter holding its first paid month. */
+const rvCoh=()=>RVS.sel?RVS.sel.prev:RVS;
+const rvRowsOf=(M,partner,nn)=>{const k=rvCoh();return M.rows.filter(r=>(!partner||(partner===RV_OP?!M.top.includes(r.partner):r.partner===partner))&&(!nn||(r.fp&&r.fp>=k.from&&r.fp<=k.to)));};
+function rvRangeL(from,to,view){
+  if(view==="q"){const a=rvQ(from),b=rvQ(to);return a===b?rvQL(a):a.slice(0,4)===b.slice(0,4)?`Q${a.slice(-1)} to Q${b.slice(-1)} ${b.slice(0,4)}`:`${rvQL(a)} to ${rvQL(b)}`;}
+  if(from===to)return lbMY(from);
+  return from.slice(0,4)===to.slice(0,4)?`${rvMon(from)} to ${rvMon(to)} ${to.slice(0,4)}`:`${lbMY(from)} to ${lbMY(to)}`;
+}
+/* the selection: per store revenue, products and months with revenue; totals, by partner and by product */
+function rvCalc(M,st){
+  const ms=M.MU.filter(m=>m>=st.from&&m<=st.to),P=st.product||"all",rows=rvRowsOf(M,st.partner,st.nn);
+  const per=rows.map(r=>{let rev=0,mw=0,first=null,lastm=null;const pr={alerts:0,automation:0,prevent:0,other:0};
+    ms.forEach(m=>{const x=r.v[m],val=x[P];rev+=val;RV_PK.forEach(k=>{if(P==="all"||P===k)pr[k]+=x[k];});if(val>0){mw++;if(!first)first=m;lastm=m;}});
+    return{r,rev,pr,mw,first,last:lastm};});
+  const total=per.reduce((a,x)=>a+x.rev,0),prod={alerts:0,automation:0,prevent:0,other:0};per.forEach(x=>RV_PK.forEach(k=>prod[k]+=x.pr[k]));
+  const byP={};per.forEach(x=>{const p=x.r.partner,o=byP[p]||(byP[p]={name:p,rev:0,stores:0,pay:0,pr:{alerts:0,automation:0,prevent:0,other:0},st:{},first:null,last:null,lt:0});
+    o.rev+=x.rev;o.stores++;if(x.rev>0)o.pay++;RV_PK.forEach(k=>o.pr[k]+=x.pr[k]);});
+  return{st,ms,P,per,total,prod,byP,pre:ms.filter(m=>!M.winSet.has(m)),paying:per.filter(x=>x.rev>0).length,partnersRev:Object.values(byP).filter(p=>p.rev>0).length};
+}
+const rvChartState=()=>RVS.sel?RVS.sel.prev:RVS;
+/* chart series for a state: one total, the four products, or the five largest partners (over all months, so a colour stays with its
+   partner when the range moves) plus the rest */
+function rvSeries(L,M,C){
+  const B=rvBuckets(M,C.from,C.to,RVS.view),P=C.product||"all",rows=rvRowsOf(M,C.partner,RVS.nn);let S;
+  if(RVS.mode!=="stack")S=[{k:"total",label:"Revenue",col:"var(--primary)"}];
+  else if(RVS.stackBy==="product")S=RV_PK.filter(k=>P==="all"||P===k).map(k=>({k,label:LB_PL[k],col:LBC[k],prod:true}));
+  else{S=M.top.filter(n=>!C.partner||n===C.partner).map(n=>({k:n,label:rvPN(L,n),col:M.pcol[n],partner:true,pf:n}));
+    if(!C.partner||!M.top.includes(C.partner))S.push({k:RV_OP,label:C.partner&&C.partner!==RV_OP?rvPN(L,C.partner):"Other partners",col:LBC.other,partner:true,pf:C.partner||RV_OP});}
+  const topSet=new Set(M.top);
+  const V=B.map(b=>S.map(s=>{let t=0;rows.forEach(r=>{if(s.partner&&(s.k===RV_OP?topSet.has(r.partner):r.partner!==s.k))return;
+    b.ms.forEach(m=>{const x=r.v[m];t+=s.prod?x[s.k]:x[P];});});return t;}));
+  const T=V.map(a=>a.reduce((x,y)=>x+y,0));
+  return{B,S,V,T,P,rows,C};
+}
+/* forecast (snapshots/trend forecast, program-wide, Stripe): only on the curve, by month, all partners and products, collected, with
+   every store, and when the range runs to the latest month */
+function rvFcWhy(L,M,C){
+  if(RVS.mode!=="curve")return"The forecast shows on the curve.";
+  if(RVS.view!=="m")return"The forecast is monthly; pick Month.";
+  if(C.partner)return"The forecast is for the whole program; pick All partners.";
+  if(C.product&&C.product!=="all")return"The forecast covers all products.";
+  if(RVS.gm)return"The forecast is on collected revenue; switch Alerts to Collected.";
+  if(RVS.nn)return"The forecast covers all revenue; switch to All revenue.";
+  if(!LBS.includeAdded)return"The forecast counts every store; include the stores added since the cut.";
+  if(C.to!==M.MU[M.MU.length-1])return"The forecast starts after the latest month; end the range there.";
+  const F=L.TREND&&L.TREND.forecast;if(!F||!Array.isArray(F.months)||!F.earned||!Array.isArray(F.earned.base))return"No forecast in the trend data.";
+  return"";
+}
+function rvFc(L,M,C){
+  if(!RVS.fc||rvFcWhy(L,M,C))return null;
+  const F=L.TREND.forecast,last=M.MU[M.MU.length-1],num=v=>v==null||v===""||isNaN(+v)?null:+v;
+  const ix=F.months.map((m,i)=>m>last?i:-1).filter(i=>i>=0);if(!ix.length)return null;
+  const g=a=>ix.map(i=>Array.isArray(a)?num(a[i]):null),warn=F.warning?String(F.warning):"";
+  return{ms:ix.map(i=>F.months[i]),base:g(F.earned.base),low:warn?null:g(F.earned.low),high:warn?null:g(F.earned.high),warn};
+}
+const rvTopRows=(items,tot,n)=>items.filter(x=>x.v!==0).sort((a,b)=>b.v-a.v).slice(0,n||5);
+function rvTT(title,items,tot,foot){
+  return`<div class="rv-tt" role="tooltip"><div class="t">${esc(title)}</div>${items.length?items.map(x=>`<div class="r"><span>${x.c?`<i style="background:${x.c}"></i>`:""}<span class="nm">${esc(x.n)}</span></span><span class="num">${rvF$(x.v)} <span class="muted">${rvPct(x.v,tot)}</span></span></div>`).join(""):`<div class="muted">Nothing for this selection.</div>`}${foot?`<div class="ft">${esc(foot)}</div>`:""}</div>`;
+}
+/* hero and KPI tiles: all follow the filters except Last 12 months (program-wide, from the trend); All time follows the partner */
+function rvHero(L,M,c){
+  const st=c.st,rl=rvRangeL(st.from,st.to,RVS.view),pn=st.partner?rvPN(L,st.partner):"All partners",prl=rvPL(st.product);
+  const partnerItems=Object.values(c.byP).map(p=>({n:rvPN(L,p.name),v:p.rev,c:M.pcol[p.name]||""}));
+  const storeItems=c.per.map(x=>({n:x.r.name+(st.partner?"":` (${rvPN(L,x.r.partner)})`),v:x.rev}));
+  const heroItems=st.partner&&st.partner!==RV_OP?storeItems:partnerItems,heroT=st.partner&&st.partner!==RV_OP?"Top 5 merchants":"Top 5 partners";
+  const basis=RVS.gm?"Alerts at gross margin":"Alerts at collected amount";
+  /* last full month inside the selection, month over month */
+  const fm=c.ms.filter(m=>m!==M.partial),lm=fm[fm.length-1],pi=lm?M.MU.indexOf(lm)-1:-1,pm=pi>=0?M.MU[pi]:null;
+  const mv=m=>m?c.per.reduce((a,x)=>a+x.r.v[m][c.P],0):null,lv=mv(lm),pv=mv(pm),mom=lv!=null&&pv>0?(lv-pv)/pv*100:null;
+  const lmItems=lm?(st.partner&&st.partner!==RV_OP?c.per.map(x=>({n:x.r.name,v:x.r.v[lm][c.P]})):Object.values(c.per.reduce((o,x)=>{const k=x.r.partner;(o[k]=o[k]||{n:rvPN(L,k),v:0,c:M.pcol[k]||""}).v+=x.r.v[lm][c.P];return o;},{}))):[];
+  const pk=RV_PK.filter(k=>c.prod[k]!==0).sort((a,b)=>c.prod[b]-c.prod[a]),pt=RV_PK.reduce((a,k)=>a+c.prod[k],0),big=pk[0];
+  /* Last 12 months: snapshots/trend growth, every referred store, not filtered */
+  const T=L.TREND,g=T&&T.growth&&T.growth.all;let l12Items=[],l12T=0;
+  try{const wn=g&&(Array.isArray(g.window_now)?g.window_now:g.window_now&&[g.window_now.from,g.window_now.to]);
+    if(wn&&wn[0]&&T.partners&&Array.isArray(T.months)){const i0=T.months.indexOf(String(wn[0]).slice(0,7)),i1=T.months.indexOf(String(wn[1]).slice(0,7));
+      if(i0>=0&&i1>=i0){l12Items=Object.keys(T.partners).map(n=>{const a=T.partners[n];let v=0;for(let i=i0;i<=i1;i++)v+=+(a&&a[i])||0;return{n:rvPN(L,n),v};});l12T=l12Items.reduce((a,x)=>a+x.v,0);}}}catch(e){}
+  /* All time: the payout dashboard's compute() for All time and this partner (collected, Shopify per the switch) */
+  let at=null;{const S=L.S,kp=S.period,kpa=S.partner;try{S.period="alltime";S.partner=st.partner&&st.partner!==RV_OP?st.partner:"";at=L.compute();}catch(e){at=null;}S.period=kp;S.partner=kpa;}
+  if(RVS.nn){const lt=s=>{const l=s.lifetime;return l?(+(LBS.shopify===false?l.stripe:l.total)||0):0;},by={};let t=0;
+    c.per.forEach(x=>{const v=lt(x.r.s);t+=v;const k=x.r.partner;(by[k]=by[k]||{name:k,dn:rvPN(L,k),earned:0}).earned+=v;});
+    at={AT:true,tot:{earned:t},rows:Object.values(by)};}
+  const atOk=at&&at.AT,atItems=atOk?(st.partner&&st.partner!==RV_OP&&!RVS.nn?(()=>{const p=(at.rows[0]&&at.rows[0].prodEarned)||{};return RV_PK.concat("shopU").map(k=>({n:LB_PL[k],v:+p[k]||0,c:LBC[k]}));})():at.rows.map(r=>({n:r.dn,v:r.earned,c:M.pcol[r.name]||""}))):[];
+  const tile=(id,l,v,s,tt,right)=>`<div class="rv-tile rv-tthost${right?" ttr":""}" tabindex="0" data-tt="${id}" aria-describedby="rvtt-${id}"><div class="l" title="${esc(l)}">${esc(l)}</div><div class="v num">${v}</div><div class="s">${s}</div>${tt.replace('class="rv-tt"',`class="rv-tt" id="rvtt-${id}"`)}</div>`;
+  const preNote=c.pre.length?` Before ${lbMY(M.win[0])}: trend history, not split by product.`:"";
+  $("rv-hero").innerHTML=`<h2 class="sr-only">Revenue for the selection</h2><div class="rv-h"><div class="rv-hl">
+    <div class="rv-lab">${RVS.nn?"Net new revenue":"Revenue"}, ${esc(rl)}</div>
+    <div class="rv-tthost rv-bigw"><div class="rv-big num" tabindex="0" id="rv-hero-v" aria-describedby="rvtt-hero" data-v="${c.total.toFixed(2)}">${rvF$(c.total)}</div>${rvTT(`${heroT} behind ${rvF$(c.total)}`,rvTopRows(heroItems,c.total),c.total,"Share of this selection's revenue.").replace('class="rv-tt"','class="rv-tt" id="rvtt-hero"')}</div>
+    <div class="rv-hs"><span>${esc(pn)}, ${esc(prl.toLowerCase())}. Payout-list stores, Stripe rail, invoiced month.${esc(preNote)}</span>${RVS.nn?rvNnLine(L,M,c):""}<span class="pill sm ${RVS.gm?"estimate":"blue"}" id="rv-basis">${basis}</span></div></div>
+    <div class="rv-kt">
+    ${tile("pay","Paying stores",fmtN(c.paying),`${fmtN(c.partnersRev)} partner${c.partnersRev===1?"":"s"} with revenue`,rvTT("Top 5 merchants",rvTopRows(storeItems,c.total),c.total,"Share of this selection's revenue."))}
+    ${tile("lm",lm?`Last full month, ${rvMon(lm)}`:"Last full month",lv!=null?rvF$(lv):"-",lm?`${L.fmtSP(mom)}${pm?" vs "+rvMon(pm):""}`:"No full month in range",rvTT(lm?`Top 5 in ${lbMY(lm)}`:"Last full month",lm?rvTopRows(lmItems,lv):[],lv||0,lm?"Share of that month's revenue.":""))}
+    ${tile("mix",big?`Largest product, ${LB_PL[big]}`:"Largest product",big?`${pt>0?Math.round(c.prod[big]/pt*100):0}%`:"-",big?`${esc(LB_PL[big])} of ${rvF$(pt)}, ${RVS.gm?"Alerts at margin":"collected"}`:"",rvTT("Revenue by product",RV_PK.map(k=>({n:LB_PL[k],v:c.prod[k],c:LBC[k]})).filter(x=>x.v!==0).sort((a,b)=>b.v-a.v),pt,c.pre.length?"Months before the snapshot window are not split and count as Other.":"From invoice line items; a month without lines counts as Other."))}
+    ${tile("l12","Last 12 months",g&&g.t12_now!=null?rvF$(g.t12_now):"-",`${g&&g.span_now?esc(g.span_now):""}. Program-wide, not filtered`,rvTT("Top 5 partners, last 12 months",rvTopRows(l12Items,l12T),l12T,"From snapshots/trend; collected, all referred stores."),true)}
+    ${tile("at","All time",atOk?rvF$(at.tot.earned):"-",atOk?`${RVS.nn?"The new stores, ":""}${st.partner&&st.partner!==RV_OP?esc(pn):"All partners"}, collected${L.S.shopify===false?", Stripe only":", Stripe and Shopify"}`:"",rvTT(st.partner&&st.partner!==RV_OP&&!RVS.nn?"All time by product":"Top 5 partners, all time",rvTopRows(atItems,atOk?at.tot.earned:0),atOk?at.tot.earned:0,"Lifetime: Stripe invoices plus Shopify Billing when the switch is on. Not by range or Alerts basis."),true)}
+    </div></div>`;
+  $("rv-hero").querySelectorAll(".rv-tthost").forEach(h=>{h.addEventListener("mouseleave",()=>h.classList.remove("tt-off"));
+    h.addEventListener("keydown",e=>{if(e.key==="Escape"&&!h.classList.contains("tt-off")){h.classList.add("tt-off");e.stopPropagation();}});h.addEventListener("focusout",()=>h.classList.remove("tt-off"));});
+}
+/* Net new: the one-line definition, new stores with revenue, share of the range's revenue, stores without a first paid date */
+function rvNnLine(L,M,c){
+  const k=rvCoh(),nNew=c.per.filter(x=>x.rev!==0).length,all=c.all?c.all.total:0,nofp=rvRowsOf(M,c.st.partner,false).filter(r=>!r.fp).length;
+  return`<span class="rv-nn"><b>Net new:</b> revenue from stores whose first paid month is in ${esc(rvRangeL(k.from,k.to,RVS.view))}. <b id="rv-nn-n">${fmtN(nNew)}</b> new store${nNew===1?"":"s"}, <b>${rvPct(c.total,all)}</b> of the range's ${rvF$(all)}.${nofp?` ${fmtN(nofp)} store${nofp===1?"":"s"} without a first paid date left out.`:""}</span>`;
+}
+function rvShell(){
+  return`<div class="rv-selbar" id="rv-selbar" aria-live="polite" hidden></div>
+  <section class="card rv-hero" id="rv-hero" aria-label="Revenue for the selection"></section>
+  <section class="card rv-chart" id="rv-chart" aria-label="Revenue chart"><div class="card-head"><div><h2 id="rv-ch-t">Revenue by month</h2><div class="card-sub" id="rv-ch-sub"></div></div>
+    <div class="rv-ctl">
+      <div class="seg sm" role="group" aria-label="Chart type" id="rv-mode"><button type="button" data-v="curve" aria-pressed="false">Curve</button><button type="button" data-v="bars" aria-pressed="true">Bars</button><button type="button" data-v="stack" aria-pressed="false">Stacked bars</button></div>
+      <span class="rv-sb" id="rv-sb-w"><span id="rv-sb-l">Stack by</span><span class="seg sm" role="group" aria-labelledby="rv-sb-l" id="rv-stack"><button type="button" data-v="product" aria-pressed="true">Product</button><button type="button" data-v="partner" aria-pressed="false">Partner</button></span></span>
+      <span class="sw" id="rv-fc-w"><button type="button" class="switch" role="switch" id="rv-fc" aria-checked="true" aria-labelledby="rv-fc-l"></button><span id="rv-fc-l">Forecast</span></span>
+      <button type="button" class="btn sm" id="rv-dt-btn" aria-pressed="false" aria-controls="rv-dt">Data table</button>
+      <button type="button" class="btn sm" id="rv-big-btn" aria-haspopup="dialog"><svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 2.5h4v4M6.5 13.5h-4v-4M13.5 2.5 9 7M2.5 13.5 7 9"/></svg><span id="rv-big-l">Enlarge</span></button>
+    </div></div>
+    <div class="lb-box rv-box" id="rv-box" tabindex="0" role="group" aria-roledescription="chart" aria-label="Revenue chart. Arrow keys move between periods, up and down between segments, Enter selects, Escape clears the selection."></div>
+    <div id="rv-lg"></div><div class="rv-dt" id="rv-dt" hidden></div></section>
+  <section class="card rv-bd" id="rv-bd" aria-label="Breakdown"><div class="card-head"><div><h2>Breakdown</h2><div class="card-sub" id="rv-bd-sub"></div></div>
+    <div class="seg sm" role="group" aria-label="Rows" id="rv-group"><button type="button" data-v="merchant" aria-pressed="true">By merchant</button><button type="button" data-v="partner" aria-pressed="false">By partner</button></div></div>
+    <div class="tscroll"><table class="ptable lb-table rv-tab"><thead><tr id="rv-bd-h"></tr></thead><tbody id="rv-bd-b"></tbody><tfoot id="rv-bd-f"></tfoot></table></div>
+    <div class="rv-more" id="rv-bd-more"></div><div class="foot-note" id="rv-bd-note"></div></section>`;
+}
+/* the merged chart: curve, bars or stacked bars; hover, click and keys move a cursor; click or Enter selects */
+let RVD=null,RVcur={i:-1,j:null};
+function rvDraw(L,M){
+  const box=$("rv-box");if(!box)return;
+  const C=rvChartState(),D=rvSeries(L,M,C),fc=rvFc(L,M,C),B=D.B,S=D.S,n=B.length,K=fc?fc.ms.length:0,N=n+K;RVD=Object.assign(D,{fc,n,N});
+  const W=Math.max(280,box.clientWidth||900),ph=W<560,big=RVS.big;
+  const H=big?Math.max(300,Math.min(Math.round(window.innerHeight*.56),680)):ph?260:360,ml=ph?44:58,mr=ph?10:18,mt=26,mb=40,ih=H-mt-mb,iw=W-ml-mr;
+  const vals=D.T.map(v=>Math.max(0,v)).concat(fc?fc.base.concat(fc.high||[]).filter(v=>v!=null):[]);
+  const ymax=L.niceMax(Math.max(1,...vals)),y=v=>mt+ih-(Math.max(0,v)/ymax)*ih,y0=y(0),band=iw/Math.max(1,N),cx=i=>ml+band*i+band/2;
+  const sel=RVS.sel,selI=sel?B.findIndex(b=>b.k===sel.bk):-1,selJ=sel&&sel.seg!=null?S.findIndex(s=>s.k===sel.seg):-1;
+  const dimB=i=>selI>=0&&i!==selI;
+  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${esc($("rv-ch-t").textContent)}, ${esc(rvRangeL(C.from,C.to,RVS.view))}">${lbAxis(W,ml,mr,y,ymax,4)}`;
+  s+=`<g class="rv-cols">${B.map((b,i)=>`<rect class="hit" data-i="${i}" x="${(ml+band*i).toFixed(1)}" y="${mt}" width="${band.toFixed(1)}" height="${ih}"/>`).join("")}${fc?fc.ms.map((m,j)=>`<rect class="hit fc" data-i="${n+j}" x="${(ml+band*(n+j)).toFixed(1)}" y="${mt}" width="${band.toFixed(1)}" height="${ih}"/>`).join(""):""}</g>`;
+  if(RVS.mode==="curve"){
+    const pts=B.map((b,i)=>[cx(i),y(D.T[i])]),full=B.map((b,i)=>b.part&&i===n-1?null:pts[i]);
+    const seg=[];let cur=[];full.forEach(p=>{if(p)cur.push(p);else{if(cur.length)seg.push(cur);cur=[];}});if(cur.length)seg.push(cur);
+    seg.forEach(a=>{if(a.length>1)s+=`<path class="rv-line${selI>=0?" dim":""}" d="${rvSmooth(a)}"/>`;});
+    if(n>1&&B[n-1].part&&pts[n-2])s+=`<path class="rv-line part${selI>=0?" dim":""}" d="M${pts[n-2][0].toFixed(1)},${pts[n-2][1].toFixed(1)}L${pts[n-1][0].toFixed(1)},${pts[n-1][1].toFixed(1)}"/>`;
+    if(fc){const lastFull=full.map((p,i)=>p?i:-1).filter(i=>i>=0).pop(),fp=lastFull!=null?[[cx(lastFull),y(D.T[lastFull]),D.T[lastFull],D.T[lastFull]]]:[];
+      fc.base.forEach((v,j)=>{if(v!=null)fp.push([cx(n+j),y(v),fc.low?fc.low[j]:v,fc.high?fc.high[j]:v]);});
+      const xd=ml+band*n;s+=`<line x1="${xd.toFixed(1)}" x2="${xd.toFixed(1)}" y1="${mt-8}" y2="${y0}" class="lb-div"/><text x="${(xd+6).toFixed(1)}" y="${mt-12}" class="lb-ax2">Forecast</text>`;
+      if(fc.low&&fp.length>1)s+=`<path class="lb-band" d="M${fp.map(p=>p[0].toFixed(1)+","+y(p[3]).toFixed(1)).join("L")}L${fp.slice().reverse().map(p=>p[0].toFixed(1)+","+y(p[2]).toFixed(1)).join("L")}Z"/>`;
+      if(fp.length>1)s+=`<path class="lb-fc" d="M${fp.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L")}"/>`;
+      fc.base.forEach((v,j)=>{if(v!=null)s+=`<circle cx="${cx(n+j).toFixed(1)}" cy="${y(v).toFixed(1)}" r="4" class="lb-fcd"/>`;});}
+    B.forEach((b,i)=>{const on=i===selI;s+=`<circle cx="${pts[i][0].toFixed(1)}" cy="${pts[i][1].toFixed(1)}" r="${on?6.5:band<16?3:4.5}" class="rv-dot${b.part?" part":""}${dimB(i)?" dim":""}${on?" on":""}" data-i="${i}"/>`;});
+    const li=selI>=0?selI:full.map((p,i)=>p?i:-1).filter(i=>i>=0).pop();
+    if(li!=null&&li>=0)s+=`<text x="${(cx(li)-(fc&&selI<0?10:0)).toFixed(1)}" y="${(y(D.T[li])-12).toFixed(1)}" text-anchor="${fc&&selI<0?"end":"middle"}" class="lb-cap num">${fmtK(D.T[li])}</text>`;
+  }else{
+    const bw=Math.max(4,Math.min(56,band*(RVS.mode==="stack"?.62:.56)));
+    B.forEach((b,i)=>{const x=cx(i)-bw/2;let acc=0;const live=S.map((sr,j)=>({j,v:D.V[i][j]})).filter(o=>o.v>0);
+      live.forEach((o,q)=>{const yt=y(acc+o.v),yb=y(acc),h=Math.max(0,yb-yt-(q?2:0));acc+=o.v;if(h<=.3)return;
+        const top=q===live.length-1,d=dimB(i)||(i===selI&&selJ>=0&&o.j!==selJ),on=i===selI&&(selJ<0||o.j===selJ);
+        const attrs=` class="rv-seg${d?" dim":""}${on?" on":""}${b.part?" part":""}" data-i="${i}" data-j="${RVS.mode==="stack"?o.j:""}"`;
+        s+=top?lbBar(x,yt+h,bw,h,S[o.j].col,attrs):`<rect x="${x.toFixed(1)}" y="${yt.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" style="fill:${S[o.j].col}"${attrs}/>`;});
+      if(b.part&&acc>0)s+=`<rect x="${x.toFixed(1)}" y="${y(acc).toFixed(1)}" width="${bw.toFixed(1)}" height="${Math.max(0,y0-y(acc)).toFixed(1)}" fill="url(#rv-hatch)" pointer-events="none"/>`;
+      if(i===selI)s+=`<rect x="${(x-3).toFixed(1)}" y="${(y(acc)-3).toFixed(1)}" width="${(bw+6).toFixed(1)}" height="${Math.max(0,y0-y(acc)+3).toFixed(1)}" rx="5" class="rv-ring" pointer-events="none"/>`;
+      if((band>=44||i===selI)&&acc>0)s+=`<text x="${cx(i).toFixed(1)}" y="${(y(acc)-7).toFixed(1)}" text-anchor="middle" class="lb-cap num${dimB(i)?" dimt":""}">${fmtK(D.T[i])}</text>`;});
+  }
+  const every=Math.max(1,Math.ceil((ph?34:40)/band));
+  const ax=B.map(b=>[b.ax,b.yr,b.part]).concat(fc?fc.ms.map(m=>[rvMon(m),m.slice(0,4),false]):[]);
+  let lyr=null;ax.forEach(([a,yr,pt],i)=>{if(i%every)return;s+=`<text x="${cx(i).toFixed(1)}" y="${y0+16}" text-anchor="middle" class="lb-ax">${a}</text>`;
+    if(yr!==lyr){lyr=yr;s+=`<text x="${cx(i).toFixed(1)}" y="${y0+29}" text-anchor="middle" class="lb-ax2">${yr}</text>`;}else if(pt)s+=`<text x="${cx(i).toFixed(1)}" y="${y0+29}" text-anchor="middle" class="lb-ax2">partial</text>`;});
+  s+=`<defs><pattern id="rv-hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="2" height="6" style="fill:var(--card)" fill-opacity=".5"/></pattern></defs><line x1="${ml}" x2="${W-mr}" y1="${y0}" y2="${y0}" class="lb-base"/></svg><div class="lb-tip rv-tip" role="status" aria-live="polite"></div>`;
+  box.innerHTML=s;
+  if(RVcur.i>=N)RVcur={i:-1,j:null};
+  if(RVcur.i>=0&&box.contains(document.activeElement))rvTipShow(RVcur.i,RVcur.j);
+  /* legend: series with a value in range; a single series needs none */
+  const lg=S.length>1?S.filter((sr,j)=>D.V.some(a=>a[j]!==0)).map(sr=>[sr.label,sr.col]):[];
+  if(fc){lg.unshift(["Revenue",LBC.earned,"ln"]);lg.push(["Forecast, base",LBC.fc,"ln dash"]);if(fc.low)lg.push(["Forecast, low to high","color-mix(in srgb,var(--muted-foreground) 18%,transparent)"]);}
+  if(B.some(b=>b.part))lg.push([RVS.view==="q"?"Part of a quarter (hatched or hollow)":"Partial month (hatched or hollow)","transparent","ring"]);
+  $("rv-lg").innerHTML=lg.length?lbLg(lg):"";
+  window.__rvChart={keys:B.map(b=>b.k),totals:D.T.slice(),series:S.map(x=>x.k),values:D.V.map(a=>a.slice())};
+}
+/* monotone cubic through the points (no overshoot above or below the data) */
+function rvSmooth(p){const n=p.length;if(n<2)return"";const dx=[],m=[],t=[];
+  for(let i=0;i<n-1;i++){dx[i]=p[i+1][0]-p[i][0];m[i]=(p[i+1][1]-p[i][1])/dx[i];}
+  t[0]=m[0];t[n-1]=m[n-2];for(let i=1;i<n-1;i++)t[i]=m[i-1]*m[i]<=0?0:(m[i-1]+m[i])/2;
+  for(let i=0;i<n-1;i++){if(m[i]===0){t[i]=t[i+1]=0;continue;}const a=t[i]/m[i],b=t[i+1]/m[i],h=a*a+b*b;if(h>9){const k=3/Math.sqrt(h);t[i]=k*a*m[i];t[i+1]=k*b*m[i];}}
+  let d=`M${p[0][0].toFixed(1)},${p[0][1].toFixed(1)}`;for(let i=0;i<n-1;i++){const h=dx[i]/3;d+=`C${(p[i][0]+h).toFixed(1)},${(p[i][1]+t[i]*h).toFixed(1)} ${(p[i+1][0]-h).toFixed(1)},${(p[i+1][1]-t[i+1]*h).toFixed(1)} ${p[i+1][0].toFixed(1)},${p[i+1][1].toFixed(1)}`;}return d;}
+function rvTipHtml(i,j){
+  const D=RVD,L=lbGet();if(!D||!L)return"";
+  if(i>=D.n){const f=D.fc,k=i-D.n;return`<div class="t">${esc(lbMY(f.ms[k]))}, forecast</div>${lbRow("Base",rvF$(f.base[k]),LBC.fc)}${f.low&&f.low[k]!=null?lbRow("Low to high",`${fmtK(f.low[k])} to ${fmtK(f.high[k])}`):""}<div class="ft">Program-wide, Stripe, a projection. Not selectable.</div>`;}
+  const b=D.B[i],tot=D.T[i];let rows="";
+  if(D.S.length>1||RVS.mode==="stack"){rows=D.S.map((s,q)=>({s,q,v:D.V[i][q]})).filter(o=>o.v!==0).sort((a,c)=>c.v-a.v).map(o=>`<div class="r${j===o.q?" cur":""}"><span><i style="background:${o.s.col}"></i>${esc(o.s.label)}</span><span class="num">${rvF$(o.v)} <span class="muted">${rvPct(o.v,tot)}</span></span></div>`).join("");}
+  else{const pr={alerts:0,automation:0,prevent:0,other:0};D.rows.forEach(r=>b.ms.forEach(m=>RV_PK.forEach(k=>{if(D.P==="all"||D.P===k)pr[k]+=r.v[m][k];})));
+    rows=RV_PK.filter(k=>pr[k]!==0).sort((a,c)=>pr[c]-pr[a]).map(k=>lbRow(LB_PL[k],`${rvF$(pr[k])} <span class="muted">${rvPct(pr[k],tot)}</span>`,LBC[k])).join("");}
+  const pay=D.rows.filter(r=>b.ms.reduce((a,m)=>a+r.v[m][D.P],0)>0).length;
+  const sel=RVS.sel&&RVS.sel.bk===b.k&&(j==null?RVS.sel.seg==null:RVS.sel.seg===(D.S[j]&&D.S[j].k));
+  return`<div class="t">${esc(b.label)}</div><div class="r tot"><span>Revenue${RVS.gm?", Alerts at margin":""}</span><span class="num">${rvF$(tot)}</span></div>${rows}${lbRow("Paying stores",fmtN(pay))}${b.pre?`<div class="ft">Trend history: not split by product.</div>`:""}<div class="ft">${sel?"Selected. Click again or press Escape to clear.":`Click or press Enter to select${j!=null&&D.S[j]?" "+esc(D.S[j].label):""}.`}</div>`;
+}
+function rvTipShow(i,j){
+  const box=$("rv-box"),tip=box&&box.querySelector(".rv-tip");if(!tip||!RVD)return;RVcur={i,j:j==null?null:j};
+  tip.innerHTML=rvTipHtml(i,j);tip.classList.add("on");
+  box.querySelectorAll(".hit.cur").forEach(x=>x.classList.remove("cur"));const h=box.querySelector(`.hit[data-i="${i}"]`);if(h)h.classList.add("cur");
+  box.querySelectorAll(".rv-seg.kb").forEach(x=>x.classList.remove("kb"));if(j!=null){const sg=box.querySelector(`.rv-seg[data-i="${i}"][data-j="${j}"]`);if(sg)sg.classList.add("kb");}
+  const bx=box.getBoundingClientRect(),hr=h?h.getBoundingClientRect():bx,tw=tip.offsetWidth,th=tip.offsetHeight;
+  let left=hr.left-bx.left+hr.width/2+14;if(left+tw>bx.width)left=hr.left-bx.left+hr.width/2-tw-14;
+  tip.style.transform=`translate(${Math.max(0,left).toFixed(0)}px,${Math.max(0,Math.min(bx.height-th,12)).toFixed(0)}px)`;
+}
+function rvTipHide(){const box=$("rv-box");if(!box)return;const t=box.querySelector(".rv-tip");if(t)t.classList.remove("on");box.querySelectorAll(".hit.cur,.rv-seg.kb").forEach(x=>x.classList.remove("cur","kb"));}
+function rvPick(i,j){
+  const D=RVD;if(!D||i<0||i>=D.n)return;const b=D.B[i],sr=j!=null&&RVS.mode==="stack"?D.S[j]:null,segK=sr?sr.k:null;
+  if(RVS.sel&&RVS.sel.bk===b.k&&RVS.sel.seg===segK){rvClear();return;}
+  const prev=RVS.sel?RVS.sel.prev:{from:RVS.from,to:RVS.to,partner:RVS.partner,product:RVS.product};
+  RVS.from=b.ms[0];RVS.to=b.ms[b.ms.length-1];RVS.partner=prev.partner;RVS.product=prev.product;
+  if(sr&&sr.partner)RVS.partner=sr.pf;else if(sr&&sr.prod)RVS.product=sr.k;
+  RVS.sel={prev,bk:b.k,seg:segK,label:b.label.replace(/, (partial|part)$/,"")+(sr?", "+sr.label:"")};RVS.shown=25;
+  RVcur={i,j:j==null?null:j};rvRender();
+}
+function rvClear(){if(!RVS.sel)return;const p=RVS.sel.prev;RVS.from=p.from;RVS.to=p.to;RVS.partner=p.partner;RVS.product=p.product;RVS.sel=null;RVS.shown=25;rvRender();}
+function rvBoxBind(){
+  const box=$("rv-box");if(!box||box.__b)return;box.__b=true;
+  const ij=e=>{const t=e.target.closest&&e.target.closest("[data-i]");if(!t||!box.contains(t))return null;const j=t.dataset.j;return{i:+t.dataset.i,j:j!==undefined&&j!==""?+j:null};};
+  box.addEventListener("mousemove",e=>{const p=ij(e);if(!p)return;if(p.i!==RVcur.i||p.j!==RVcur.j)rvTipShow(p.i,p.j);});
+  box.addEventListener("mouseleave",()=>{if(document.activeElement!==box)rvTipHide();});
+  box.addEventListener("click",e=>{const p=ij(e);if(!p)return;rvPick(p.i,p.j);try{box.focus({preventScroll:true});}catch(x){}});
+  box.addEventListener("blur",()=>rvTipHide());
+  box.addEventListener("focus",()=>{if(!RVD)return;const i=RVcur.i>=0?RVcur.i:RVS.sel?Math.max(0,RVD.B.findIndex(b=>b.k===RVS.sel.bk)):RVD.n-1;rvTipShow(i,RVcur.j);});
+  box.addEventListener("keydown",e=>{const D=RVD;if(!D)return;let {i,j}=RVcur;if(i<0)i=D.n-1;
+    const segs=()=>RVS.mode==="stack"?D.S.map((s,q)=>q).filter(q=>i<D.n&&D.V[i][q]>0):[];
+    if(e.key==="ArrowRight"||e.key==="ArrowLeft"){e.preventDefault();i=Math.max(0,Math.min(D.N-1,i+(e.key==="ArrowRight"?1:-1)));const sg=segs();if(j!=null&&!sg.includes(j))j=null;rvTipShow(i,j);}
+    else if(e.key==="ArrowUp"||e.key==="ArrowDown"){const sg=segs();if(!sg.length)return;e.preventDefault();let k=j==null?-1:sg.indexOf(j);k+=e.key==="ArrowUp"?1:-1;j=k<0?null:sg[Math.min(sg.length-1,k)];rvTipShow(i,j);}
+    else if(e.key==="Home"||e.key==="End"){e.preventDefault();rvTipShow(e.key==="Home"?0:D.N-1,null);}
+    else if(e.key==="Enter"||e.key===" "){e.preventDefault();if(i<D.n)rvPick(i,j);}
+    else if(e.key==="Escape"){if(RVS.sel){e.preventDefault();e.stopPropagation();rvClear();}else if(box.querySelector(".rv-tip.on")){e.stopPropagation();rvTipHide();}}});
+}
+/* data table: the chart's numbers, one row per period (the table view for screen readers and print) */
+function rvDataTable(){
+  const el=$("rv-dt"),D=RVD;if(!el)return;el.hidden=!RVS.dtab;$("rv-dt-btn").setAttribute("aria-pressed",String(!!RVS.dtab));if(!RVS.dtab||!D){el.innerHTML="";return;}
+  const multi=D.S.length>1;
+  el.innerHTML=`<div class="tscroll"><table class="ptable lb-table"><caption class="sr-only">Chart data</caption><thead><tr><th>Period</th>${multi?D.S.map(s=>`<th class="r">${esc(s.label)}</th>`).join(""):""}<th class="r">Revenue</th></tr></thead><tbody>${D.B.map((b,i)=>`<tr><td>${esc(b.label)}</td>${multi?D.S.map((s,q)=>`<td class="r num">${rvF$(D.V[i][q])}</td>`).join(""):""}<td class="r num">${rvF$(D.T[i])}</td></tr>`).join("")}</tbody>
+    <tfoot><tr class="lb-sum"><td>Total</td>${multi?D.S.map((s,q)=>`<td class="r num">${rvF$(D.V.reduce((a,v)=>a+v[q],0))}</td>`).join(""):""}<td class="r num">${rvF$(D.T.reduce((a,v)=>a+v,0))}</td></tr></tfoot></table></div>`;
+}
+/* breakdown: one row per merchant (or partner) for the selection; total row = hero */
+const RV_ST={won:["Won","actual"],lost:["Lost","outline"],approved:["Approved","blue"],rejected:["Rejected","danger"]};
+const rvStPill=s=>{const x=RV_ST[String(s||"").toLowerCase()];return x?`<span class="pill sm ${x[1]}">${x[0]}</span>`:`<span class="pill sm outline">No status</span>`;};
+function rvMini(pr){const t=RV_PK.reduce((a,k)=>a+Math.max(0,pr[k]),0);if(t<=0)return`<span class="muted">-</span>`;
+  const ks=RV_PK.filter(k=>pr[k]>0),bigk=ks.slice().sort((a,b)=>pr[b]-pr[a])[0];
+  const tl=ks.map(k=>`${LB_PL[k]} ${Math.round(pr[k]/t*100)}%`).join(", ");
+  return`<span class="rv-pc" title="${esc(tl)}"><span class="rv-mini" aria-hidden="true">${ks.map(k=>`<i style="flex:${(pr[k]/t).toFixed(4)} 1 0;background:${LBC[k]}"></i>`).join("")}</span><span class="rv-pk">${esc(LB_PL[bigk])} ${Math.round(pr[bigk]/t*100)}%${ks.length>1?` <span class="muted">+${ks.length-1}</span>`:""}</span><span class="sr-only">, ${esc(tl)}</span></span>`;}
+function rvSpan(x,ms){if(!x.first)return`<span class="muted">-</span>`;const n=RVS.view==="q"?new Set(ms.map(rvQ)).size:ms.length,k=RVS.view==="q"?new Set(ms.filter(m=>m>=x.first&&m<=x.last).map(rvQ)).size:x.mw,lbl=rvRangeL(x.first,x.last,RVS.view);return`<span title="${esc(lbl)}">${k} of ${n}</span> <span class="muted">${esc(lbl.replace(/ \d{4}$/,ms.length&&x.last.slice(0,4)===ms[ms.length-1].slice(0,4)?"":"$&"))}</span>`;}
+function rvTable(L,M,c){
+  const ltOf=s=>{const l=s.lifetime;if(!l)return null;return +(LBS.shopify===false?l.stripe:l.total)||0;};
+  const lm=c.ms.filter(m=>m!==M.partial).pop();
+  let rows;
+  if(RVS.group==="partner"){
+    rows=Object.values(c.byP).map(p=>{const ps=c.per.filter(x=>x.r.partner===p.name),st={};ps.forEach(x=>{const k=String(x.r.s.lead_status||"none").toLowerCase();st[k]=(st[k]||0)+1;});
+      const fs=ps.filter(x=>x.first),first=fs.length?fs.map(x=>x.first).sort()[0]:null,last=fs.length?fs.map(x=>x.last).sort().pop():null,mw=c.ms.filter(m=>ps.some(x=>x.r.v[m][c.P]>0)).length;
+      const lt=ps.reduce((a,x)=>{const v=ltOf(x.r.s);return a+(v||0);},0);
+      const fps=ps.map(x=>x.r.fp).filter(Boolean).sort();
+      return{fp:fps[0]||null,key:p.name,partner:rvPN(L,p.name),name:`${fmtN(p.stores)} store${p.stores===1?"":"s"}`,rev:p.rev,pr:p.pr,first,last,mw,stores:p.stores,pay:p.pay,
+        status:Object.keys(st).sort((a,b)=>st[b]-st[a]).map(k=>`${st[k]} ${(RV_ST[k]||["no status"])[0].toLowerCase()}`).join(", "),lt,payLm:lm?ps.some(x=>x.r.v[lm][c.P]>0):false};}).filter(r=>r.rev!==0);
+  }else{
+    rows=c.per.filter(x=>x.rev!==0).map(x=>({key:x.r.s.hs_id!=null?String(x.r.s.hs_id):x.r.name,partner:rvPN(L,x.r.partner),name:x.r.name,rev:x.rev,pr:x.pr,first:x.first,last:x.last,mw:x.mw,
+      status:String(x.r.s.lead_status||""),lt:ltOf(x.r.s),fp:x.r.fp,payLm:lm?x.r.v[lm][c.P]>0:false}));
+  }
+  const tot=c.total,k=RVS.sort.key,d=RVS.sort.dir;
+  rows.forEach(r=>r.share=tot!==0?r.rev/tot:0);
+  const sv=r=>k==="partner"?r.partner:k==="name"?r.name:k==="months"?r.mw:k==="status"?r.status:k==="lt"?(r.lt==null?-Infinity:r.lt):k==="fp"?(r.fp||"9999"):k==="share"?r.share:r.rev;
+  rows.sort((a,b)=>{const x=sv(a),y=sv(b);return(typeof x==="string"?d*x.localeCompare(y):d*(x-y))||b.rev-a.rev;});
+  const cols=[["partner","Partner",""],["name",RVS.group==="partner"?"Stores":"Merchant",""],["months",RVS.view==="q"?"Quarters paid":"Months paid",""],["prod","Products","",1],["fp","First paid",""],["status","Status",""],["rev","Revenue","r"],["share","Share","r"],["lt","All time","r"]];
+  $("rv-bd-h").innerHTML=cols.map(([key,l,al,ns])=>ns?`<th class="${al}">${esc(l)}</th>`:`<th class="${al}"${k===key?` aria-sort="${d>0?"ascending":"descending"}"`:""}><button type="button" data-rk="${key}">${esc(l)}<span class="arr" aria-hidden="true">${k===key?(d>0?"&#9650;":"&#9660;"):"&#9660;"}</span></button></th>`).join("");
+  const show=rows.slice(0,RVS.shown),lmL=lm?rvMon(lm):"";
+  $("rv-bd-b").innerHTML=show.length?show.map(r=>`<tr><td class="rv-pn" title="${esc(r.partner)}">${esc(r.partner)}</td><td class="rv-mn" title="${esc(r.name)}"><span style="font-weight:500">${esc(r.name)}</span></td><td>${rvSpan(r,c.ms)}</td><td>${rvMini(r.pr)}</td><td class="num">${r.fp?esc(lbMY(r.fp)):`<span class="muted">-</span>`}</td>
+    <td>${RVS.group==="partner"?`<span class="rv-sts">${esc(r.status)}</span>`:rvStPill(r.status)}${lm?` <span class="rv-pay ${r.payLm?"on":""}">${r.payLm?"Paying":"Not paying"} in ${lmL}</span>`:""}</td>
+    <td class="r num" title="${fmt$c(r.rev)}">${rvF$(r.rev)}</td><td class="r num">${rvPct(r.rev,tot)}</td><td class="r num">${r.lt==null?`<span class="muted">-</span>`:rvF$(r.lt)}</td></tr>`).join(""):`<tr><td colspan="9" class="empty">No revenue for this selection.</td></tr>`;
+  const ltT=rows.reduce((a,r)=>a+(r.lt||0),0);
+  $("rv-bd-f").innerHTML=`<tr class="lb-sum"><td>Total</td><td>${fmtN(rows.length)} ${RVS.group==="partner"?"partner":"store"}${rows.length===1?"":"s"}</td><td></td><td>${rvMini(c.prod)}</td><td></td><td></td><td class="r num" id="rv-bd-tot" data-v="${rows.reduce((a,r)=>a+r.rev,0).toFixed(2)}" title="${fmt$c(tot)}">${rvF$(rows.reduce((a,r)=>a+r.rev,0))}</td><td class="r num">${rows.length?"100%":"-"}</td><td class="r num">${rvF$(ltT)}</td></tr>`;
+  const more=rows.length-show.length;
+  $("rv-bd-more").innerHTML=more>0?`<button type="button" class="btn sm" id="rv-bd-plus">Show ${Math.min(25,more)} more</button><button type="button" class="btn sm" id="rv-bd-all">Show all ${fmtN(rows.length)}</button>`:rows.length>25?`<button type="button" class="btn sm" id="rv-bd-less">Show fewer</button>`:"";
+  const none=c.per.filter(x=>x.rev===0).length;
+  $("rv-bd-sub").textContent=`${rvRangeL(c.st.from,c.st.to,RVS.view)}, ${c.st.partner?rvPN(L,c.st.partner):"all partners"}, ${rvPL(c.st.product).toLowerCase()}, ${RVS.gm?"Alerts at gross margin":"Alerts at collected amount"}. Showing ${fmtN(show.length)} of ${fmtN(rows.length)}. Click a header to sort.`;
+  $("rv-bd-note").textContent=`${none?`${fmtN(none)} payout-list store${none===1?"":"s"} with no revenue in the selection ${none===1?"is":"are"} left out. `:""}Status is the Partner.io lead status on the store (won, lost, approved, rejected); the snapshot has no open status. Paying means revenue in the last full month of the selection. First paid is the first paid invoice month from the ledger (lifetime block), else paying_since.${RVS.nn?" Net new shows only the stores whose first paid month is in the range.":""} All time is lifetime collected revenue per store (Stripe${LBS.shopify===false?" only":" plus Shopify Billing"}), not by range or Alerts basis.`;
+  RVtabN=rows.length;
+  return rows.reduce((a,r)=>a+r.rev,0);
+}
+let RVtabN=0;
+/* controls in the head row (range, view, partner, product, basis) and the chart card */
+function rvControls(L,M){
+  const all=rvBuckets(M,M.MU[0],M.MU[M.MU.length-1],RVS.view),fb=rvBuckets(M,RVS.from,RVS.from,RVS.view)[0],tb=rvBuckets(M,RVS.to,RVS.to,RVS.view)[0];
+  const opt=(b,lab)=>`<option value="${esc(b.k)}">${esc(lab)}</option>`;
+  const lab=b=>RVS.view==="q"?rvQL(b.k):lbMY(b.k);
+  $("rv-from").innerHTML=all.map(b=>opt(b,lab(b))).join("");$("rv-from").value=fb?fb.k:"";
+  $("rv-to").innerHTML=all.map(b=>opt(b,lab(b)+(b.part&&b===all[all.length-1]?(RVS.view==="q"?", to date":", partial"):""))).join("");$("rv-to").value=tb?tb.k:"";
+  $("rv-view").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===RVS.view)));
+  const ps=M.partners;
+  $("rv-partner").innerHTML=`<option value="">All partners (${ps.length})</option>`+ps.map(n=>`<option value="${esc(n)}">${esc(rvPN(L,n))}</option>`).join("")+`<option value="${RV_OP}">Partners outside the top five</option>`;$("rv-partner").value=RVS.partner;
+  $("rv-product").innerHTML=["all"].concat(RV_PK).map(k=>`<option value="${k}">${esc(rvPL(k))}</option>`).join("");$("rv-product").value=RVS.product;
+  $("rv-gm").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.v==="gm")===RVS.gm)));
+  $("rv-nn").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String((b.dataset.v==="nn")===RVS.nn)));
+  $("lb-add").setAttribute("aria-checked",String(!!LBS.includeAdded));
+  const cut=(L.DATA.cut_label)||"Oct 6";$("lb-add-l").textContent=`Include stores added since the ${cut} cut`;$("pay-add-l").textContent=`Include stores added since the ${cut} cut`;
+  {const sb=$("lb-shop"),sw=$("lb-shop-w"),shA=(ST.dash&&ST.dash.shopify_asof)?dShort(ST.dash.shopify_asof):"Aug 2";sb.setAttribute("aria-checked",String(LBS.shopify!==false));sb.setAttribute("aria-disabled","false");sw.classList.remove("dis");
+    sw.title=`Shopify Billing revenue is a lifetime total per store to ${shA}, with no month detail: it counts only in All time (tile and table column). Off shows Stripe only.`;}
+  $("rv-mode").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===RVS.mode)));
+  $("rv-stack").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===RVS.stackBy)));
+  $("rv-sb-w").hidden=RVS.mode!=="stack";
+  const C=rvChartState(),why=rvFcWhy(L,M,C),fw=$("rv-fc-w"),fb2=$("rv-fc");
+  fw.hidden=RVS.mode!=="curve";fb2.setAttribute("aria-checked",String(!why&&!!RVS.fc));fb2.setAttribute("aria-disabled",String(!!why));fw.classList.toggle("dis",!!why);fw.title=why||"Forecast from snapshots/trend: program-wide, Stripe, a projection.";
+  $("rv-group").querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",String(b.dataset.v===RVS.group)));
+  $("rv-big-l").textContent=RVS.big?"Close":"Enlarge";$("rv-big-btn").setAttribute("aria-label",RVS.big?"Close the enlarged chart":"Enlarge the chart");
+}
+function rvRender(){
+  const L=lbGet(),host=$("lb-wrap");if(!L||!host||!$("rv-hero"))return;
+  const M=rvModel(L);rvNorm(M);
+  if(RVS.sel){const p=RVS.sel.prev;if(!M.MU.includes(p.from)||!M.MU.includes(p.to))RVS.sel=null;}
+  rvControls(L,M);
+  const c=rvCalc(M,Object.assign({},RVS,{nn:RVS.nn})),C=rvChartState();
+  const call=RVS.nn?rvCalc(M,Object.assign({},RVS,{nn:false})):c;c.all=call;
+  rvHero(L,M,c);
+  const unit=RVS.view==="q"?"quarter":"month";
+  $("rv-ch-t").textContent=RVS.mode==="stack"?`Revenue by ${unit}, stacked by ${RVS.stackBy}`:`Revenue by ${unit}`;
+  const rl=rvRangeL(C.from,C.to,RVS.view),scope=C.partner?rvPN(L,C.partner):"all partners";
+  $("rv-ch-sub").textContent=`${rl}, ${scope}, ${rvPL(C.product||"all").toLowerCase()}. ${RVS.gm?"Alerts at gross margin":"Alerts at collected amount"}.${RVS.mode==="stack"&&RVS.stackBy==="partner"?" The five largest partners across all months, the rest as Other partners.":""}${M.noGm&&RVS.gm?` ${fmtN(M.noGm)} store-months without a margin keep Alerts at collected.`:""}`;
+  rvDraw(L,M);rvBoxBind();rvDataTable();
+  const tt=rvTable(L,M,c);
+  if(RVS.nn){$("rv-ch-sub").textContent+=` Net new: stores whose first paid month is in ${rvRangeL(rvCoh().from,rvCoh().to,RVS.view)}.`;}
+  const sb=$("rv-selbar");
+  if(RVS.sel){sb.hidden=false;sb.innerHTML=`<span>Selected from the chart: <b>${esc(RVS.sel.label)}</b>. Filters, totals and the table follow it.</span><button type="button" class="btn sm" id="rv-clear">Clear selection<span class="sr-only">, back to ${esc(rvRangeL(RVS.sel.prev.from,RVS.sel.prev.to,RVS.view))}</span></button>`;}
+  else{sb.hidden=true;sb.innerHTML="";}
+  $("lb-ctl-sub").textContent=`${rvRangeL(RVS.from,RVS.to,RVS.view)}, ${RVS.partner?rvPN(L,RVS.partner):"all partners"}, ${rvPL(RVS.product).toLowerCase()}, ${RVS.gm?"Alerts at margin":"collected"}`;
+  let nnCk=null;if(RVS.nn&&c.all){const k=rvCoh(),sum=f=>c.all.per.filter(f).reduce((a,x)=>a+x.rev,0);nnCk={all:c.all.total,nn:c.total,before:sum(x=>x.r.fp&&x.r.fp<k.from),after:sum(x=>x.r.fp&&x.r.fp>k.to),nofp:sum(x=>!x.r.fp),rows:RVtabN};}
+  window.__rv={hero:c.total,table:tt,nn:nnCk,sel:RVS.sel?{bk:RVS.sel.bk,seg:RVS.sel.seg,label:RVS.sel.label}:null,state:{from:RVS.from,to:RVS.to,view:RVS.view,partner:RVS.partner,product:RVS.product,gm:RVS.gm,mode:RVS.mode,stackBy:RVS.stackBy}};
+}
+function rvOnChange(e){
+  const id=e.target.id,v=e.target.value,L=lbGet();if(!L)return;const M=rvModel(L);
+  RVS.sel=null;RVS.shown=25;
+  if(id==="rv-from"){const b=rvBuckets(M,M.MU[0],M.MU[M.MU.length-1],RVS.view).find(x=>x.k===v);if(b){RVS.from=b.ms[0];if(RVS.to<RVS.from)RVS.to=b.ms[b.ms.length-1];}}
+  else if(id==="rv-to"){const b=rvBuckets(M,M.MU[0],M.MU[M.MU.length-1],RVS.view).find(x=>x.k===v);if(b){RVS.to=b.ms[b.ms.length-1];if(RVS.from>RVS.to)RVS.from=b.ms[0];}}
+  else if(id==="rv-partner")RVS.partner=v;
+  else if(id==="rv-product")RVS.product=v;
+  else return;
+  rvSave();rvRender();
+}
+function rvOnClick(e,t){
+  const g=(sel,f)=>{const b=t.closest(sel);if(b&&t.dataset.v){f(t.dataset.v);return true;}return false;};
+  if(g("#rv-view",v=>{RVS.view=v==="q"?"q":"m";RVS.sel=null;}))return rvSave(),rvRender();
+  if(g("#rv-gm",v=>{RVS.gm=v==="gm";}))return rvSave(),rvRender();
+  if(g("#rv-nn",v=>{RVS.nn=v==="nn";RVS.sel=null;RVS.shown=25;}))return rvSave(),rvRender();
+  if(g("#rv-mode",v=>{RVS.mode=v;}))return rvSave(),rvRender();
+  if(g("#rv-stack",v=>{RVS.stackBy=v==="partner"?"partner":"product";}))return rvSave(),rvRender();
+  if(g("#rv-group",v=>{RVS.group=v==="partner"?"partner":"merchant";RVS.shown=25;}))return rvSave(),rvRender();
+  if(t.id==="rv-fc"){if(t.getAttribute("aria-disabled")==="true")return;RVS.fc=!RVS.fc;rvSave();rvRender();return;}
+  if(t.id==="rv-dt-btn"){RVS.dtab=!RVS.dtab;rvDataTable();return;}
+  if(t.id==="rv-big-btn"){RVS.big?rvOvClose():rvOvOpen();return;}
+  if(t.id==="rv-clear"){rvClear();const b=$("rv-box");if(b)try{b.focus({preventScroll:true});}catch(x){}return;}
+  if(t.id==="rv-bd-plus"){RVS.shown+=25;rvRender();return;}
+  if(t.id==="rv-bd-all"){RVS.shown=1e9;rvRender();return;}
+  if(t.id==="rv-bd-less"){RVS.shown=25;rvRender();return;}
+  if(t.dataset.rk){const k=t.dataset.rk;if(RVS.sort.key===k)RVS.sort.dir*=-1;else RVS.sort={key:k,dir:["partner","name","status"].includes(k)?1:-1};rvRender();
+    const nb=document.querySelector(`#rv-bd-h button[data-rk="${k}"]`);if(nb)try{nb.focus();}catch(x){}}
+}
+/* enlarge: the head-row controls, the selection bar, the chart and the breakdown move into a full-screen dialog and back */
+const RV_OVN=["dash-ctl","rv-selbar","rv-chart","rv-bd"];let RVov=[],RVovFocus=null;
+function rvOvEnsure(){
+  let ov=$("rv-ov");if(ov)return ov;
+  ov=document.createElement("div");ov.id="rv-ov";ov.className="rv-ov";ov.hidden=true;ov.setAttribute("role","dialog");ov.setAttribute("aria-modal","true");ov.setAttribute("aria-labelledby","rv-ov-t");
+  ov.innerHTML=`<div class="rv-ov-in"><div class="rv-ov-h"><h2 id="rv-ov-t">Revenue</h2><button type="button" class="btn sm" id="rv-ov-x">Close<span class="sr-only"> the enlarged chart</span></button></div><div class="rv-ov-b" id="rv-ov-b"></div></div>`;
+  document.body.appendChild(ov);
+  ov.addEventListener("click",e=>{if(e.target===ov||e.target.closest("#rv-ov-x")){rvOvClose();return;}});
+  ov.addEventListener("keydown",e=>{
+    if(e.key==="Escape"){e.preventDefault();e.stopPropagation();rvOvClose();return;}
+    if(e.key==="Tab"){const f=[...ov.querySelectorAll('button:not([disabled]),select,[tabindex="0"],a[href]')].filter(x=>x.offsetParent!==null);if(!f.length)return;
+      const a=f[0],z=f[f.length-1];if(e.shiftKey&&document.activeElement===a){e.preventDefault();z.focus();}else if(!e.shiftKey&&document.activeElement===z){e.preventDefault();a.focus();}}});
+  return ov;
+}
+function rvOvOpen(){
+  if(RVS.big||!$("rv-chart"))return;const ov=rvOvEnsure(),b=$("rv-ov-b");RVovFocus=document.activeElement;RVov=[];
+  RV_OVN.forEach(id=>{const el=$(id);if(!el)return;const mk=document.createComment("rv-"+id);el.parentNode.insertBefore(mk,el);RVov.push([el,mk]);b.appendChild(el);});
+  /* events in the moved chart and table reach the overlay instead of #lb-wrap; #dash-ctl keeps its own listeners */
+  if(!ov.__b){ov.__b=true;ov.addEventListener("click",e=>{const t=e.target.closest("button");if(!t||t.closest("#dash-ctl")||t.id==="rv-ov-x")return;rvOnClick(e,t);});}
+  ov.hidden=false;document.body.classList.add("rv-ov-open");RVS.big=true;rvRender();
+  setTimeout(()=>{try{$("rv-ov-x").focus();}catch(e){}},0);
+}
+function rvOvClose(){
+  if(!RVS.big)return;const ov=$("rv-ov");RVov.forEach(([el,mk])=>{mk.parentNode.insertBefore(el,mk);mk.remove();});RVov=[];
+  if(ov)ov.hidden=true;document.body.classList.remove("rv-ov-open");RVS.big=false;rvRender();
+  try{($("rv-big-btn")||RVovFocus).focus();}catch(e){}
+}
 function renderLB(){
   const host=$("lb-wrap");if(!host)return;
   const L=lbGet();
   $("dash-ctl").classList.toggle("nolb",!L);
-  if(!L){host.innerHTML=`<section class="card" aria-label="Revenue and payouts" style="grid-column:1/-1"><div class="msg">The revenue snapshot is not loaded. The charts fill from snapshots/latest and snapshots/trend once the page reads them.</div></section>`;$("lb-ctl-sub").textContent="Snapshot not loaded.";return;}
-  if(!host.querySelector("#lb-ep")){host.innerHTML=lbShell();if(lbRO)lbRO.observe(host);if(lbHRO)host.querySelectorAll(".lb-box").forEach(x=>lbHRO.observe(x));}
+  if(!L){host.__shell=false;host.innerHTML=`<section class="card" aria-label="Revenue" style="grid-column:1/-1"><div class="msg">The revenue snapshot is not loaded. The Revenue section fills from snapshots/latest and snapshots/trend once the page reads them.</div></section>`;$("lb-ctl-sub").textContent="Snapshot not loaded.";lbPayRender();return;}
+  if(!host.__shell){host.innerHTML=rvShell();host.__shell=true;if(lbRO)lbRO.observe(host);}
   lbW=Math.round(host.clientWidth)||lbW;
-  const S=L.S;if(!L.periods.some(p=>p.key===S.period))S.period=L.periods[0].key;
-  /* partner list for the period, as the dashboard's syncPartnerSelect builds it */
-  const keep=S.partner;S.partner="";const names=L.compute().rows.map(r=>r.name).sort((a,b)=>a.localeCompare(b));S.partner=names.includes(keep)?keep:"";
-  $("lb-period").innerHTML=L.periods.map(p=>`<option value="${esc(p.key)}">${esc(p.label)}</option>`).join("");$("lb-period").value=S.period;
-  $("lb-partner").innerHTML=`<option value="">All partners (${names.length})</option>`+names.map(n=>{const dn=(L.pIndex[n]&&L.pIndex[n].display_name)||n;return`<option value="${esc(n)}">${esc(dn)}${dn!==n?` (${esc(n)})`:""}</option>`;}).join("");
-  $("lb-partner").value=S.partner;
-  $("lb-add").setAttribute("aria-checked",String(!!S.includeAdded));
-  const cut=(L.DATA.cut_label)||"Oct 6";$("lb-add-l").textContent=`Include stores added since the ${cut} cut`;
-  const c=L.compute();
-  {const sb=$("lb-shop"),sw=$("lb-shop-w"),shA=(ST.dash&&ST.dash.shopify_asof)?dShort(ST.dash.shopify_asof):"Aug 2";
-   sb.setAttribute("aria-checked",String(c.AT&&S.shopify!==false));sb.setAttribute("aria-disabled",String(!c.AT));sw.classList.toggle("dis",!c.AT);
-   $("lb-shop-l").textContent=c.AT?"Shopify payments":"Shopify payments, all time only";
-   sw.title=c.AT?`Shopify Billing revenue, a lifetime total per store to ${shA}, kept apart from Stripe invoices. Off shows Stripe only.`:`Shopify Billing revenue exists only as a lifetime total to ${shA}, with no month detail. This period is Stripe only. Pick All time to use the switch.`;}
-  const nAdd=(L.DATA.stores||[]).filter(s=>s.added_since_cut&&(c.AT||s.scope!=="program")&&(!S.partner||s.partner===S.partner)).length;
-  const sum=`${lbSel(L,c)}. ${fmtN(nAdd)} store${nAdd===1?"":"s"} added since the ${cut} cut ${S.includeAdded?"included":"left out"}. Snapshot ${ST.dash.generated?dShort(ST.dash.generated):""} (${srcDash()}).`;
-  $("lb-ctl-sub").textContent=`${lbSel(L,c)}, ${fmtN(nAdd)} added since the cut${S.includeAdded?"":", left out"}${c.AT?(S.shopify===false?", Stripe only":", Shopify included"):""}`;$("lb-ctl-sub").title=sum;
-  dbKpis(L,c);lbEarnPaid(L,c);lbTrend(L,c);lbProd(L,c);lbPayTable(L);lbTop(L,c);
+  rvRender();lbPayRender();
   if(ST.dbopen)lbDrawer();
   host.querySelectorAll(".card-sub").forEach(x=>{x.title=x.dataset.full||x.textContent;});
-  window.__lb=c;
 }
-/* charts only, at the current width (the rail toggle draws them at the final column width; tables and tiles do not depend on it) */
-function lbCharts(){const L=lbGet(),host=$("lb-wrap");if(!L||!host||!host.querySelector("#lb-ep")){renderLB();return;}
-  lbW=Math.round(host.clientWidth)||lbW;const c=L.compute();lbEarnPaid(L,c);lbTrend(L,c);lbProd(L,c);host.querySelectorAll(".card-sub").forEach(x=>{x.title=x.dataset.full||x.textContent;});}
-/* KPI strip: the Totals tiles (current and previous period, last 12 full months), the trend's last full month and the selection's earned and paid */
-const lbKt=(l,v,sub,src)=>`<div class="tile kt"><div class="label"><span title="${esc(l)}">${esc(l)}</span><button type="button" class="help" title="Source: ${esc(src)}" aria-label="Source: ${esc(src)}">${svg("help")}</button></div><div class="v num">${v}</div><div class="s">${esc(sub)||"&nbsp;"}</div></div>`;
-function dbKpis(L,c){
-  const P=periodInfo(),T=ST.trend,g=T&&T.growth&&T.growth.all,cur=P&&P.cur,prev=P&&P.prev;
-  let M=null;try{M=L.trendModel(c);}catch(e){M=null;}
-  const Lf=M?M.L:-1,tsrc=ST.trendSrc==="live"?"live database":ST.trendSrc==="seed"?"build seed":"not loaded";
-  $("db-sub").textContent=P?`Paid revenue from partner-referred stores, as of ${dShort(P.to||P.generated)}.`:"Snapshot not loaded.";
-  const sp=l=>String(l||"").replace(/ to date$/,""),prevSt=prev?String(prev.status||"").split(/[,_ ]/)[0]:"";
-  $("db-tiles").innerHTML=[
-    lbKt(cur?`Revenue, ${sp(cur.label)}`:"Revenue",cur?fmt$(cur.earned):"-",cur?(cur.status==="open"?"Partial period":`${fmtN(cur.paying)} paying stores`):"",`snapshots/latest, payout-list stores, ${cur?cur.label:"current period"} (${srcDash()})`),
-    lbKt(cur?`Paying stores, ${sp(cur.label)}`:"Paying stores",cur?fmtN(cur.paying):"-",cur?`${fmtN(cur.partners)} partners with revenue`:"",`snapshots/latest, ${cur?cur.label:"current period"} (${srcDash()})`),
-    lbKt(prev?`Revenue, ${sp(prev.label)}`:"Previous period",prev?fmt$(prev.earned):"-",prev?`${fmtN(prev.paying)} paying stores${prevSt?", "+prevSt:""}`:"",`snapshots/latest, payout-list stores${prev?", "+prev.label+", status "+(prev.status||""):""} (${srcDash()})`),
-    lbKt("Last full month",M&&Lf>=0?fmt$(M.e[Lf]):"-",M&&Lf>=0?`${lbMY(M.tm[Lf])}, ${L.fmtSP(M.mom[Lf])}${Lf>0?" vs "+L.mLabel(M.tm[Lf-1]):""}`:"",`snapshots/trend, the Trend and forecast series for ${L.S.partner?"the partner selected":"the selection"}; month over month against the month before (${tsrc})`),
-    lbKt("Last 12 months",g&&g.t12_now!=null?fmt$(g.t12_now):"-",g&&g.span_now?g.span_now+(g.t12_multiple!=null?`, ${g.t12_multiple}x prior year`:""):"",`snapshots/trend growth, all referred stores, the last 12 full months against the 12 before (${tsrc})`),
-    lbKt(c.AT?"Earned, all time":`Earned, ${c.per.xp?c.per.label.toLowerCase():sp(c.per.label)}`,fmt$(c.tot.earned),c.AT?(L.S.shopify===false?`Stripe only, Shopify ${fmtK(c.tot.shopify)} left out. Paid ${fmtK(c.tot.spend)}`:`Stripe ${fmtK(c.tot.stripe)}, Shopify ${fmtK(c.tot.shopify)}. Paid ${fmtK(c.tot.spend)}`):(c.pre&&c.pre.length?`Paid ${fmtK(c.tot.spend)} from ${L.mLabel(c.pm.find(m=>!L.preSet[m]))} ${String(c.pm.find(m=>!L.preSet[m])).slice(0,4)}, rate ${pct1(c.tot.spend,c.tot.earnedTracked)}`:`Paid ${fmt$(c.tot.spend)}, rate ${pct1(c.tot.spend,c.tot.earned)}`),c.AT?"The dashboard's compute() for All time, partner and additions selected above. Stripe = paid invoices; Shopify = Shopify Billing lifetime total per store (billed, BI's ledger), shown apart and added only when the Shopify payments switch is on. Paid uses the payout figures on record, estimates otherwise":"The dashboard's compute() for the period, partner and additions selected above; paid uses the payout figures on record, estimates otherwise; rate is paid over earned. Stripe rail only: Shopify Billing has no month detail")
-  ].join("");
+/* Payouts tab: the payout blocks that used to sit on the Dashboard (earned vs paid, payout by period, top partners by payout), on the
+   payout dashboard's own period and partner selection (LBS); the additions switch is shared with Revenue */
+function lbPayRender(){
+  const w=$("pay-lb");if(!w)return;const L=lbGet();w.hidden=!L;if(!L)return;
+  const S=L.S;if(!L.periods.some(p=>p.key===S.period))S.period=L.periods[0].key;
+  const keep=S.partner;S.partner="";const names=L.compute().rows.map(r=>r.name).sort((a,b)=>a.localeCompare(b));S.partner=names.includes(keep)?keep:"";
+  $("lb-period").innerHTML=L.periods.map(p=>`<option value="${esc(p.key)}">${esc(p.label)}</option>`).join("");$("lb-period").value=S.period;
+  $("lb-partner").innerHTML=`<option value="">All partners (${names.length})</option>`+names.map(n=>{const dn=(L.pIndex[n]&&L.pIndex[n].display_name)||n;return`<option value="${esc(n)}">${esc(dn)}${dn!==n?` (${esc(n)})`:""}</option>`;}).join("");$("lb-partner").value=S.partner;
+  $("pay-add").setAttribute("aria-checked",String(!!S.includeAdded));
+  const c=L.compute();
+  $("pay-ctl-sub").textContent=`${lbSel(L,c)}${S.includeAdded?"":", stores added since the cut left out"}${c.AT?(S.shopify===false?", Stripe only":", Shopify included"):""}`;
+  $("pay-tot").innerHTML=`<span>Earned <b class="num e" title="${fmt$c(c.tot.earned)}">${fmt$(c.tot.earned)}</b></span><span>Paid <b class="num" title="${fmt$c(c.tot.spend)}">${fmt$(c.tot.spend)}</b></span><span>Rate <b class="num">${pct1(c.tot.spend,c.tot.earned)}</b></span>`;
+  if(ST.sec==="payouts"||!$("p-payouts").hidden){lbEarnPaid(L,c);}
+  lbPayTable(L);lbTop(L,c);
+  w.querySelectorAll(".card-sub").forEach(x=>{x.title=x.dataset.full||x.textContent;});
 }
-function lbShell(){
-  return`<section class="card kstrip" id="db-kpis" aria-label="Totals" aria-describedby="db-sub"><h2 class="sr-only">Totals</h2><p class="sr-only" id="db-sub"></p><div class="ktiles" id="db-tiles"></div></section>
-    <section class="card bc b-ep" id="lb-ep" aria-label="Earned vs paid by month"><div class="card-head"><div><h2>Earned vs paid by month</h2><div class="card-sub" id="lb-ep-sub"></div></div><div id="lb-ep-lg"></div></div>
-      <div class="lb-box" id="lb-ep-box" tabindex="0" aria-label="Earned and paid per month. Arrow keys move between months."></div></section>
-    <section class="card bc b-tr" id="lb-tr" aria-label="Trend and forecast"><div class="card-head"><div><h2>Trend and forecast<button type="button" class="help warn" id="lb-tr-help" hidden>${svg("help")}</button></h2><div class="card-sub" id="lb-tr-sub"></div></div>
-      <div class="lb-tctl"><div class="seg" role="tablist" aria-label="Trend view" id="lb-tmode"><button type="button" role="tab" data-k="month" aria-selected="true">Monthly</button><button type="button" role="tab" data-k="cum" aria-selected="false">Cumulative</button></div>
-      <span class="sw"><button type="button" class="switch" role="switch" id="lb-fc" aria-checked="true" aria-labelledby="lb-fc-l" title="Forecast"></button><span id="lb-fc-l">Forecast</span></span></div></div>
-      <div class="lb-tst" id="lb-tr-tiles"></div>
-      <div class="lb-box" id="lb-tr-box" tabindex="0" aria-label="Revenue per month with the forecast. Arrow keys move between months."></div><div id="lb-tr-lg"></div></section>
-    <section class="card bc b-pay" id="lb-pay" aria-label="Payout by period"><div class="card-head"><div><h2>Payout by period</h2><div class="card-sub">One row per payout period, for the selection above.</div></div></div>
-      <div class="tscroll"><table class="ptable lb-table"><thead><tr><th>Period</th><th>Status</th><th>Basis</th><th class="r">Earned</th><th class="r">Paid</th><th class="r">Rate</th></tr></thead><tbody id="lb-pay-b"></tbody></table></div></section>
-    <section class="card bc b-top" id="lb-top" aria-label="Top partners"><div class="card-head"><div><h2>Top partners</h2><div class="card-sub" id="lb-top-sub">Click a header to sort.</div></div><span id="lb-top-more"></span></div>
-      <div class="tscroll"><table class="ptable lb-table"><thead><tr id="lb-top-h"></tr></thead><tbody id="lb-top-b"></tbody></table></div></section>
-    <section class="card bc b-pr" id="lb-pr" aria-label="Product split"><div class="card-head"><div><h2>Product split<button type="button" class="help" id="lb-pr-help">${svg("help")}</button></h2><div class="card-sub" id="lb-pr-sub"></div></div></div>
-      <div id="lb-pr-tot"></div><div class="lb-box" id="lb-pr-box" tabindex="0" aria-label="Revenue per month by product. Arrow keys move between months."></div><div id="lb-pr-lg"></div></section>`;
-}
+/* charts only, at the current width (the rail toggle) */
+function lbCharts(){const L=lbGet();if(!L){renderLB();return;}const host=$("lb-wrap");if(host&&host.__shell){lbW=Math.round(host.clientWidth)||lbW;rvRender();}if(!$("p-payouts").hidden)lbEarnPaid(L,L.compute());}
 function lbBind(){
-  const host=$("lb-wrap"),ctl=$("dash-ctl");if(!host||host.__b)return;host.__b=true;
-  const onChange=e=>{const L=lbGet();if(!L)return;
-    if(e.target.id==="lb-period"){L.S.period=e.target.value;lbSave();renderLB();}
-    else if(e.target.id==="lb-partner"){L.S.partner=e.target.value;renderLB();}};
+  const ctl=$("dash-ctl");if(!ctl||ctl.__b)return;ctl.__b=true;
+  const onChange=e=>{const L=lbGet();if(!L)return;const id=e.target.id||"";
+    if(id==="lb-period"){L.S.period=e.target.value;lbSave();lbPayRender();}
+    else if(id==="lb-partner"){L.S.partner=e.target.value;lbPayRender();}
+    else if(id.startsWith("rv-"))rvOnChange(e);};
   const onClick=e=>{const t=e.target.closest("button");if(!t)return;
-    if(t.id==="lb-notes-btn"){lbOpen("notes");return;}
+    if(t.id==="lb-notes-btn"||t.id==="pay-notes-btn"){lbOpen("notes");return;}
     const L=lbGet();if(!L)return;
-    if(t.id==="lb-add"){L.S.includeAdded=!L.S.includeAdded;lbSave();renderLB();}
-    else if(t.id==="lb-shop"){if(t.getAttribute("aria-disabled")==="true")return;L.S.shopify=!L.S.shopify;lbSave();renderLB();}
-    else if(t.id==="lb-fc"){L.S.trendFc=!L.S.trendFc;lbSave();renderLB();}
-    else if(t.closest("#lb-tmode")&&t.dataset.k){L.S.trendMode=t.dataset.k==="cum"?"cum":"month";lbSave();renderLB();}
+    if(t.id==="lb-add"||t.id==="pay-add"){L.S.includeAdded=!L.S.includeAdded;lbSave();RVS.sel=null;renderLB();}
+    else if(t.id==="lb-shop"){L.S.shopify=!L.S.shopify;lbSave();renderLB();}
     else if(t.dataset.sk){const k=t.dataset.sk;if(L.S.sort.key===k)L.S.sort.dir*=-1;else L.S.sort={key:k,dir:k==="name"?1:-1};lbTop(L,L.compute());if(ST.dbopen==="top")lbDrawer();}
-    else if(t.id==="lb-top-all"){lbOpen("top");}};
-  host.addEventListener("change",onChange);host.addEventListener("click",onClick);
-  ctl.addEventListener("change",onChange);ctl.addEventListener("click",onClick);
+    else if(t.id==="lb-top-all"){lbOpen("top");}
+    else rvOnClick(e,t);};
+  [ctl,$("lb-wrap"),$("pay-lb")].forEach(n=>{if(!n)return;n.addEventListener("change",onChange);n.addEventListener("click",onClick);});
   $("dr-body").addEventListener("click",e=>{if(ST.dbopen!=="top")return;const t=e.target.closest("button[data-sk]");if(!t)return;
     const L=lbGet();if(!L)return;const k=t.dataset.sk;if(L.S.sort.key===k)L.S.sort.dir*=-1;else L.S.sort={key:k,dir:k==="name"?1:-1};
     lbTop(L,L.compute());lbDrawer();const nb=$("dr-body").querySelector(`button[data-sk="${k}"]`);if(nb)try{nb.focus();}catch(x){}});
+  /* the moved chart's change events (selects live only in #dash-ctl, which keeps its listener), so only clicks need the overlay */
 }
 /* the dashboard drawer: Notes and limits (the spend assumptions and the retired-dashboard note) or the full Top partners table */
 function lbOpen(kind){if(!lbGet())return;showDrawer();ST.dbopen=kind;lbDrawer();}
@@ -6010,109 +6574,6 @@ function lbEarnPaid(L,c){
   const items=[["Earned",LBC.earned]];if(ms.some(m=>L.paidM[m]))items.push(["Paid",LBC.paid]);if(ms.some(m=>L.actual[m]&&!L.paidM[m]))items.push(["Final, unpaid",LBC.final]);if(ms.some(m=>!L.actual[m]))items.push(["Accrued, estimate",LBC.est]);
   $("lb-ep-lg").innerHTML=lbLg(items);
 }
-/* Trend: the dashboard's trendModel and fcModel. Monthly line or cumulative area, last 24 months; the forecast is dashed and muted, with its low to high band */
-function lbTrend(L,c){
-  const S=L.S,M=L.trendModel(c),box=$("lb-tr-box");
-  $("lb-tmode").querySelectorAll("button").forEach(b=>b.setAttribute("aria-selected",String(b.dataset.k===S.trendMode)));
-  if(!M){$("lb-tr-sub").textContent="Trend history is not loaded. It fills from snapshots/trend.";box.innerHTML="";$("lb-tr-tiles").innerHTML="";$("lb-tr-lg").innerHTML="";$("lb-tr-help").hidden=true;return;}
-  const FC=L.fcModel(M),filt=!!S.partner,CUM=S.trendMode==="cum";
-  $("lb-fc").setAttribute("aria-checked",String(!!S.trendFc));$("lb-fc").disabled=!FC;
-  const showF=!!(FC&&S.trendFc&&!filt),band0=showF&&!FC.warn,K=showF?FC.fm.length:0;
-  const N=Math.min(M.n,24),i0=M.n-N,idx=Array.from({length:N},(_,k)=>k+i0);
-  let cum=null;
-  if(CUM){const TC=L.TREND.cumulative||{},src=!filt?((!c.AT&&Array.isArray(TC.earned_payout))?TC.earned_payout:TC.earned):null;
-    if(Array.isArray(src))cum=M.tm.map((m,i)=>src[i]==null||isNaN(+src[i])?null:+src[i]);else{let a=null;cum=M.e.map(v=>{if(v!=null)a=(a||0)+v;return a;});}}
-  const H0=CUM?cum:M.e,Lf=M.L;
-  const scope=filt?((L.pIndex[S.partner]&&L.pIndex[S.partner].display_name)||S.partner):(c.AT?"all dashboard stores":"payout-list stores");
-  const trTail=`${lbMY(M.tm[i0])} to ${lbMY(M.tm[M.n-1])}${showF?`, forecast to ${lbMY(FC.fm[K-1])}`:""}.`,trs=$("lb-tr-sub");
-  trs.textContent=`${CUM?"Running total":"Stripe revenue per month"}, ${trTail}`;
-  trs.dataset.full=`${CUM?"Running total of Stripe revenue":"Stripe revenue per month"}, ${scope}, ${trTail}`;
-  const tl=[];
-  if(CUM){const n1=M.n-1;tl.push(["Stripe lifetime to date",cum[n1]!=null?fmt$(cum[n1]):"-",lbMY(M.tm[n1])+(n1===M.pIdx?", partial":"")]);
-    if(showF&&!FC.warn&&FC.cb[K-1]!=null)tl.push([`Projected by ${lbMY(FC.fm[K-1])}`,fmt$(FC.cb[K-1]),FC.cl[K-1]!=null?`${fmt$(FC.cl[K-1])} to ${fmt$(FC.ch[K-1])}`:"base"]);}
-  else{/* quarter ratio: forecast.quarter_ratio (with quarter_months) when the pipeline writes it, else the ratio named in the warning */
-    const qr=FC&&FC.F.quarter_ratio!=null&&FC.F.quarter_ratio!==""&&isFinite(+FC.F.quarter_ratio)?+FC.F.quarter_ratio:null,qm=FC&&Array.isArray(FC.F.quarter_months)?FC.F.quarter_months:[];
-    const fq=qr!=null?[null,qm[0]||"",qm[qm.length-1]||"",qr.toFixed(2)]:FC&&FC.warn?/forecast quarter (\S+) to (\S+) is ([\d.]+)x the previous quarter/.exec(String(FC.warn)):null,fok=!!(showF&&!FC.warn&&FC.base[0]!=null);
-    tl.push(["Month over month",L.fmtSP(Lf>=0?M.mom[Lf]:null),Lf>0?`${L.mLabel(M.tm[Lf])} vs ${L.mLabel(M.tm[Lf-1])}`:""]);
-    tl.push(["Next month forecast",fok?fmt$(FC.base[0]):"-",fok?`${lbMY(FC.fm[0])}, base${FC.low[0]!=null?`, ${fmt$(FC.low[0])} to ${fmt$(FC.high[0])}`:""}`:FC&&FC.warn?"held back while the forecast is flagged; see the note":"no forecast for this selection"]);
-    tl.push(["Forecast quarter",fq?`${fq[3]}x`:"-",fq?`${fq[1]&&fq[2]?`${fq[1]} to ${fq[2]} `:""}against the quarter before${qr!=null?"":", from the forecast note"}`:"no quarter ratio in the forecast"]);}
-  if(CUM&&showF&&!FC.warn){tl.push([`${lbMY(FC.fm[0])} forecast`,fmt$(FC.base[0]),FC.low[0]!=null?`${fmt$(FC.low[0])} to ${fmt$(FC.high[0])}`:"base"]);
-    tl.push([`Payout, ${lbMY(FC.fm[0])}`,FC.pay[0]!=null?fmt$(FC.pay[0]):"-",`${S.rate}% of ${FC.ceil?"revenue (ceiling)":"commissionable revenue"}`]);}
-  $("lb-tr-tiles").innerHTML=tl.map(([l,v,s],i)=>`<span class="tst${l==="Month over month"?" mom":""}" data-k="lbt${i}" title="${esc(l)}: ${esc(v)}${s?`, ${esc(s)}`:""}"><span class="tl">${esc(l)}</span> <b class="num">${v}</b>${s?` <span class="ts">${esc(s)}</span>`:""}</span>`).join("");
-  const nt=filt?"The forecast is for the whole program; pick All partners to see it.":FC&&FC.warn?String(FC.warn):"",hp=$("lb-tr-help");
-  hp.hidden=!(FC&&S.trendFc&&(filt||FC.warn));hp.title=nt;hp.setAttribute("aria-label","Forecast note: "+nt);
-  const W=Math.max(280,box.clientWidth||600),ph=W<500,ml=ph?40:52,mr=ph?10:14,mt=22,mb=34,h1=lbFit()?Math.max(60,lbH(box,0)-mt-mb):ph?180:230,H=mt+h1+mb,NT=N+K,band=(W-ml-mr)/Math.max(1,NT),cx=k=>ml+band*k+band/2,yb=mt+h1;
-  const fB=showF?(CUM?FC.cb:FC.base):[],fLo=showF?(CUM?FC.cl:FC.low):[],fHi=showF?(CUM?FC.ch:FC.high):[];
-  const rrV=showF&&FC.rr!=null?(CUM?(Lf>=0&&cum[Lf]!=null?cum[Lf]+FC.rr:null):FC.rr):null;
-  const vals=idx.map(i=>H0[i]).filter(v=>v!=null).concat(showF?fB.concat(band0?fHi:[]).filter(v=>v!=null):[]);
-  const ymax=L.niceMax(Math.max(1,...vals)),y=v=>yb-(v/ymax)*h1;
-  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="${CUM?"Running total of earned":"Earned per month"}${showF?", with a forecast":""}">`;
-  s+=`<defs><linearGradient id="lb-cum" x1="0" x2="0" y1="0" y2="1"><stop offset="0" style="stop-color:var(--primary)" stop-opacity=".22"/><stop offset="1" style="stop-color:var(--primary)" stop-opacity="0"/></linearGradient></defs>`;
-  s+=lbAxis(W,ml,mr,y,ymax,4);
-  const pts=idx.map((i,k)=>H0[i]==null||(i===M.pIdx&&!CUM)?null:[cx(k),y(H0[i])]);
-  const line=a=>{let d="",pen=false;a.forEach(p=>{if(!p){pen=false;return;}d+=(pen?"L":"M")+p[0].toFixed(1)+","+p[1].toFixed(1);pen=true;});return d;};
-  if(CUM){const hp=pts.filter(Boolean);if(hp.length>1)s+=`<path class="lb-area" d="M${hp[0][0].toFixed(1)},${yb}L${hp.map(p=>p[0].toFixed(1)+","+p[1].toFixed(1)).join("L")}L${hp[hp.length-1][0].toFixed(1)},${yb}Z" style="fill:url(#lb-cum)"/>`;}
-  const kL=Lf-i0,kP=M.pIdx-i0;
-  if(showF&&kL>=0&&kL<N&&H0[Lf]!=null){
-    const xd=ml+band*(kL+1);s+=`<line x1="${xd.toFixed(1)}" x2="${xd.toFixed(1)}" y1="${mt-6}" y2="${yb}" class="lb-div"/><text x="${(xd+6).toFixed(1)}" y="${mt-8}" class="lb-ax2">Forecast</text>`;
-    const fp=[[cx(kL),H0[Lf],H0[Lf],H0[Lf]]];if(rrV!=null&&kP>=0&&kP<N)fp.push([cx(kP),rrV,rrV,rrV]);
-    fB.forEach((v,j)=>{if(v!=null)fp.push([cx(N+j),v,band0&&fLo[j]!=null?fLo[j]:v,band0&&fHi[j]!=null?fHi[j]:v]);});
-    if(band0)s+=`<path class="lb-band" d="M${fp.map(p=>p[0].toFixed(1)+","+y(p[3]).toFixed(1)).join("L")}L${fp.slice().reverse().map(p=>p[0].toFixed(1)+","+y(p[2]).toFixed(1)).join("L")}Z"/>`;
-    s+=`<path class="lb-fc" d="M${fp.map(p=>p[0].toFixed(1)+","+y(p[1]).toFixed(1)).join("L")}"/>`;
-    if(rrV!=null&&kP>=0&&kP<N)s+=`<circle cx="${cx(kP).toFixed(1)}" cy="${y(rrV).toFixed(1)}" r="4" class="lb-rr"/>`;
-    fB.forEach((v,j)=>{if(v!=null)s+=`<circle cx="${cx(N+j).toFixed(1)}" cy="${y(v).toFixed(1)}" r="3.5" class="lb-fcd" data-f="${j}" data-v="${v}"/>`;});}
-  s+=`<path class="lb-line" d="${line(pts)}"/>`;
-  if(!CUM&&kP>=0&&kP<N&&M.e[M.pIdx]!=null&&!showF)s+=`<circle cx="${cx(kP).toFixed(1)}" cy="${y(M.e[M.pIdx]).toFixed(1)}" r="4" class="lb-rr"/>`;
-  if(kL>=0&&kL<N&&H0[Lf]!=null)s+=`<circle cx="${cx(kL).toFixed(1)}" cy="${y(H0[Lf]).toFixed(1)}" r="4" class="lb-dot"/><text x="${(cx(kL)-8).toFixed(1)}" y="${(y(H0[Lf])-10).toFixed(1)}" text-anchor="end" class="lb-cap num">${fmtK(H0[Lf])}</text>`;
-  const am=idx.map(i=>M.tm[i]).concat(showF?FC.fm:[]),step=ph||band<34?3:1;
-  am.forEach((m,k)=>{const mo=+m.slice(5,7);if(step===3&&(mo-1)%3)return;s+=`<text x="${cx(k).toFixed(1)}" y="${yb+16}" text-anchor="middle" class="lb-ax">${L.mLabel(m)}</text>`;if(mo===1||k===0)s+=`<text x="${cx(k).toFixed(1)}" y="${yb+29}" text-anchor="middle" class="lb-ax2">${m.slice(0,4)}</text>`;});
-  am.forEach((m,k)=>{s+=`<rect class="hit" data-k="${k}" x="${(ml+band*k).toFixed(1)}" y="${mt}" width="${band.toFixed(1)}" height="${h1}" fill="transparent"/>`;});
-  s+=`<line x1="${ml}" x2="${W-mr}" y1="${yb}" y2="${yb}" class="lb-base"/></svg><div class="lb-tip" role="status"></div>`;
-  box.innerHTML=s;
-  lbTip(box,am.length,k=>{const fj=k-N;
-    if(fj>=0){return`<div class="t">${esc(lbMY(FC.fm[fj]))}, forecast</div>`+(CUM?lbRow("Running total, base",fmt$(FC.cb[fj]),LBC.fc)+(band0?lbRow("Low",fmt$(FC.cl[fj]))+lbRow("High",fmt$(FC.ch[fj])):""):"")+
-      lbRow("Month, base",fmt$(FC.base[fj]),CUM?"":LBC.fc)+(band0&&!CUM?lbRow("Low",fmt$(FC.low[fj]))+lbRow("High",fmt$(FC.high[fj])):"")+lbRow(`Payout, ${S.rate}% ${FC.ceil?"ceiling":"GM"}`,FC.pay[fj]!=null?fmt$(FC.pay[fj]):"-",LBC.est)+lbRow("Net",FC.net[fj]!=null?fmt$(FC.net[fj]):"-");}
-    const i=k+i0,m=M.tm[i],part=i===M.pIdx;
-    return`<div class="t">${esc(lbMY(m))}${part?", partial":""}</div>`+(CUM?lbRow("Running total",cum[i]==null?"-":fmt$(cum[i]),LBC.earned)+lbRow("Earned that month",M.e[i]==null?"-":fmt$(M.e[i])):
-      lbRow(part?"Earned to date":"Earned",M.e[i]==null?"-":fmt$(M.e[i]),LBC.earned)+(part&&showF&&FC.rr!=null?lbRow("Run-rate",fmt$(FC.rr)):"")+lbRow("Trailing 3-month average",M.t3[i]==null?"-":fmt$(M.t3[i]))+lbRow("Month over month",L.fmtSP(M.mom[i]))+lbRow("Paying stores",M.pay&&M.pay[i]!=null?fmtN(M.pay[i]):"-"));});
-  const lg=[[CUM?"Running total":"Earned",LBC.earned,"ln"]];if(showF){lg.push(["Forecast, base",LBC.fc,"ln dash"]);if(band0)lg.push(["Forecast, low to high","color-mix(in srgb,var(--muted-foreground) 18%,transparent)"]);if(rrV!=null)lg.push([`${L.mLabel(M.tm[M.pIdx]||M.tm[M.n-1])} at run-rate`,"transparent","ring"]);}
-  $("lb-tr-lg").innerHTML=lbLg(lg);
-}
-/* Product split: Alerts, Automation, Prevent, Other in tints of the accent; totals bar plus monthly stacks in the dated periods */
-function lbProd(L,c){
-  const K=["alerts","automation","prevent","other"],box=$("lb-pr-box");
-  let tot;
-  if(c.AT){tot={alerts:0,automation:0,prevent:0,other:0,shopU:0};c.rows.forEach(r=>{const p=r.prodEarned||{};K.concat("shopU").forEach(k=>tot[k]+=Math.max(0,+p[k]||0));});}
-  else{tot={};K.forEach(k=>tot[k]=c.pm.reduce((a,m)=>a+c.byMonth[m].prod[k].earned,0));}
-  const keys=Object.keys(tot).filter(k=>tot[k]>0),sum=keys.reduce((a,k)=>a+tot[k],0);
-  const prFull=c.AT?"Lifetime revenue by product: Stripe invoice lines split by product, the Shopify rail not split.":`Payout-list revenue by product per month, ${c.per.label}, from invoice line items. A store-month without lines counts as Other.`;
-  $("lb-pr-sub").textContent=c.AT?(L.S.shopify===false?"Lifetime, by product. Stripe only, Shopify left out.":"Lifetime, by product. Shopify not split."):c.pre&&c.pre.length?`By product per month, last 12 months. ${c.pre.map(m=>L.mLabel(m)).join(" and ")} not split.`:`By product per month, ${c.per.label}.`;
-  const prh=$("lb-pr-help");prh.title=prFull;prh.setAttribute("aria-label","About this card: "+prFull);
-  $("lb-pr-tot").innerHTML=sum>0?`<div class="lb-split" role="img" aria-label="${esc(keys.map(k=>`${LB_PL[k]} ${Math.round(tot[k]/sum*100)}%`).join(", "))}">${keys.map(k=>`<span style="flex:${(tot[k]/sum).toFixed(4)} 1 0;background:${LBC[k]}" title="${esc(LB_PL[k])}: ${fmt$(tot[k])}"></span>`).join("")}</div>
-    <ul class="lgd lb-plg">${keys.map(k=>`<li data-p="${k}" title="${esc(LB_PL[k])}: ${fmt$(tot[k])}"><i style="background:${LBC[k]}"></i><span class="ll">${esc(LB_PL[k])}</span><span class="lv num">${fmt$(tot[k])}</span><span class="lp num">${Math.round(tot[k]/sum*100)}%</span></li>`).join("")}</ul>${lbProdTable(K,tot,sum)}`:`<div class="msg">No product revenue for this selection.</div>`;
-  const prCard=$("lb-pr"),fitP=lbFit(),over=()=>prCard.scrollHeight>prCard.clientHeight+1;
-  if(fitP&&c.AT&&over()){const lg=prCard.querySelector(".lb-plg");if(lg)lg.remove();}
-  if(c.AT||!c.stack){box.hidden=true;box.innerHTML="";$("lb-pr-lg").innerHTML="";return;}
-  box.hidden=false;
-  if(lbFit()&&box.getBoundingClientRect().height<160){const t=prCard.querySelector(".lb-ptab");if(t)t.remove();}
-  if(lbFit()&&box.getBoundingClientRect().height<120){box.innerHTML="";$("lb-pr-lg").innerHTML="";return;}
-  const ms=c.pm,n=ms.length,W=Math.max(200,box.clientWidth||600),ph=W<500,H=lbH(box,ph?200:230),ml=ph?40:52,mr=8,mt=14,mb=26,ih=H-mt-mb,band=(W-ml-mr)/Math.max(1,n),bw=Math.max(6,Math.min(36,band*.5));
-  const ymax=L.niceMax(Math.max(1,...ms.map(m=>K.reduce((a,k)=>a+Math.max(0,c.byMonth[m].prod[k].earned),0)))),y=v=>mt+ih-(v/ymax)*ih,y0=y(0);
-  let s=`<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="Revenue per month by product">${lbAxis(W,ml,mr,y,ymax,4)}`;
-  ms.forEach((m,i)=>{const cx=ml+band*i+band/2,x=cx-bw/2;let cu=0;const segs=[];
-    K.forEach(k=>{const v=Math.max(0,c.byMonth[m].prod[k].earned);if(v<=0)return;const yt=y(cu+v),ybb=y(cu);cu+=v;segs.push({k,yt,h:ybb-yt-(segs.length?2:0)});});
-    segs.forEach((g,j)=>{if(g.h<=.3)return;const top=j===segs.length-1;s+=top?lbBar(x,g.yt+g.h,bw,g.h,LBC[g.k]):`<rect x="${x.toFixed(1)}" y="${g.yt.toFixed(1)}" width="${bw.toFixed(1)}" height="${g.h.toFixed(1)}" style="fill:${LBC[g.k]}"/>`;});
-    if(band>=26||i%Math.ceil(26/Math.max(1,band))===0)s+=`<text x="${cx.toFixed(1)}" y="${H-mb+16}" text-anchor="middle" class="lb-ax">${L.mLabel(m)}</text>`;s+=`<rect class="hit" x="${(ml+band*i).toFixed(1)}" y="${mt}" width="${band.toFixed(1)}" height="${ih}" fill="transparent"/>`;});
-  s+=`<line x1="${ml}" x2="${W-mr}" y1="${y0}" y2="${y0}" class="lb-base"/></svg><div class="lb-tip" role="status"></div>`;
-  box.innerHTML=s;
-  lbTip(box,n,i=>{const m=ms[i],P=c.byMonth[m].prod,t=K.reduce((a,k)=>a+P[k].earned,0);return`<div class="t">${esc(lbMY(m))}</div>`+K.map(k=>lbRow(LB_PL[k],`${fmt$(P[k].earned)} <span class="muted">${pct1(P[k].earned,t)}</span>`,LBC[k])).join("")+lbRow("Total",fmt$(t));});
-  $("lb-pr-lg").innerHTML="";
-}
-/* Product split table: the four products plus the Shopify rail as a muted footer, the legend's numbers */
-function lbProdTable(K,tot,sum){
-  const row=(k,cls)=>`<tr${cls?` class="${cls}"`:""}><td><i style="background:${LBC[k]}"></i>${esc(LB_PL[k])}</td><td class="r num" title="${fmt$c(tot[k])}">${fmt$(tot[k])}</td><td class="r num">${sum>0?Math.round(tot[k]/sum*100):0}%</td></tr>`;
-  return`<table class="lb-ptab"><thead><tr><th>Product</th><th class="r">Amount</th><th class="r">Share</th></tr></thead><tbody>${K.map(k=>row(k)).join("")}${tot.shopU>0?row("shopU","ft"):""}</tbody></table>`;
-}
 /* Payout by period: compute() once per period with the same partner and additions; status and spend basis from the period doc */
 function lbPayRows(L){
   const S=L.S,keep=S.period,out=[];
@@ -6147,11 +6608,14 @@ function lbNotes(L,c){
   const S=L.S,{lim,q2}=L.limits();
   const head=[`Paid periods (${L.actPeriods.map(p=>p.label).join(", ")||"none"}) use the payout figures on record; ${L.estLab} ${/ and /.test(L.estLab)?"are":"is"} ${S.rate}% of ${S.basis==="gm"?"commissionable revenue (Alerts at gross margin, other products at full rate)":"paid revenue (ceiling)"}, an estimate until the payout calc lands.`,
     "Month is the invoiced month: gross paid amount, Stripe rail only, no credits or refunds. The current month is partial.",
-    "Self-referral partners count in earned and add nothing to paid in every period."];
+    "Self-referral partners count in earned and add nothing to paid in every period.",
+    "Revenue section: payout-list stores, Stripe rail, invoiced month. Months before the snapshot window come from snapshots/trend per store (paid invoices by month), with no product split (counted as Other) and no Alerts margin. A month's products always add up to its revenue: Other takes what the line-item split leaves.",
+    "Alerts at gross margin: each store-month's Alerts revenue times that month's Alerts margin from invoice line items (gm_by_month). Collected is the amount paid. The switch changes Revenue only; payouts keep their own basis.",
+    "Stack by partner: the five largest partners across all months keep their colours; every other partner is in Other partners. Clicking a bar, segment or point narrows the filters to it; Clear selection or the same click goes back."];
   return`<ul class="lb-ul">${head.concat(lim).map(x=>`<li>${esc(x)}</li>`).join("")}</ul>
     <div class="lb-q2">${kvRow(`${q2.src}, paid rows net of loss rows`,`<span class="num">${fmt$(q2.net)}</span>`)}${q2.paid!=null?kvRow(`${q2.src}, paid rows only`,`<span class="num">${fmt$(q2.paid)}</span>`):""}${q2.rec!=null?kvRow("Recorded as paid (Q2 payout run)",`<span class="num">${fmt$(q2.rec)}</span>`):""}</div>`;
 }
-let lbRT=0;window.addEventListener("resize",()=>{clearTimeout(lbRT);lbRT=setTimeout(()=>{if(ST.sec==="dashboard"&&DV.v==="lead"&&!railAnim())renderLB();},150);});
+let lbRT=0;window.addEventListener("resize",()=>{clearTimeout(lbRT);lbRT=setTimeout(()=>{if(railAnim())return;if(ST.sec==="dashboard"&&DV.v==="lead")renderLB();else if(ST.sec==="payouts")lbPayRender();},150);});
 
 /* ---- build 11: Ask Ido avatar v2, eyes first, reacting to the chat. Design and review page: docs/projects/partneros/ask-ido-mascot-preview.html.
    The face is still the Chargeflow mark from the rail brand (its two subpaths: the lower swoosh is the "hand" that lifts on greet, the upper one carries a
@@ -7004,7 +7468,7 @@ $("ov-period").onchange=e=>{ST.ov.period=e.target.value;ovSave();renderOverview(
 $("ov-scope").onchange=e=>{ST.ov.scope=e.target.value==="active"?"active":"all";ovSave();renderOverview();};
 pvLoad();
 $("p-view").querySelectorAll("button").forEach(b=>b.onclick=()=>setPView(b.dataset.v,true));
-lbLoad();dvLoad();lbBind();ambInit();
+lbLoad();rvLoad();dvLoad();lbBind();ambInit();
 $("dash-view").querySelectorAll("button").forEach(b=>b.onclick=()=>{if(b.dataset.v!==DV.v)setDV(b.dataset.v,true);});
 try{const t=localStorage.getItem(OT_LS);if(OTABS.includes(t))ST.otab=t;}catch(e){}
 $("o-tabs").querySelectorAll("button").forEach(b=>b.onclick=()=>setOTab(b.dataset.t,true));
