@@ -31,7 +31,10 @@ DASH_DIR = os.environ.get('CF_DASH_DIR') or '/Users/idod/dev/docs/finance/payout
 OUT = os.environ.get('CF_PARTNEROS_OUT') or '/Users/idod/dev/docs/finance/partneros/partneros.html'
 TEMPLATE = os.path.join(HERE, 'template.html')
 PH = {'dash': '/*__DASH_JSON__*/', 'trend': '/*__TREND_JSON__*/', 'reg': '/*__REG_JSON__*/', 'feat': '/*__FEATURES_JSON__*/', 'map': '/*__MAP_HTML__*/', 'events': '/*__EVENTS_JSON__*/',
-      'flo': '/*__FLO_VOICE_JSON__*/'}
+      'flo': '/*__FLO_VOICE_JSON__*/', 'finl': '/*__FIN_LEDGER_JSON__*/'}
+# Finance ledger monthly series for the revenue explorer (build 13). Inlined only when CF_FIN_LEDGER names the local file
+# (docs/finance/partneros/finance-ledger-series.json); otherwise null, so a build meant for Nexus never carries it.
+FIN_LEDGER = os.environ.get('CF_FIN_LEDGER') or ''
 FLO_VOICE = os.environ.get('CF_FLO_VOICE') or os.path.join(HERE, 'flo-voice.json')  # default openers for the Contacted guard (build 2)
 FONTS = os.path.join(HERE, 'fonts')  # woff2 files, published as supporting files at fonts/<name>.woff2 (never inlined)
 FEATURE_MAP = os.environ.get('CF_FEATURE_MAP') or '/Users/idod/dev/docs/projects/partneros/feature-map.md'
@@ -244,6 +247,17 @@ def main():
     html = html.replace(PH['map'], js(mapdoc).replace('<', '\\u003c') if mapdoc else 'null')
     html = html.replace(PH['events'], js(events) if events else 'null')
     html = html.replace(PH['flo'], js(flo))
+    finl = None
+    if FIN_LEDGER:
+        try:
+            finl = json.load(open(FIN_LEDGER, encoding='utf-8'))
+        except (OSError, ValueError) as e:
+            print(f'ERROR: CF_FIN_LEDGER {FIN_LEDGER} is not readable JSON: {e}'); sys.exit(1)
+        fh = shared.pii_hits(js(finl))
+        print(f'finance ledger series: {len(finl.get("merch", []))} merchants, PII check {"PASS, 0 hits" if not fh else f"FAIL, {len(fh)} hits"}')
+        if fh:
+            sys.exit(1)
+    html = html.replace(PH['finl'], js(finl).replace('<', '\\u003c') if finl else 'null')
     # private URLs live in local-data.json, never in the template
     for tok, key in (('__REFRESH_ROUTINE_URL__', 'refresh_routine_url'), ('__NEXT_URL__', 'next_tracker_url')):
         if html.count(tok) != 1:
