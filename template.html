@@ -1060,6 +1060,7 @@ body.dr-open .flo{right:calc(min(500px,100vw) + 16px);width:min(400px,calc(100vw
 .rv-ov-b{flex:1;overflow:auto;padding:16px 20px 24px}
 .rv-ov #rv-notes{display:none}
 .rv-root{margin-top:0}
+.rv-root.no-led>*:not(#rv-finl){display:none!important}
 #rv-page .rv-root{margin-top:16px}
 .rv-root>.card{margin-top:0;padding:16px;grid-column:1/-1;display:flex;flex-direction:column;min-width:0;position:relative}
 .rv-root .card-head{margin-bottom:8px;gap:2px 12px;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:start}
@@ -6477,8 +6478,24 @@ let RVX=null;
    (mapped the same way). Matched stores take the ledger's months (collected by paid month or billed by invoice month, both rails, the
    four products, history from the ledger's first month) and its per-merchant Alerts margin; unmatched stores keep the snapshot series. */
 let FLX=null;
+/* build 18: the series comes from the database (snapshots/ledger and its shards snapshots/ledger-<i>, written by ledger_pack.py
+   and nexus_sync.py); a preview build may inline it as FIN_LEDGER instead. Every shard must carry the meta doc's generated stamp
+   and the merchant count must match, else the series counts as missing and the explorer says so instead of showing numbers. */
+let FINL=FIN_LEDGER,FINL_ST=FIN_LEDGER?"ready":"loading";
+async function finlLoad(db){
+  if(FIN_LEDGER)return;
+  const fail=()=>{FINL=null;FINL_ST="missing";finlApply();};
+  try{const m=await db.doc("snapshots/ledger").get();const d=m&&m.exists?m.data():null;
+    if(!d||!(+d.shards>0))return fail();
+    const parts=await Promise.all(Array.from({length:+d.shards},(_,i)=>db.doc("snapshots/ledger-"+i).get()));
+    const merch=[];for(const p of parts){const x=p&&p.exists?p.data():null;if(!x||String(x.generated)!==String(d.generated)||!Array.isArray(x.merch))return fail();merch.push(...x.merch);}
+    if(d.merchants!=null&&+d.merchants!==merch.length)return fail();
+    FINL={source:d.source||{},merch,payout_adjustments:d.payout_adjustments||null,generated:d.generated};FINL_ST="ready";finlApply();
+  }catch(e){fail();}
+}
+function finlApply(){FLX=null;RVX=null;if(RVhost)rvRender();if(VP.p==="finance"&&ST.sec==="finance")renderFinance();}
 function flIndex(){
-  if(FLX!==null)return FLX;const F=FIN_LEDGER&&Array.isArray(FIN_LEDGER.merch)?FIN_LEDGER:null;if(!F){FLX=false;return FLX;}
+  if(FLX!==null)return FLX;const F=FINL&&Array.isArray(FINL.merch)?FINL:null;if(!F){FLX=false;return FLX;}
   const cf={},id={},hs={};F.merch.forEach(m=>{[m.cf,m.cf2].forEach(c=>{c=String(c||"").trim();if(c&&!cf[c])cf[c]=m;});const k=String(m.id||"");if(k&&!id[k])id[k]=m;(m.leads||[]).forEach(l=>{l=String(l);if(l&&!id[l])id[l]=m;});(m.hs||[]).forEach(x=>{x=String(x);if(x&&!hs[x])hs[x]=m;});
     m._c={};(m.c||[]).forEach(x=>m._c[x[0]]=x);m._b={};(m.b||[]).forEach(x=>m._b[x[0]]=x);});
   FLX={F,cf,id,hs,src:F.source||{}};return FLX;
@@ -6735,6 +6752,7 @@ function rvShell(){
     <span class="sw"><button type="button" class="switch" role="switch" id="rv-add" aria-checked="true" aria-labelledby="rv-add-l"></button><span id="rv-add-l">Stores added since the cut</span></span>
     <span class="sw" id="rv-shop-w"><button type="button" class="switch" role="switch" id="rv-shop" aria-checked="true" aria-labelledby="rv-shop-l"></button><span id="rv-shop-l">Shopify in all time</span></span>
   </div><span class="dc-sum" id="rv-ctl-sub"></span><button type="button" class="btn sm" id="rv-notes" aria-haspopup="dialog">Notes and limits</button></div>
+  <section class="card rv-finl" id="rv-finl" aria-live="polite" hidden><div class="msg" id="rv-finl-msg"></div></section>
   <div class="rv-selbar" id="rv-selbar" aria-live="polite" hidden></div>
   <div class="rv-chips" id="rv-chips" role="group" aria-label="Active filters" aria-live="polite" hidden></div>
   <section class="card rv-hero" id="rv-hero" aria-label="Revenue for the selection"></section>
@@ -7001,6 +7019,9 @@ function rvControls(L,M){
 }
 function rvRender(){
   const L=lbGet();if(!L||!RVhost||!$("rv-hero"))return;
+  {const rt=RVhost.querySelector(".rv-root"),ok=!!flIndex();if(rt)rt.classList.toggle("no-led",!ok);
+    if(!ok){$("rv-finl").hidden=false;$("rv-finl-msg").textContent=FINL_ST==="loading"?"Loading the Finance ledger series.":"The Finance ledger series is not loaded, so the explorer shows no figures. It reads snapshots/ledger from the PartnerOS database; the Revenue page's own figures are unaffected.";window.__rv={finl:FINL_ST};return;}
+    $("rv-finl").hidden=true;}
   const M=rvModel(L);rvNorm(M);{const rt=RVhost.querySelector(".rv-root");if(rt)rt.classList.toggle("has-led",!!M.X);}
   if(RVS.sel){const p=RVS.sel.prev;if(!M.MU.includes(p.from)||!M.MU.includes(p.to))RVS.sel=null;}
   rvControls(L,M);
@@ -7359,7 +7380,7 @@ function renderAll(){renderHead();renderOverview();renderDashboard();renderRuns(
 async function connect(){
   let db=null;
   try{if(window.claude&&typeof window.claude.use==="function")db=await window.claude.use("db");}catch(e){db=null;}
-  if(!db){ST.dbState="nodb";ST.userState="none";ST.myd.state="none";ST.runsState="nodb";ST.candState="nodb";ST.campState="nodb";ST.agrState="nodb";ST.payState="nodb";ST.leadState="nodb";ST.setState="nodb";renderAll();renderPartners();renderOutreach();renderAgreements();renderPayouts();renderLeads();renderSettings();return;}
+  if(!db){if(!FIN_LEDGER){FINL_ST="missing";}ST.dbState="nodb";ST.userState="none";ST.myd.state="none";ST.runsState="nodb";ST.candState="nodb";ST.campState="nodb";ST.agrState="nodb";ST.payState="nodb";ST.leadState="nodb";ST.setState="nodb";renderAll();renderPartners();renderOutreach();renderAgreements();renderPayouts();renderLeads();renderSettings();return;}
   ST.db=db;ST.dbState="ready";
   try{const user=await window.claude.use("user");ST.canEdit=!!(user&&typeof user.canEdit==="function"&&await user.canEdit());
     try{ST.isOwner=!!(user&&typeof user.isOwner==="function"&&await user.isOwner());}catch(e){ST.isOwner=false;}
@@ -7401,6 +7422,7 @@ async function connect(){
   try{aT(await db.doc("snapshots/trend").get());}catch(e){}
   try{db.doc("snapshots/trend").onSnapshot(s=>{liveOk("trend");aT(s);},liveErr("trend"));}catch(e){}
   try{const m=await db.doc("registry/meta").get();if(m&&m.exists){ST.meta=m.data();renderOverview();}}catch(e){}
+  finlLoad(db);
 
   // partners: live collection; an empty collection keeps the seed (read-only)
   const ingest=snap=>{
