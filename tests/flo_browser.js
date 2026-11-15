@@ -1,7 +1,7 @@
 /* Headless browser pass for Ask Ido's revenue and leads tools (run by tests/test_flo_tools.py, or by hand on a locally built page).
    Usage: node flo_browser.js <page.html> <role: editor|viewer> <leads: fixture|generated|none> [snap: yes|no]
    The page must carry the test hook (window.__T). Prints one JSON object: {checks:[{tool,name,ok,detail}], errors:[...], out:{...}}.
-   Every comparison reads the tool result and the value the page itself renders (the Payouts Earned total and Top partners, Leads tiles and table) for the same filter. */
+   Every comparison reads the tool result and the value the page itself renders (Revenue tiles and Top partners, Leads tiles and table) for the same filter. */
 const path = require("path");
 const fs = require("fs");
 const PW = process.env.FLO_PW || ["/Users/idod/dev/dispute-desk/node_modules/playwright-core", "/Users/idod/dev/openscreen/node_modules/playwright-core"].find(p => fs.existsSync(p));
@@ -76,10 +76,9 @@ const num = s => +String(s).replace(/[^0-9.\-]/g, "");
 
   if (snapOk) {
     const periods = await T(() => window.__T.lbGet().periods.map(p => ({ key: p.key, label: p.label })));
-    const setUI = async (key, partner) => { await T(([k, p]) => { window.__T.setSection("payouts", false); window.__T.renderLB(); const sel = document.getElementById("lb-period"); sel.value = k; sel.dispatchEvent(new Event("change", { bubbles: true }));
+    const setUI = async (key, partner) => { await T(([k, p]) => { window.__T.setSection("dashboard", false); window.__T.renderLB(); const sel = document.getElementById("lb-period"); sel.value = k; sel.dispatchEvent(new Event("change", { bubbles: true }));
       const ps = document.getElementById("lb-partner"); ps.value = p || ""; ps.dispatchEvent(new Event("change", { bubbles: true })); }, [key, partner || ""]); };
-    /* the Earned total in the Payouts filter row (build 12 moved the period and partner selection, and Earned, from Revenue to Payouts) */
-    const earnedTile = () => T(() => { const e = document.querySelector("#pay-tot .e"); return e ? e.textContent : null; });
+    const earnedTile = () => T(() => { const t = [...document.querySelectorAll("#db-tiles .tile.kt")].find(x => /^Earned/.test(x.querySelector(".label").textContent)); return t ? t.querySelector(".v").textContent : null; });
     const topRows = () => T(() => [...document.querySelectorAll("#lb-top-b tr[data-n]")].map(tr => ({ name: tr.querySelector("td").textContent.trim(), earned: tr.children[1].getAttribute("title") })));
 
     /* revenue_overview: one comparison per period against the Earned tile */
