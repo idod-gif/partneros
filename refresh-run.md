@@ -140,3 +140,9 @@ Under 15 lines:
 - `runs/<TODAY>` written.
 - Nexus pack: <n> docs, <bytes>, path
 - Nexus sync: dry run counts / applied counts / seen on the page by Ido (yes, no)
+## Finance ledger series (separate from the twice-monthly refresh)
+
+The Revenue explorer reads `snapshots/ledger` and its shards. When Finance republishes the ledger: rebuild the local series file
+under `docs/finance/partneros/` (the 2026-11-15 run used the saved Finance dashboard and the v4 workbook for Shopify fees), then
+`python3 -I ledger_pack.py --series <series file> --out <docs/finance/.../ledger-pack.json>`, dry-run `nexus_sync.py --pack`, and
+`--apply` once the counts match. The page uses the series only when every shard carries the meta doc's generated stamp.

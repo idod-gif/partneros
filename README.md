@@ -14,6 +14,7 @@ Infrastructure for PartnerOS, Chargeflow's partner operating system: the page bu
 | `enrich.py`, `step4_build.py`, `agreements_build.py`, `portal_agreements_build.py`, `outreach_build.py`, `events_sync.py`, `seed_db.py` | Loaders that write db docs and batch manifests. |
 | `step4_schema.md`, `events_schema.md` | Doc shapes. |
 | `flo-voice.json` | Default openers for the page's outreach guard. |
+| `ledger_pack.py` | Finance ledger series (the Revenue explorer's data) to a Nexus import pack: `snapshots/ledger` plus `snapshots/ledger-<i>` shards. |
 | `guard.py`, `.githooks/pre-commit` | Keeps data out of the repo (see below). |
 
 ## Run
@@ -26,6 +27,10 @@ python3 agreements_build.py [--db-dir DIR]
 python3 refresh.py make-config [--dir DATA_DIR] --out config.json
 python3 refresh.py --help                 # the refresh itself; see refresh-run.md
 python3 guard.py --all                    # or: python3 guard.py FILE...
+# Finance ledger series for the Revenue explorer (data stays under docs/finance):
+python3 -I ledger_pack.py --series <docs/finance/.../finance-ledger-series.json> --out <docs/finance/.../ledger-pack.json>
+python3 -I nexus_sync.py --pack <ledger-pack.json>            # dry run; add --apply to write
+# Preview only: CF_FIN_LEDGER=<series file> python3 build.py inlines the series (never for a Nexus build)
 ```
 
 ## Local data
