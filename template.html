@@ -1409,15 +1409,18 @@ body.ov-dragging .ovb-h{cursor:grabbing}
 .tour-old h2{font-size:21px!important;line-height:26px!important;margin-bottom:6px!important}
 .tour-old .tour-f{margin-top:18px}
 
-/* ==== build 20: the network globe, the Overview hero (normal view only). Canvas drawn in code; motion pauses under reduced motion. */
-.ovglobe{width:100%;box-sizing:border-box;display:grid;grid-template-columns:minmax(240px,5fr) 7fr;gap:8px 24px;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px 24px 16px;margin-bottom:16px;overflow:hidden}
-.ovglobe.col{grid-template-columns:1fr;padding:14px 20px}
-.ovglobe.col .gl-left{flex-direction:row;flex-wrap:wrap;align-items:center;gap:10px 32px}
-.ovglobe.col .gl-eyebrow{flex-basis:100%}
-.ovglobe.col .gl-sub{max-width:none;flex:1 1 260px}
-.ovglobe.col .gl-ns{flex-direction:row;flex-wrap:wrap;gap:8px 28px}
-.ovglobe.col .gl-v{font-size:24px;line-height:28px}
-.gl-left{display:flex;flex-direction:column;gap:14px;min-width:0}
+/* ==== build 20/22: the network globe. The Dashboard shows it as a faint backdrop behind the header (decoration, aria-hidden, no
+   pointer events); the full-screen dialog carries the numbers, the caption and the tooltips. */
+.gl-bd{position:absolute;top:0;right:0;width:600px;height:600px;z-index:-1;pointer-events:none;overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom,#000 40%,transparent 95%),linear-gradient(to left,#000 25%,transparent 100%);-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(to bottom,#000 40%,transparent 95%),linear-gradient(to left,#000 25%,transparent 100%);mask-composite:intersect}
+.gl-bd[hidden]{display:none}
+.gl-bd canvas{position:absolute;inset:0;opacity:var(--gl-bd-o,.2)}
+:root[data-theme="dark"] .gl-bd canvas{--gl-bd-o:.26}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .gl-bd canvas{--gl-bd-o:.26}}
+/* while the backdrop shows, the header's outline chips and Customize sit on a solid card surface so the globe never lowers their contrast */
+#p-overview:has(>#gl-bd:not([hidden])) .hero .pill.outline,#p-overview:has(>#gl-bd:not([hidden])) #ov-cust.ghost{background:var(--card)}
+.ov-bdsw{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--foreground)}
 .gl-eyebrow{font-size:12px;font-weight:600;letter-spacing:.6px;text-transform:uppercase;color:var(--primary)}
 .gl-ns{display:flex;flex-direction:column;gap:14px}
 .gl-n{all:unset;display:flex;flex-direction:column;gap:2px;cursor:pointer;border-radius:8px;padding:2px 6px;margin:-2px -6px}
@@ -1426,15 +1429,12 @@ body.ov-dragging .ovb-h{cursor:grabbing}
 .gl-v{font-size:40px;line-height:44px;font-weight:600;letter-spacing:-.4px;color:var(--foreground)}
 .gl-l{font-size:13px;line-height:18px;color:var(--muted-foreground)}
 .gl-sub{font-size:13px;line-height:19px;color:var(--muted-foreground);max-width:36ch}
-.gl-acts{display:flex;gap:8px;flex-wrap:wrap}
-.gl-right{min-width:0;display:flex;flex-direction:column;gap:6px}
 .gl-box{position:relative;height:440px;min-height:300px}
 .gl-box canvas{display:block;position:absolute;inset:0}
 .gl-cap{font-size:11.5px;line-height:16px;color:var(--muted-foreground);text-align:right}
 .gl-tip{position:absolute;left:0;top:0;pointer-events:none;background:var(--popover,var(--card));color:var(--popover-foreground,var(--foreground));border:1px solid var(--border);border-radius:10px;padding:7px 10px;font-size:12px;line-height:16px;box-shadow:0 6px 20px rgba(0,0,0,.12);display:flex;flex-direction:column;gap:2px;max-width:240px;z-index:2}
 .gl-tip[hidden]{display:none}
 .gl-tip span{color:var(--muted-foreground)}
-@media (max-width:860px){.ovglobe{grid-template-columns:1fr}.ovglobe .gl-right{order:-1}.gl-box{height:340px}.gl-cap{text-align:left}.gl-ns{flex-direction:row;flex-wrap:wrap;gap:12px 24px}.gl-v{font-size:30px;line-height:34px}}
 
 /* build 21: full screen globe, logo takeover, new paying store toast */
 .gl-ov{position:fixed;inset:0;z-index:90;background:var(--background);display:flex;align-items:center;justify-content:center;padding:24px}
@@ -1519,7 +1519,7 @@ body.ov-dragging .ovb-h{cursor:grabbing}
   </div>
 
   <div id="p-overview" class="panel">
-    <section class="ovglobe" id="ov-globe" aria-label="The network" hidden></section>
+    <div class="gl-bd" id="gl-bd" aria-hidden="true" hidden><canvas id="gl-bd-cv"></canvas></div>
     <section class="ovb" data-b="hero"><section class="hero" id="ov-hero" aria-label="Today"></section></section>
     <section class="ovb" data-b="attention"><section class="card slim" id="ov-attn" aria-label="Needs attention"></section></section>
     <section class="ovb half" data-b="toppart"><section class="card slim tpc" id="ov-top" aria-label="Top partners"></section></section>
@@ -2085,7 +2085,7 @@ const GL_EARTH="P/q0/OP6tPyH+7T8Kvy0/M78tPxx/bT8Ff60/Ln+tPxc/7T8AAC0/KQAtPxHAbT8
 /* GL: shared state (the model, tab visibility, the live mounts). Each canvas is a mount (glMount) drawn by the one glDraw. */
 const GL={model:null,vis:true,mounts:new Set(),hero:null};
 const GL_INTRO=5.2;
-const GL_LS="partneros.globe.collapsed",GL_SS="partneros.globe.intro";
+const GL_SS="partneros.globe.intro";
 function glRng(seed){let a=seed>>>0;return()=>{a=(a+0x6D2B79F5)>>>0;let t=a;t=Math.imul(t^(t>>>15),t|1);t^=t+Math.imul(t^(t>>>7),t|61);return((t^(t>>>14))>>>0)/4294967296;};}
 function glHash(str,salt){let h=2166136261^(salt||0);str=String(str);for(let i=0;i<str.length;i++){h^=str.charCodeAt(i);h=Math.imul(h,16777619);}h^=h>>>13;h=Math.imul(h,1274126177);h^=h>>>16;return(h>>>0)/4294967296;}
 /* ---- geometry, as the film */
@@ -2168,7 +2168,7 @@ let GLmark=null;
 const glLonOf=p=>Math.atan2(p[0],p[2])/GL_D2R;
 function glDraw(m,t,idleT){
   const M0=GL.model,ctx=m.ctx;if(!M0||!ctx)return;
-  const W=m.w,H=m.h,mini=!!m.mini,R=Math.round(Math.min(W*(mini?.46:.46),H*(mini?.46:.44))*4)/4,cx=Math.round(W*(m.cxF||.52)*4)/4,cy=Math.round(H*.5*4)/4,sc=R/340,hsc=mini?.5:Math.min(Math.max(sc,.55),1.12),th=glTheme();
+  const W=m.w,H=m.h,mini=!!m.mini,faint=!!m.faint,G=m.geo?m.geo(W,H):null,R=G?G.R:Math.round(Math.min(W*.46,H*(mini?.46:.44))*4)/4,cx=G?G.cx:Math.round(W*(m.cxF||.52)*4)/4,cy=G?G.cy:Math.round(H*.5*4)/4,sc=R/340,hsc=mini?.5:Math.min(Math.max(sc,.55),1.12),th=glTheme();
   const lon=m.lon!=null?m.lon:glLonAt(idleT),lq=Math.round(lon/m.q)*m.q,M=glViewL(lq),VK=lq.toFixed(2)+"|"+R+"|"+cx+"|"+cy+"|"+(th.dark?1:0);
   ctx.setTransform(m.dpr,0,0,m.dpr,0,0);ctx.clearRect(0,0,W,H);ctx.lineCap="round";ctx.lineJoin="round";
   const proj=p=>{const q=glXf(M,p);return[cx+R*q[0],cy-R*q[1],q[2]>0||q[0]*q[0]+q[1]*q[1]>1];};
@@ -2177,7 +2177,8 @@ function glDraw(m,t,idleT){
   ctx.fillStyle=gl;ctx.beginPath();ctx.arc(cx,cy,R*1.3,0,GL_TAU);ctx.fill();
   ctx.lineWidth=mini?1:1.5;ctx.strokeStyle=th.rim;ctx.beginPath();ctx.arc(cx,cy,R,0,GL_TAU);ctx.stroke();
   /* land dots and settled arcs: one cached layer per view and mount (the mini globe keeps land only) */
-  const settledN=mini?0:M0.order.filter(h=>t>=h.land+.4).length,dkey=VK+"|"+settledN,cache=m.cache;
+  /* faint (the backdrop): the cache holds the land only, drawn once per size and theme; arcs are drawn live during the intro */
+  const settledN=mini||faint?0:M0.order.filter(h=>t>=h.land+.4).length,dkey=VK+"|"+settledN,cache=m.cache;
   if(cache.key!==dkey){
     let c=cache.c;if(!c){c=cache.c=document.createElement("canvas");}
     c.width=Math.ceil(W*m.dpr);c.height=Math.ceil(H*m.dpr);const g=c.getContext("2d");g.setTransform(m.dpr,0,0,m.dpr,0,0);g.clearRect(0,0,W,H);
@@ -2188,7 +2189,7 @@ function glDraw(m,t,idleT){
       const bk=Math.min(NB-1,Math.floor(z*NB));paths[bk].moveTo(sx+rf,sy);paths[bk].arc(sx,sy,rf,0,GL_TAU);}
     g.globalAlpha=th.back;g.fillStyle=`rgb(${th.faint})`;g.fill(back);g.fillStyle=`rgb(${th.land})`;
     for(let b=0;b<NB;b++){g.globalAlpha=.35+.55*(b+.5)/NB;g.fill(paths[b]);}
-    if(!mini){const sf=new Path2D(),sb=new Path2D();
+    if(!mini&&!faint){const sf=new Path2D(),sb=new Path2D();
       M0.order.forEach(h=>{if(t<h.land+.4)return;glStroke(h.arc.pts.map(proj),1,sf,sb);});
       g.lineWidth=1.4*Math.max(.85,hsc);g.globalAlpha=th.dark?.55:.6;g.strokeStyle=`rgb(${th.ink})`;g.stroke(sf);
       g.lineWidth=1;g.globalAlpha=th.dark?.3:.45;g.strokeStyle=`rgb(${th.faint})`;g.stroke(sb);}
@@ -2196,14 +2197,16 @@ function glDraw(m,t,idleT){
   ctx.globalAlpha=1;ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(cache.c,0,0);ctx.setTransform(m.dpr,0,0,m.dpr,0,0);
   /* arcs in flight: a bright line drawing on from the parent, with a head */
   const heads=[];
-  if(!mini)M0.order.forEach(h=>{if(t<h.fire||t>=h.land+.4)return;const u=glEio(glSeg(t,h.fire,h.land)),s=glEo(glSeg(t,h.land,h.land+.4)),pts=h.arc.pts.map(proj),pf=new Path2D(),pb=new Path2D(),hd=glStroke(pts,u,pf,pb);
+  if(faint){const sf=new Path2D(),sb=new Path2D();M0.order.forEach(h=>{if(t<h.fire)return;glStroke(h.arc.pts.map(proj),glEio(glSeg(t,h.fire,h.land)),sf,sb);});
+    ctx.lineWidth=.8;ctx.globalAlpha=.7;ctx.strokeStyle=`rgb(${th.ink})`;ctx.stroke(sf);ctx.globalAlpha=.35;ctx.strokeStyle=`rgb(${th.faint})`;ctx.stroke(sb);}
+  if(!mini&&!faint)M0.order.forEach(h=>{if(t<h.fire||t>=h.land+.4)return;const u=glEio(glSeg(t,h.fire,h.land)),s=glEo(glSeg(t,h.land,h.land+.4)),pts=h.arc.pts.map(proj),pf=new Path2D(),pb=new Path2D(),hd=glStroke(pts,u,pf,pb);
     ctx.lineWidth=2.2;ctx.globalAlpha=.9*(1-s);ctx.strokeStyle=`rgb(${th.ink})`;ctx.stroke(pf);ctx.lineWidth=1;ctx.globalAlpha=.45;ctx.strokeStyle=`rgb(${th.faint})`;ctx.stroke(pb);
     if(s>0){const sf=new Path2D(),sb=new Path2D();glStroke(pts,1,sf,sb);ctx.lineWidth=1.4;ctx.globalAlpha=.6*s;ctx.strokeStyle=`rgb(${th.ink})`;ctx.stroke(sf);}
     if(u<1)heads.push(hd);});
   /* hubs (the mini globe draws them before its stores, small) */
   const hubs=()=>{m.hubXY=[];
-    M0.order.forEach((h,k)=>{if(t<h.land&&!mini)return;const q=proj(h.p);if(!q[2])return;const pop=mini?1:glEob(glSeg(t,h.land,h.land+.3),1.7),r=mini?Math.max(.9,8*Math.sqrt(h.share)):Math.max(0,(2.2*sc+34*Math.sqrt(h.share)*hsc)*pop);
-      if(h.share>0&&!mini){ctx.globalAlpha=th.ga;ctx.fillStyle=th.glow+"1)";ctx.beginPath();ctx.arc(q[0],q[1],r*2.1+3,0,GL_TAU);ctx.fill();}
+    M0.order.forEach((h,k)=>{if(t<h.land&&!mini)return;const q=proj(h.p);if(!q[2])return;const pop=mini?1:glEob(glSeg(t,h.land,h.land+.3),1.7),r=mini?Math.max(.9,8*Math.sqrt(h.share)):faint?Math.max(1.3,1.6+9*Math.sqrt(h.share))*pop:Math.max(0,(2.2*sc+34*Math.sqrt(h.share)*hsc)*pop);
+      if(h.share>0&&!mini&&!faint){ctx.globalAlpha=th.ga;ctx.fillStyle=th.glow+"1)";ctx.beginPath();ctx.arc(q[0],q[1],r*2.1+3,0,GL_TAU);ctx.fill();}
       ctx.globalAlpha=mini&&!(m.hiHub&&m.hiHub.has(h))?.55:1;ctx.fillStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(q[0],q[1],Math.max(mini?.9:1.6,r),0,GL_TAU);ctx.fill();
       if(m.hover===k){ctx.globalAlpha=1;ctx.lineWidth=2;ctx.strokeStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(q[0],q[1],Math.max(1.6,r)+5,0,GL_TAU);ctx.stroke();}
       m.hubXY.push([q[0],q[1],Math.max(6,r+4),k]);});};
@@ -2215,15 +2218,15 @@ function glDraw(m,t,idleT){
     const f=mini?1:glEo(glSeg(t,st.born,st.born+.25));if(f<=0)return;if(!st.pay&&st.rank>budget&&!isHi)return;
     const q=proj(st.p);if(!q[2])return;const hq=proj(st.hub.p),x=hq[0]+(q[0]-hq[0])*f,y=hq[1]+(q[1]-hq[1])*f;
     const lit=isHi?glEo(glSeg(t,m.hiT0,m.hiT0+1)):st.pay?(mini?1:pay):0,ds=mini?(isHi?1.6:1):1;
-    if(lit>0){ctx.globalAlpha=(th.dark?.3:.55)*lit;ctx.fillStyle=th.glow+"1)";ctx.beginPath();ctx.arc(x,y,(isHi&&mini?7:6*hsc),0,GL_TAU);ctx.fill();}
+    if(lit>0&&!faint){ctx.globalAlpha=(th.dark?.3:.55)*lit;ctx.fillStyle=th.glow+"1)";ctx.beginPath();ctx.arc(x,y,(isHi&&mini?7:6*hsc),0,GL_TAU);ctx.fill();}
     ctx.globalAlpha=1;ctx.fillStyle=lit>.5?`rgb(${th.ink})`:th.store;ctx.beginPath();ctx.arc(x,y,(1.9+.7*lit)*hsc*ds,0,GL_TAU);ctx.fill();
     if(isHi&&t>m.hiT0&&t<m.hiT0+1.2){const ph=glSeg(t,m.hiT0,m.hiT0+1.2);ctx.lineWidth=1.5;ctx.strokeStyle=`rgba(${th.ink},${.7*(1-ph)})`;ctx.beginPath();ctx.arc(x,y,3+14*glEo(ph),0,GL_TAU);ctx.stroke();}});
   if(!mini)hubs();
   heads.forEach(hd=>{ctx.globalAlpha=.7;ctx.fillStyle=`rgb(${th.faint})`;ctx.beginPath();ctx.arc(hd[0],hd[1],7,0,GL_TAU);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(hd[0],hd[1],3.2,0,GL_TAU);ctx.fill();});
   /* the heart at New York: disc, glow, the Chargeflow mark */
-  const hq=proj(GL_NY);if(hq[2]){const HR=mini?6:Math.max(14,30*sc),gr=HR*2.1,x=hq[0],y=hq[1];
+  const hq=proj(GL_NY);if(hq[2]){const HR=mini?6:faint?Math.max(8,16*sc):Math.max(14,30*sc),gr=HR*2.1,x=hq[0],y=hq[1];
     const g2=ctx.createRadialGradient(x,y,HR*.8,x,y,gr);g2.addColorStop(0,`rgba(${th.ink},0.22)`);g2.addColorStop(1,`rgba(${th.ink},0)`);ctx.globalAlpha=1;ctx.fillStyle=g2;ctx.beginPath();ctx.arc(x,y,gr,0,GL_TAU);ctx.fill();
-    if(t<1.2&&!mini){const ph=glSeg(t,0,1.2);ctx.lineWidth=2;ctx.strokeStyle=`rgba(${th.ink},${.5*(1-ph)})`;ctx.beginPath();ctx.arc(x,y,HR+6+50*glEo(ph),0,GL_TAU);ctx.stroke();}
+    if(t<1.2&&!mini&&!faint){const ph=glSeg(t,0,1.2);ctx.lineWidth=2;ctx.strokeStyle=`rgba(${th.ink},${.5*(1-ph)})`;ctx.beginPath();ctx.arc(x,y,HR+6+50*glEo(ph),0,GL_TAU);ctx.stroke();}
     ctx.fillStyle=th.heart;ctx.beginPath();ctx.arc(x,y,HR,0,GL_TAU);ctx.fill();if(!GLmark)GLmark=new Path2D(GL_MARK);
     const MS=.55*2*HR/42.59;ctx.save();ctx.translate(x,y);ctx.scale(MS,MS);ctx.translate(-42.59/2,-34.224/2);ctx.fillStyle=th.mark;ctx.fill(GLmark,"evenodd");ctx.restore();}
   ctx.globalAlpha=1;
@@ -2251,9 +2254,11 @@ function glFrame(m,now){
   m.raf=0;if(!m.on||!GL.vis||!m.seen)return;
   /* the hero holds still while the guided tour is open, and resumes after it */
   if(m===GL.hero&&typeof TOUR!=="undefined"&&TOUR.open){m.pt=setTimeout(()=>{m.pt=0;glKick(m);},400);return;}
+  if(m.fps&&m.lastF&&now-m.lastF<1000/m.fps-2){m.raf=requestAnimationFrame(n=>glFrame(m,n));return;}m.lastF=now;
   const t=glT(m,now),a=performance.now();glDraw(m,Math.min(t,m.tFinal),(now-m.t0)/1000);const dt=performance.now()-a;m.frames++;GL.frames=(GL.frames||0)+1;
   m.ft.push(dt);if(m.ft.length>60)m.ft.shift();
   /* slow frames: thin the unlit store dots, redraw the land layer in coarser steps, then drop to 1x pixels */
+  if(m.stillOnSlow&&m.ft.length>=10&&m.ft.slice(-10).reduce((x,y)=>x+y,0)/10>14){glDraw(m,m.tFinal,0);m.slowStill=true;return;}
   if(m.ft.length===60){const avg=m.ft.reduce((x,y)=>x+y,0)/60;if(avg>14){m.ft.length=0;if(m.budget>.25||m.q<.4){m.budget=Math.max(.25,m.budget*.7);m.q=Math.min(.4,m.q*2);}else if(m.dprCap>1){m.dprCap=1;glSize(m);}}}
   if(!m.rock&&t>m.tFinal)return; /* a mount that does not rotate stops once its animation is over */
   m.raf=requestAnimationFrame(n=>glFrame(m,n));
@@ -2279,28 +2284,38 @@ const glCap=M0=>`Hub positions are illustrative: partner countries are not recor
 function glNums(M0){const num=(v,l,to,tip)=>`<button type="button" class="gl-n" data-go="${to}" title="${esc(tip)}"><span class="gl-v num">${M0?fmtN(v):"-"}</span><span class="gl-l">${esc(l)}</span></button>`;
   return`<div class="gl-ns">${num(M0&&M0.partners,"Partners","partners","Registry partners (Partners). Opens Partners.")}${num(M0&&M0.referred,"Referred stores","leads","Every partner-referred store in the snapshot, the Leads referred tile. Opens Leads.")}${num(M0&&M0.paying,"Referred stores that have paid","dashboard","Stores with lifetime revenue above zero, the Paying stores tile (all time). Opens Revenue.")}</div>`;}
 const glSub=M0=>{const asof=M0&&M0.asof?dShort(M0.asof):"";return`${M0?`Top ten partners bring ${Math.round(M0.top10*100)}% of lifetime revenue.`:""}${asof?` Data as of ${esc(asof)}.`:""}`;};
-/* ---- 1. the hero block. The intro plays once per browser session: the flag is set when the intro starts, so a reload mid-intro
-   does not replay it. Replay replays now and never touches the flag. */
-function renderGlobe(){
-  const el=$("ov-globe");if(!el)return;
-  glUnmount(GL.hero);GL.hero=null;
-  if(VP.p==="finance"){el.hidden=true;el.innerHTML="";return;}
-  const M0=glModel();el.hidden=false;
-  let col=false;try{col=localStorage.getItem(GL_LS)==="1";}catch(e){}
-  el.classList.toggle("col",col);
-  el.innerHTML=`<div class="gl-left"><div class="gl-eyebrow">The network</div>${glNums(M0)}
-      <div class="gl-sub">${glSub(M0)}</div>
-      <div class="gl-acts"><button type="button" class="btn sm" id="gl-replay"${col||glRM()?" hidden":""}>Replay</button><button type="button" class="btn sm" id="gl-col" aria-expanded="${!col}">${col?"Show the globe":"Hide the globe"}</button></div></div>
-    <div class="gl-right"${col?" hidden":""}><div class="gl-box" id="gl-box"><canvas id="gl-cv" role="img" aria-label="${esc(glAlt(M0))}"></canvas><div class="gl-tip" id="gl-tip" role="tooltip" hidden></div></div>
-      <div class="gl-cap">${glCap(M0)}</div></div>`;
-  el.querySelectorAll(".gl-n").forEach(b=>b.onclick=()=>setSection(b.dataset.go,true));
-  $("gl-col").onclick=()=>{try{localStorage.setItem(GL_LS,col?"0":"1");}catch(e){}renderGlobe();};
-  if(col||!M0)return;
-  let done=false;try{done=sessionStorage.getItem(GL_SS)==="done";}catch(e){}
-  if(!GL.heroT0){GL.heroT0=performance.now()-(done?(GL_INTRO+1)*1000:0);if(!done){try{sessionStorage.setItem(GL_SS,"done");}catch(e){}}}
-  GL.hero=glMount($("gl-cv"),$("gl-box"),{t0:GL.heroT0,observe:true});glTips(GL.hero,$("gl-tip"));
-  $("gl-replay").onclick=()=>{const m=GL.hero;if(!m)return;GL.heroT0=m.t0=performance.now();m.budget=1;m.q=.05;m.ft.length=0;m.cache.key=null;glKick(m);};
+/* ---- 1. the Dashboard backdrop (build 22). The globe sits behind the header, faint, anchored top right and cropped by the page edge
+   (about two thirds of the sphere shows), masked out towards the bottom and the left. Decoration only: aria-hidden, no pointer events.
+   Intro once per browser session (about 3 s, arcs drawing out; the flag is set when it starts), then a still frame: no drift, so the
+   loop ends after the intro. Land is drawn once per size and theme. Off per browser from Customize ("Network backdrop"). Dashboard
+   only, never in the Finance view; the still under reduced motion. */
+const GL_BD="partneros.globe.backdrop";
+const glBdOn=()=>{try{return localStorage.getItem(GL_BD)!=="off";}catch(e){return true;}};
+function glBdPlace(m){
+  const box=$("gl-bd"),mi=document.querySelector(".main-in");if(!box||!mi)return;
+  const r=mi.getBoundingClientRect(),vw=document.documentElement.clientWidth,D=Math.min(880,Math.max(700,Math.round(vw*.6))),S=Math.round(D*.8);
+  box.style.top=-Math.round(r.top+window.scrollY)+"px";box.style.right=-Math.max(0,Math.round(vw-r.right))+"px";box.style.width=S+"px";box.style.height=S+"px";
+  if(m)m.D=D;
 }
+function renderGlobe(){
+  const el=$("gl-bd");if(!el)return;
+  glUnmount(GL.hero);GL.hero=null;
+  /* below 860 px the sphere would sit behind the greeting and the date line, so it is not drawn there */
+  GL.bdFit=document.documentElement.clientWidth>=860;
+  if(VP.p==="finance"||!glBdOn()||!GL.bdFit){el.hidden=true;return;}
+  const M0=glModel();if(!M0){el.hidden=true;return;}
+  el.hidden=false;glBdPlace();
+  let done=false;try{done=sessionStorage.getItem(GL_SS)==="done";}catch(e){}
+  if(!GL.heroT0){GL.heroT0=performance.now()-(done?60000:0);if(!done){try{sessionStorage.setItem(GL_SS,"done");}catch(e){}}}
+  let m=null;m=glMount($("gl-bd-cv"),el,{t0:GL.heroT0,observe:true,faint:true,rock:false,lon:-24,speed:GL_INTRO/3,fps:30,stillOnSlow:true,min:120,
+    geo:(W,H)=>{const D=m&&m.D||Math.round(W/.8);/* the New York heart lands in the header band, right of the greeting; the sphere follows and bleeds off the right edge */
+      const q=glXf(glViewL(-24),GL_NY),R=D/2,hx=W-D*.5,hy=Math.min(150,D*.17);return{R,cx:hx-R*q[0],cy:hy+R*q[1]};}});
+  GL.hero=m;glBdPlace(m);m.cache.key=null;glSize(m);
+}
+window.addEventListener("resize",()=>{const fit=document.documentElement.clientWidth>=860;if(fit!==GL.bdFit){renderGlobe();return;}if(GL.hero){glBdPlace(GL.hero);glSize(GL.hero);}},{passive:true});
+/* a theme change redraws every mount (the land layer is cached per theme) */
+function glRetheme(){GL.mounts.forEach(m=>{m.cache.key=null;if(m.still||!m.raf){const now=performance.now();glDraw(m,m.still||m.slowStill?m.tFinal:Math.min(glT(m,now),m.tFinal),m.still?0:(now-m.t0)/1000);}});}
+try{new MutationObserver(glRetheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});const mq=matchMedia("(prefers-color-scheme: dark)");if(mq.addEventListener)mq.addEventListener("change",glRetheme);}catch(e){}
 /* ---- 2. full screen (palette command "Show the network globe", or #globe). A modal dialog: the intro plays (a still under reduced
    motion), hub tooltips work, Escape or Close exits and focus returns to where it was. */
 const GLF={el:null,m:null,inv:null,sy:0};
@@ -8022,7 +8037,8 @@ function ovLive(msg){const r=$("ovb-live");if(!r)return;r.textContent="";setTime
 function ovCustHTML(){
   if(!OVS.edit)return`<button type="button" class="btn ghost" id="ov-cust" aria-pressed="false">${svg("pencil")}Customize</button>`;
   const note=ovCanSave()?"":`<div class="ov-cnote" id="ov-cnote">${ST.uid?"Layout is not saved: this page is read-only for you":"Layout is not saved without a signed-in viewer"}</div>`;
-  return`<button type="button" class="btn" id="ov-reset">Reset layout</button><button type="button" class="btn primary" id="ov-cust" aria-pressed="true">Done</button>${note}`;
+  const bd=VP.p!=="finance"?`<span class="ov-bdsw"><button type="button" class="switch" role="switch" id="ov-bd" aria-checked="${glBdOn()}" aria-labelledby="ov-bd-l"></button><span id="ov-bd-l">Network backdrop</span></span>`:"";
+  return`${bd}<button type="button" class="btn" id="ov-reset">Reset layout</button><button type="button" class="btn primary" id="ov-cust" aria-pressed="true">Done</button>${note}`;
 }
 function ovHeroEyes(){
   if(!OVS.edit)return"";
@@ -8031,6 +8047,7 @@ function ovHeroEyes(){
 function ovHeroBind(){
   const c=$("ov-cust");if(c)c.onclick=()=>ovEdit(!OVS.edit);
   const r=$("ov-reset");if(r)r.onclick=ovReset;
+  const bd=$("ov-bd");if(bd)bd.onclick=()=>{const on=!glBdOn();try{if(on)localStorage.removeItem(GL_BD);else localStorage.setItem(GL_BD,"off");}catch(e){}bd.setAttribute("aria-checked",String(on));renderGlobe();ovLive(on?"Network backdrop on":"Network backdrop off");};
   document.querySelectorAll("#ov-hero .heye").forEach(b=>b.onclick=()=>{const L=ovLayout(),k=b.dataset.hs,i=L.hero.hide.indexOf(k);
     if(i<0)L.hero.hide.push(k);else L.hero.hide.splice(i,1);ovCommit(L);ovApply();ovLive(`${HERO_L[k]} ${i<0?"hidden":"shown"}`);});
   ovApply();
