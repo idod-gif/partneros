@@ -7764,9 +7764,9 @@ document.addEventListener("click",e=>{const b=e.target&&e.target.closest&&e.targ
    Tab stays in the popover. The section help texts these bodies summarise are SECTION_HELP above. */
 Object.assign(IC,{tour:'<path d="M2.5 4.3 6 2.8l4 1.6 3.5-1.5v9.3L10 13.7l-4-1.6-3.5 1.5z"/><path d="M6 2.8v9.3M10 4.4v9.3"/>'});
 const TOUR_LS="partneros.tour";
-const TOUR={open:false,offer:"",i:0,plan:[],els:null,start:null,launcher:null,el:null,raf:0,seq:0,gt:0,marked:false,from:null,anims:null};
+const TOUR={open:false,offer:"",i:0,plan:[],els:null,start:null,launcher:null,el:null,raf:0,seq:0,gt:0,marked:{},from:null,anims:null,tour:null};
 const tourNavA=k=>document.querySelector(`#nav a[data-s="${k}"]`);
-const tourCtx=()=>({edit:!!ST.canEdit,narrow:!deskW(),ask:!!FLO.avail,prof:canProf(),mod:MODK+" K",engine:!!$("o-engine-link")});
+const tourCtx=()=>({edit:!!ST.canEdit,narrow:!deskW(),ask:!!FLO.avail,prof:canProf(),mod:MODK+" K",engine:!!$("o-engine-link"),led:!!flIndex()});
 /* KPI step: the filter chips and the first row of cards (the whole block is taller than most screens) */
 function tourKpis(){
   const b=document.querySelector('#p-overview [data-b="kpis"]');if(!b)return null;
@@ -7800,6 +7800,57 @@ const TOUR_STEPS=[
     body:c=>c.narrow?"Take the tour, in the menu at the top, starts this tour again. Search finds it too.":
       (c.prof?"Change your picture and role, switch between light and dark, and see the keyboard shortcuts.":"Switch between light and dark and see the keyboard shortcuts; your picture and role need edit access.")+" Take the tour, just above, starts this tour again."}
 ];
+/* ==== build 20 (2026-11-16): the finance tour. Tours are keyed by view: on the Finance view (VP.p "finance": a mapped viewer,
+   ?view=finance or the admin preview) every entry point (first-run welcome, Take the tour in the sidebar, the user menu and the
+   palette) runs FIN_TOUR_STEPS; everyone else keeps TOUR_STEPS unchanged. The offer waits until the view profile is resolved
+   (html.vp-wait gone), so a Finance viewer is never offered the general tour first. Seen flags are per tour: localStorage
+   partneros.tour.finance and, when the profile is writable, tour_finance_seen_at; the Finance view sets ST.canMine false, so there
+   it is the local flag only. lazy: a target drawn only when its section opens (the Revenue explorer), so the step stays in the plan
+   and is checked on arrival like any other (skipped if still missing). The copy describes only what the Finance view has; it carries no figures, rates or names. */
+/* the explorer step spotlights the controls and the totals under them, so its popover sits below the totals, never over them;
+   where that is most of the screen (tablets), the controls and the headline figure with its basis lines; on phones, the controls */
+function tourFinRv(){
+  if(!flIndex())return $("rv-finl");
+  const a=[$("rv-bar"),$("rv-hero")];if(!a[0]||!a[1])return null;const r=tourRect(a);
+  if(r&&r.height<=window.innerHeight*.62)return a;
+  const b=[a[0],a[1].querySelector(".rv-hl")],q=tourRect(b);return q&&q.height<=window.innerHeight*.62?b:a[0]; /* phones: the controls alone */
+}
+/* the quarter card when it fits in most of the screen, else its head and the first row of tiles (phones) */
+function tourFinSum(){
+  const c=document.querySelector('#p-finance section[aria-label="Quarter summary"]');if(!c)return null;
+  if(c.getBoundingClientRect().height<=window.innerHeight*.62)return c;
+  const t=[...$("fin-tiles").children],top=t.length?t[0].offsetTop:0;return[c.querySelector(".card-head")].concat(t.filter(x=>x.offsetTop===top));
+}
+const FIN_TOUR_STEPS=[
+  {id:"fin-summary",sec:"finance",target:tourFinSum,title:"Quarter summary",
+    body:"You land on the latest paid quarter; pick another in the quarter menu on this card. Each tile says what it counts and names its source, and for an open quarter, payout due is an estimate."},
+  {id:"fin-sources",sec:"finance",target:()=>$("fin-note"),title:"Sources and dates",
+    body:c=>c.led?"This note gives the snapshot, Stripe and Shopify dates, and the Finance ledger version and date behind the revenue figures. Payout due and paid come from the payout record; Data as of, at the top of the page, is the snapshot date.":
+      "This note gives the snapshot, Stripe and Shopify dates; without the Finance ledger, quarter revenue is the Stripe rail only. Data as of, at the top of the page, is the snapshot date."},
+  {id:"fin-explorer",sec:"dashboard",lazy:1,target:tourFinRv,title:"Revenue explorer",
+    body:c=>c.led?"Revenue reads the Finance ledger, Stripe and Shopify together; the line under these controls names its version and date. Net counts Alerts at gross margin and other products at face value, Total counts every product in full, and Shopify's cut is deducted unless you pick Included.":
+      "Revenue shows the Finance ledger series as a chart and a table, Stripe and Shopify together. When the series is not loaded, this page says so instead of showing figures."},
+  {id:"fin-chart",sec:"dashboard",lazy:1,when:c=>c.led,target:()=>$("rv-box"),title:"Drill into the chart",
+    body:"Click a bar to narrow the totals and the Breakdown table to that period; in Stacked bars, a segment narrows to its product or partner too. Each filter shows as a chip above the totals, and Reset to default clears them."},
+  {id:"fin-payouts",sec:"payouts",target:()=>$("pay-body").querySelector("table")||$("pay-body"),title:"Payout quarters",
+    body:"One row per payout quarter, newest first, with its status from open or estimate to paid. Open a quarter to read its basis, totals, the cross-check against the partner registry, due dates and sources; this view is read-only."},
+  {id:"fin-partners",sec:"partners",target:()=>[$("p-view"),document.querySelector("#pv-registry .card-head")],title:"Partners and agreements",
+    body:"Registry lists every partner with its agreement status and stores; Agreements lists each agreement with its terms. Click a partner to read its details, including its payouts by quarter."},
+  {id:"fin-ask",sec:"finance",when:c=>c.ask,target:()=>$("flo-fab"),title:"Ask Ido",
+    body:"Ask about partners, revenue and leads in plain words; its revenue answers come from the PartnerOS revenue snapshot, not the Finance ledger. It does not answer payout, commission or amount-owed questions."},
+  {id:"fin-menu",sec:"finance",soft:1,alt:1,target:()=>[$("tour-nav"),$("ucard")],title:c=>c.narrow?"Take it again":"Your menu",
+    body:c=>c.narrow?"Take the tour, in the menu at the top, starts this tour again. Search finds it too.":
+      "Take the tour, just above, starts this tour again; Search finds it too. Your menu switches between light and dark and lists the keyboard shortcuts."}
+];
+const FIN_TOUR_WHAT="This is the Finance view: a short tour of the quarter summary, the Revenue explorer, Payouts and Partners, about a minute.";
+const TOURS={
+  general:{id:"general",steps:TOUR_STEPS,ls:TOUR_LS,pAt:"tour_seen_at",pOut:"tour_outcome",returning:true,
+    what:c=>`A short tour of the sections, search, ${c.ask?"Ask Ido ":""}and your menu, about two minutes.`,again:" You can take it again any time from Take the tour."},
+  finance:{id:"finance",steps:FIN_TOUR_STEPS,ls:TOUR_LS+".finance",pAt:"tour_finance_seen_at",pOut:"tour_finance_outcome",returning:false,
+    what:()=>FIN_TOUR_WHAT,again:""}
+};
+/* the tour for the current view; a tour already on screen keeps its own (TOUR.tour) */
+const tourCur=()=>VP.p==="finance"?TOURS.finance:TOURS.general;
 const tourTxt=(v,c)=>typeof v==="function"?v(c):v;
 /* visible apart from the section panel it sits in (panels open when the step arrives): no hidden or display:none ancestor */
 function tourVis(el){
@@ -7812,7 +7863,7 @@ const tourShown=el=>tourVis(el)&&shown(el)&&!el.closest(".panel[hidden]")&&el.ge
 function tourEls(s,ok){let t=null;try{t=s.target();}catch(e){t=null;}const a=(Array.isArray(t)?t:[t]).filter(e=>e&&ok(e));
   /* alt: on narrow screens the rail items, search and the user card sit inside the menu, so the menu button stands in for them */
   return a.length||!s.alt||deskW()?a:[$("menu-btn")].filter(e=>e&&ok(e));}
-function tourPlan(){const c=tourCtx();return TOUR_STEPS.filter(s=>(!s.when||s.when(c))&&(s.soft||tourEls(s,tourVis).length));}
+function tourPlan(T){const c=tourCtx();return(T||TOUR.tour||tourCur()).steps.filter(s=>(!s.when||s.when(c))&&(s.soft||s.lazy||tourEls(s,tourVis).length));}
 function tourRect(els){
   let l=1e9,t=1e9,r=-1e9,b=-1e9;
   els.forEach(e=>{const q=e.getBoundingClientRect();if(!q.width&&!q.height)return;l=Math.min(l,q.left);t=Math.min(t,q.top);r=Math.max(r,q.right);b=Math.max(b,q.bottom);});
@@ -7854,7 +7905,7 @@ function tourStart(o){
   o=o||{};if(TOUR.open||TOUR.offer)return false;
   const launcher=o.from||document.activeElement;
   if(!tourClean())return false;
-  if(!tourPlan().length)return false;
+  if(!tourPlan(tourCur()).length)return false;
   tourOffer("restart",launcher);
   return true;
 }
@@ -7862,7 +7913,7 @@ function tourStart(o){
 function tourBegin(){
   if(TOUR.open||!TOUR.offer)return;
   if(!tourClean()){tourOfferDismiss();return;}
-  const plan=tourPlan();if(!plan.length){tourOfferDismiss();return;}
+  const plan=tourPlan(TOUR.tour);if(!plan.length){tourOfferDismiss();return;}
   const r=$("tour-pop").getBoundingClientRect();
   TOUR.from=RM()?null:{left:r.left,top:r.top,width:r.width,height:r.height};
   TOUR.offer="";TOUR.start={sec:ST.sec,x:window.scrollX,y:window.scrollY};TOUR.plan=plan;TOUR.open=true;
@@ -7962,24 +8013,25 @@ function tourEnd(outcome){
   try{const f=[L,$("tour-nav"),$("menu-btn")].find(shown);if(f)f.focus();}catch(e){}
 }
 /* seen: the local flag, or a profile that has the tour stamp, a role or a photo (a returning user) */
-function tourSeen(){
-  if(lsGet(TOUR_LS))return true;
-  const p=ST.prof;return!!(p&&(p.tour_seen_at||(typeof p.role==="string"&&p.role.trim())||(typeof p.avatar_url==="string"&&p.avatar_url)));
+function tourSeen(T){
+  T=T||tourCur();if(lsGet(T.ls))return true;
+  const p=ST.prof;return!!(p&&(p[T.pAt]||(T.returning&&((typeof p.role==="string"&&p.role.trim())||(typeof p.avatar_url==="string"&&p.avatar_url)))));
 }
-async function tourMark(outcome){
-  const now=new Date().toISOString();
-  if(!lsGet(TOUR_LS))lsSet(TOUR_LS,JSON.stringify({seen_at:now,outcome}));
-  if(TOUR.marked||(ST.prof&&ST.prof.tour_seen_at))return;TOUR.marked=true;
-  /* ST.prof is undefined until the profile was read: never write over a profile the page could not read */
-  if(canProf()&&ST.prof!==undefined){try{await profPatch({tour_seen_at:now,tour_outcome:outcome});}catch(e){avDbg(e);}}
+async function tourMark(outcome,T){
+  T=T||TOUR.tour||tourCur();const now=new Date().toISOString();
+  if(!lsGet(T.ls))lsSet(T.ls,JSON.stringify({seen_at:now,outcome}));
+  if(TOUR.marked[T.id]||(ST.prof&&ST.prof[T.pAt]))return;TOUR.marked[T.id]=true;
+  /* ST.prof is undefined until the profile was read: never write over a profile the page could not read. The Finance view sets
+     ST.canMine false, so there canProf() is false and the local flag above is the only record. */
+  if(canProf()&&ST.prof!==undefined){try{await profPatch({[T.pAt]:now,[T.pOut]:outcome});}catch(e){avDbg(e);}}
 }
 /* the centred start card: kind "first" (the first-run welcome) or "restart" (Take the tour); a modal dialog over the dimmed page */
 function tourOffer(kind,launcher){
   if(TOUR.open||TOUR.offer)return;
-  TOUR.offer=kind;TOUR.launcher=launcher||null;tourMount(true);const c=tourCtx(),p=$("tour-pop"),first=kind==="first";
-  p.dataset.step=first?"offer":"offer-restart";
-  const what=`A short tour of the sections, search, ${c.ask?"Ask Ido ":""}and your menu, about two minutes.`;
-  p.innerHTML=`${c.ask?`<div class="tour-h">${avHTML(36)}</div>`:""}<h2 id="tour-t">${first?"Welcome to PartnerOS":"Take the tour"}</h2><p id="tour-b">${first?what+" You can take it again any time from Take the tour.":what}</p>
+  TOUR.offer=kind;TOUR.tour=tourCur();TOUR.launcher=launcher||null;tourMount(true);const c=tourCtx(),p=$("tour-pop"),first=kind==="first",T=TOUR.tour;
+  p.dataset.step=first?"offer":"offer-restart";p.dataset.tour=T.id;
+  const what=T.what(c);
+  p.innerHTML=`${c.ask?`<div class="tour-h">${avHTML(36)}</div>`:""}<h2 id="tour-t">${first?"Welcome to PartnerOS":"Take the tour"}</h2><p id="tour-b">${first?what+T.again:what}</p>
     <div class="tour-f"><button type="button" class="btn primary" data-tour="start">Start the tour</button><button type="button" class="btn" data-tour="${first?"later":"close"}">${first?"Not now":"Close"}</button></div>`;
   tourOfferPlace();
   if(c.ask){avEv("open");avKick();}
@@ -7994,8 +8046,8 @@ function tourOfferPlace(){
 function tourOfferClose(){if(!TOUR.offer)return;TOUR.offer="";if(TOUR.el){TOUR.el.hidden=true;$("tour-pop").innerHTML="";}}
 /* Not now (welcome) records the seen flag; Close (restart card) does not. Focus goes back to whatever launched the card. */
 function tourOfferDismiss(){
-  const k=TOUR.offer,L=TOUR.launcher;if(!k)return;tourOfferClose();TOUR.launcher=null;
-  if(k==="first")tourMark("not_now");
+  const k=TOUR.offer,L=TOUR.launcher,T=TOUR.tour;if(!k)return;tourOfferClose();TOUR.launcher=null;
+  if(k==="first")tourMark("not_now",T);
   try{if(shown(L))L.focus();}catch(e){}
 }
 function tourKeyCap(e){
@@ -8009,7 +8061,10 @@ function tourKeyCap(e){
   e.stopImmediatePropagation();
 }
 function tourNav(){
-  const g=$("nav-bot");if(!g||$("tour-nav"))return;
+  const g=$("nav-bot");if(!g)return;
+  /* buildNav rewrites #nav-bot (a view profile resolving after boot does): put the item back whenever it goes */
+  if(!g.__tourObs&&window.MutationObserver){g.__tourObs=new MutationObserver(()=>{if(!$("tour-nav"))tourNav();});g.__tourObs.observe(g,{childList:true});}
+  if($("tour-nav"))return;
   const a=document.createElement("a");a.href="#";a.id="tour-nav";a.setAttribute("role","button");a.title="Take the tour";
   a.innerHTML=`${svg("tour")}<span class="n">Take the tour</span>`;
   a.onclick=e=>{e.preventDefault();tourStart({from:a});};
@@ -8021,7 +8076,8 @@ function tourBoot(){
   setTimeout(tourNav,0);
   const t0=Date.now();
   const tick=()=>{const el=Date.now()-t0;
-    if(ST.userState==="loading"||(ST.db&&ST.uid&&ST.prof===undefined&&el<6000)){if(el<20000)setTimeout(tick,250);return;}
+    /* html.vp-wait: the view profile is not resolved yet, so it is not known which tour to offer */
+    if(ST.userState==="loading"||(ST.db&&ST.uid&&ST.prof===undefined&&el<6000)||document.documentElement.classList.contains("vp-wait")){if(el<20000)setTimeout(tick,250);return;}
     setTimeout(()=>tourMaybe(0),1200);};
   setTimeout(tick,250);
 }

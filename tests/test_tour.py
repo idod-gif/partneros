@@ -165,5 +165,122 @@ class Tour(unittest.TestCase):
         self.assertEqual(block.count('profPatch('), 1)
 
 
+# ---- the finance tour (template block "build 20: the finance tour"), tests/tour_finance_browser.js, on the same synthetic page plus a
+# variant with an invented Finance ledger series inlined (FIN_LEDGER), so the Revenue explorer steps render. Invented data only.
+FJS = os.path.join(HERE, 'tour_finance_browser.js')
+
+
+def fake_ledger():
+    ms = flo_fixture.MONTHS
+    merch = []
+    for i in range(1, 7):
+        rows = [[m, 100.0 + 10 * i + k, 40.0 + i, 5.0, 2.0] for k, m in enumerate(ms)]
+        merch.append({'id': str(1000 + i), 'cf': 'cf%d' % i, 'n': 'Store %d' % i, 'p': ('Alpha Agency', 'Alpha Agency', 'Beta Labs', 'Delta Co', 'Delta Co', 'Epsilon Works')[i - 1],
+                      'st': 'won', 'fi': ms[0], 'c': rows, 'b': rows, 'g': {'c': [0.5, 0.4], 'b': [0.5, 0.4]}, 'sf': [[m, 1.0, 0.5, 0, 0] for m in ms], 'leads': [], 'hs': ['h%d' % i]})
+    return {'source': {'label': 'Test ledger v0', 'asof': '2026-11-10', 'first': ms[0], 'last': ms[-1]}, 'merch': merch}
+
+
+FRUNS = {
+    'f-walk-query': ('walk', {'view': 'query'}),
+    'f-walk-mapped': ('walk', {'view': 'mapped'}),
+    'f-walk-preview': ('walk', {'view': 'preview'}),
+    'f-walk-nodb': ('walk', {'view': 'query', 'db': False, 'ask': False}),
+    'f-walk-noled': ('walk', {'view': 'query', 'page': 'plain'}),
+    'f-walk-820-dark': ('walk', {'view': 'query', 'width': 820, 'theme': 'dark'}),
+    'f-walk-390': ('walk', {'view': 'query', 'width': 390, 'height': 844}),
+    'f-walk-390-dark': ('walk', {'view': 'mapped', 'width': 390, 'height': 844, 'theme': 'dark'}),
+    'f-walk-rm': ('walk', {'view': 'query', 'rm': True}),
+    'f-entries': ('entries', {'view': 'mapped'}),
+    'f-entries-390': ('entries', {'view': 'query', 'width': 390, 'height': 844}),
+    'f-wait': ('wait', {'view': 'mapped', 'slowVp': 2500}),
+    'f-seen-general': ('seen', {'view': 'mapped', 'lsGeneral': True, 'prof': 'role'}),
+    'f-seen-finance': ('seen', {'view': 'mapped', 'lsFinance': True}),
+    'f-missing': ('missing', {'view': 'query'}),
+}
+
+
+@unittest.skipUnless(_ready(), 'node, playwright-core or Chromium not found')
+class FinanceTour(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.tmp = tempfile.mkdtemp(prefix='tourf_')
+        plain = flo_fixture.build(os.path.join(cls.tmp, 'plain.html'))
+        with open(plain, encoding='utf-8') as f:
+            src = f.read()
+        tok = '/*__FIN_LEDGER_JSON__*/'
+        assert src.count(tok) == 1
+        led = os.path.join(cls.tmp, 'ledger.html')
+        with open(led, 'w', encoding='utf-8') as f:
+            f.write(src.replace(tok, json.dumps(fake_ledger())))
+        pages = {'plain': plain, 'ledger': led}
+
+        def run(item):
+            name, (scen, opts) = item
+            pg = pages[opts.get('page', 'ledger')]
+            p = subprocess.run(['node', FJS, pg, scen, json.dumps(opts)], capture_output=True, text=True, timeout=300)
+            try:
+                return name, json.loads(p.stdout)
+            except ValueError:
+                return name, {'fatal': (p.stdout + p.stderr)[-800:], 'checks': [], 'errors': []}
+        with ThreadPoolExecutor(max_workers=4) as ex:
+            cls.runs = dict(ex.map(run, FRUNS.items()))
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+
+    ok = Tour.ok
+
+    def ids(self, name):
+        return [s['id'] for s in self.runs[name]['out']['steps']]
+
+    def test_finance_view_gets_the_finance_tour_at_first_run(self):
+        for name in ('f-walk-query', 'f-walk-mapped', 'f-walk-preview'):
+            self.ok(name, 60)
+            self.assertEqual(self.ids(name), ['fin-summary', 'fin-sources', 'fin-explorer', 'fin-chart', 'fin-payouts', 'fin-partners', 'fin-ask', 'fin-menu'], name)
+
+    def test_without_ask_ido_or_a_database(self):
+        self.ok('f-walk-nodb', 50)
+        self.assertNotIn('fin-ask', self.ids('f-walk-nodb'))
+
+    def test_without_the_ledger_the_chart_step_drops_and_the_explorer_says_why(self):
+        self.ok('f-walk-noled', 50)
+        self.assertNotIn('fin-chart', self.ids('f-walk-noled'))
+        body = next(s['body'] for s in self.runs['f-walk-noled']['out']['steps'] if s['id'] == 'fin-explorer')
+        self.assertIn('not loaded', body)
+
+    def test_narrow_widths_dark_and_reduced_motion(self):
+        for name in ('f-walk-820-dark', 'f-walk-390', 'f-walk-390-dark', 'f-walk-rm'):
+            self.ok(name, 50)
+        self.assertEqual(next(s['title'] for s in self.runs['f-walk-390']['out']['steps'] if s['id'] == 'fin-menu'), 'Take it again')
+
+    def test_every_entry_point_gives_the_finance_tour(self):
+        self.ok('f-entries', 12)
+        self.ok('f-entries-390', 8)
+
+    def test_waits_for_the_view_profile(self):
+        self.ok('f-wait', 2)
+
+    def test_seen_flags_are_per_tour(self):
+        self.ok('f-seen-general', 3)
+        self.ok('f-seen-finance', 2)
+
+    def test_missing_target_is_skipped(self):
+        self.ok('f-missing', 20)
+
+    def test_finance_copy_rules_in_the_source(self):
+        with open(TEMPLATE, encoding='utf-8') as f:
+            src = f.read()
+        a = src.index('the finance tour. Tours are keyed by view')
+        b = src.index('const tourTxt=')
+        block = src[a:b]
+        self.assertNotRegex(block, '[\\u2014\\u2013]')
+        self.assertNotRegex(block, r'\$\d|\d+%')
+        for t in re.findall(r'title:(?:c=>c\.narrow\?)?"([^"]+)"(?::"([^"]+)")?', block):
+            for x in t:
+                if x:
+                    self.assertTrue(1 <= len(x.split()) <= 4 and x[0].isupper(), x)
+
+
 if __name__ == '__main__':
     unittest.main()
