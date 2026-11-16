@@ -1412,12 +1412,19 @@ body.ov-dragging .ovb-h{cursor:grabbing}
 /* ==== build 20/22: the network globe. The Dashboard shows it as a faint backdrop behind the header (decoration, aria-hidden, no
    pointer events); the full-screen dialog carries the numbers, the caption and the tooltips. */
 .gl-bd{position:absolute;top:0;right:0;width:600px;height:600px;z-index:-1;pointer-events:none;overflow:hidden;
-  -webkit-mask-image:linear-gradient(to bottom,#000 40%,transparent 95%),linear-gradient(to left,#000 25%,transparent 100%);-webkit-mask-composite:source-in;
-  mask-image:linear-gradient(to bottom,#000 40%,transparent 95%),linear-gradient(to left,#000 25%,transparent 100%);mask-composite:intersect}
+  -webkit-mask-image:linear-gradient(to bottom,#000 var(--gl-fa,66%),transparent var(--gl-fb,100%)),linear-gradient(to right,rgba(0,0,0,.3) var(--gl-la,0px),#000 var(--gl-lb,33%));-webkit-mask-composite:source-in;
+  mask-image:linear-gradient(to bottom,#000 var(--gl-fa,66%),transparent var(--gl-fb,100%)),linear-gradient(to right,rgba(0,0,0,.3) var(--gl-la,0px),#000 var(--gl-lb,33%));mask-composite:intersect}
 .gl-bd[hidden]{display:none}
-.gl-bd canvas{position:absolute;inset:0;opacity:var(--gl-bd-o,.2)}
-:root[data-theme="dark"] .gl-bd canvas{--gl-bd-o:.26}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .gl-bd canvas{--gl-bd-o:.26}}
+/* the Chargeflow mark at New York: the one backdrop element that reads first, so it sits above the faint canvas at near full strength */
+.gl-bd-mark{position:absolute;display:grid;place-items:center;border-radius:50%;background:#3448ff;color:#fff;opacity:.92;box-shadow:0 0 0 6px color-mix(in srgb,var(--primary) 14%,transparent),0 0 24px 6px color-mix(in srgb,var(--primary) 22%,transparent)}
+.gl-bd-mark svg{width:58%;height:58%}
+:root[data-theme="dark"] .gl-bd-mark{background:#6b78ff;opacity:.9}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .gl-bd-mark{background:#6b78ff;opacity:.9}}
+@media (prefers-reduced-motion: no-preference){.gl-bd-mark.intro{animation:gl-mk .5s cubic-bezier(.2,.9,.3,1.3) both}}
+@keyframes gl-mk{from{opacity:0;transform:scale(.6)}}
+.gl-bd canvas{position:absolute;inset:0;opacity:var(--gl-bd-o,.4)}
+:root[data-theme="dark"] .gl-bd canvas{--gl-bd-o:.5}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) .gl-bd canvas{--gl-bd-o:.5}}
 /* while the backdrop shows, the header's outline chips and Customize sit on a solid card surface so the globe never lowers their contrast */
 #p-overview:has(>#gl-bd:not([hidden])) .hero .pill.outline,#p-overview:has(>#gl-bd:not([hidden])) #ov-cust.ghost{background:var(--card)}
 .ov-bdsw{display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--foreground)}
@@ -1519,7 +1526,7 @@ body.ov-dragging .ovb-h{cursor:grabbing}
   </div>
 
   <div id="p-overview" class="panel">
-    <div class="gl-bd" id="gl-bd" aria-hidden="true" hidden><canvas id="gl-bd-cv"></canvas></div>
+    <div class="gl-bd" id="gl-bd" aria-hidden="true" hidden><canvas id="gl-bd-cv"></canvas><span class="gl-bd-mark" id="gl-bd-mark"><svg viewBox="-4 -4 50.6 42.2"><path fill="currentColor" fill-rule="evenodd" d="M 28.647 34.224 L 22.98 26.203 C 22.98 26.203 33.844 17.165 37.513 8.799 C 37.487 8.771 24.791 15.352 24.791 15.352 L 19.611 8.021 C 29.085 1.404 34.615 2.424 36.093 4.516 L 42.201 13.16 C 44.464 16.363 36.446 28.062 28.646 34.224 L 28.647 34.224 Z M 13.944 0 L 19.611 8.021 C 19.611 8.021 8.746 17.059 5.077 25.425 C 5.103 25.453 17.8 18.872 17.8 18.872 L 22.98 26.203 C 13.506 32.82 7.975 31.8 6.498 29.708 L 0.389 21.064 C -1.874 17.861 6.144 6.162 13.944 0 Z"/></svg></span></div>
     <section class="ovb" data-b="hero"><section class="hero" id="ov-hero" aria-label="Today"></section></section>
     <section class="ovb" data-b="attention"><section class="card slim" id="ov-attn" aria-label="Needs attention"></section></section>
     <section class="ovb half" data-b="toppart"><section class="card slim tpc" id="ov-top" aria-label="Top partners"></section></section>
@@ -2095,7 +2102,7 @@ const glDot=(a,b)=>a[0]*b[0]+a[1]*b[1]+a[2]*b[2];
 const glAng=(a,b)=>Math.acos(Math.max(-1,Math.min(1,glDot(a,b))));
 function glMul(A,B){const M=[[0,0,0],[0,0,0],[0,0,0]];for(let i=0;i<3;i++)for(let j=0;j<3;j++)M[i][j]=A[i][0]*B[0][j]+A[i][1]*B[1][j]+A[i][2]*B[2][j];return M;}
 const GL_PHI=28,GL_ROLL=-12,GL_MID=-38,GL_ROCK=14,GL_PERIOD=60,GL_NY=glUnit(-74.01,40.71);
-function glViewL(lonDeg){const lam=lonDeg*GL_D2R,phi=GL_PHI*GL_D2R,rr=GL_ROLL*GL_D2R,c=Math.cos(lam),s=Math.sin(lam),cp=Math.cos(phi),sp=Math.sin(phi),cr=Math.cos(rr),sr=Math.sin(rr);
+function glViewL(lonDeg,phiDeg){const lam=lonDeg*GL_D2R,phi=(phiDeg!=null?phiDeg:GL_PHI)*GL_D2R,rr=GL_ROLL*GL_D2R,c=Math.cos(lam),s=Math.sin(lam),cp=Math.cos(phi),sp=Math.sin(phi),cr=Math.cos(rr),sr=Math.sin(rr);
   return glMul([[cr,-sr,0],[sr,cr,0],[0,0,1]],glMul([[1,0,0],[0,cp,-sp],[0,sp,cp]],[[c,0,-s],[0,1,0],[s,0,c]]));}
 const glXf=(M,p)=>[M[0][0]*p[0]+M[0][1]*p[1]+M[0][2]*p[2],M[1][0]*p[0]+M[1][1]*p[1]+M[1][2]*p[2],M[2][0]*p[0]+M[2][1]*p[1]+M[2][2]*p[2]];
 const glLonAt=t=>GL_MID-GL_ROCK*Math.cos(GL_TAU*t/GL_PERIOD);
@@ -2155,7 +2162,8 @@ function glModel(){
   /* the three numbers and the concentration line, the same rules as the Overview tiles (ovCompute, all time, all partners) */
   const V=ovCompute("alltime","all");
   const top=P.map(h=>h.rev).sort((a,b)=>b-a),top10=top.slice(0,10).reduce((a,v)=>a+Math.max(0,v),0);
-  GL.model={_k:key,P,S,order,maxDepth,extra,partners:V.registry,referred:V.referred,paying:V.paying,top10:top10/totRev,asof:D.generated||"",shopOn};
+  const top5=new Set(P.slice().sort((a,b)=>b.rev-a.rev).slice(0,5));
+  GL.model={_k:key,top5,P,S,order,maxDepth,extra,partners:V.registry,referred:V.referred,paying:V.paying,top10:top10/totRev,asof:D.generated||"",shopOn};
   return GL.model;
 }
 /* ---- theme */
@@ -2169,13 +2177,16 @@ const glLonOf=p=>Math.atan2(p[0],p[2])/GL_D2R;
 function glDraw(m,t,idleT){
   const M0=GL.model,ctx=m.ctx;if(!M0||!ctx)return;
   const W=m.w,H=m.h,mini=!!m.mini,faint=!!m.faint,G=m.geo?m.geo(W,H):null,R=G?G.R:Math.round(Math.min(W*.46,H*(mini?.46:.44))*4)/4,cx=G?G.cx:Math.round(W*(m.cxF||.52)*4)/4,cy=G?G.cy:Math.round(H*.5*4)/4,sc=R/340,hsc=mini?.5:Math.min(Math.max(sc,.55),1.12),th=glTheme();
-  const lon=m.lon!=null?m.lon:glLonAt(idleT),lq=Math.round(lon/m.q)*m.q,M=glViewL(lq),VK=lq.toFixed(2)+"|"+R+"|"+cx+"|"+cy+"|"+(th.dark?1:0);
+  const lon=m.lon!=null?m.lon:glLonAt(idleT),lq=Math.round(lon/m.q)*m.q,M=glViewL(lq,m.phi),VK=lq.toFixed(2)+"|"+R+"|"+cx+"|"+cy+"|"+(th.dark?1:0);
   ctx.setTransform(m.dpr,0,0,m.dpr,0,0);ctx.clearRect(0,0,W,H);ctx.lineCap="round";ctx.lineJoin="round";
   const proj=p=>{const q=glXf(M,p);return[cx+R*q[0],cy-R*q[1],q[2]>0||q[0]*q[0]+q[1]*q[1]>1];};
   /* glow and rim */
   const gl=ctx.createRadialGradient(cx,cy,R*.55,cx,cy,R*1.3);gl.addColorStop(0,`rgba(${th.ink},${th.dark?.10:.075})`);gl.addColorStop(1,`rgba(${th.ink},0)`);
   ctx.fillStyle=gl;ctx.beginPath();ctx.arc(cx,cy,R*1.3,0,GL_TAU);ctx.fill();
-  ctx.lineWidth=mini?1:1.5;ctx.strokeStyle=th.rim;ctx.beginPath();ctx.arc(cx,cy,R,0,GL_TAU);ctx.stroke();
+  if(faint){/* the backdrop's limb: a soft inner glow and a hairline rim, so the cropped sphere still reads as round */
+    const lg=ctx.createRadialGradient(cx,cy,R*.9,cx,cy,R);lg.addColorStop(0,`rgba(${th.ink},0)`);lg.addColorStop(1,`rgba(${th.ink},${th.dark?.16:.12})`);ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,R,0,GL_TAU);ctx.fill();
+    ctx.lineWidth=1;ctx.strokeStyle=`rgba(${th.ink},.55)`;ctx.beginPath();ctx.arc(cx,cy,R,0,GL_TAU);ctx.stroke();}
+  else{ctx.lineWidth=mini?1:1.5;ctx.strokeStyle=th.rim;ctx.beginPath();ctx.arc(cx,cy,R,0,GL_TAU);ctx.stroke();}
   /* land dots and settled arcs: one cached layer per view and mount (the mini globe keeps land only) */
   /* faint (the backdrop): the cache holds the land only, drawn once per size and theme; arcs are drawn live during the intro */
   const settledN=mini||faint?0:M0.order.filter(h=>t>=h.land+.4).length,dkey=VK+"|"+settledN,cache=m.cache;
@@ -2197,15 +2208,17 @@ function glDraw(m,t,idleT){
   ctx.globalAlpha=1;ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(cache.c,0,0);ctx.setTransform(m.dpr,0,0,m.dpr,0,0);
   /* arcs in flight: a bright line drawing on from the parent, with a head */
   const heads=[];
-  if(faint){const sf=new Path2D(),sb=new Path2D();M0.order.forEach(h=>{if(t<h.fire)return;glStroke(h.arc.pts.map(proj),glEio(glSeg(t,h.fire,h.land)),sf,sb);});
-    ctx.lineWidth=.8;ctx.globalAlpha=.7;ctx.strokeStyle=`rgb(${th.ink})`;ctx.stroke(sf);ctx.globalAlpha=.35;ctx.strokeStyle=`rgb(${th.faint})`;ctx.stroke(sb);}
+  /* backdrop arcs: every long arc out of New York, and about half of the short branches, as hairlines */
+  if(faint){const sf=new Path2D(),sb=new Path2D();M0.order.forEach(h=>{if(t<h.fire||(h.parent&&glHash(h.id,23)>.45))return;glStroke(h.arc.pts.map(proj),glEio(glSeg(t,h.fire,h.land)),sf,sb);});
+    ctx.lineWidth=.9;ctx.globalAlpha=.75;ctx.strokeStyle=`rgb(${th.ink})`;ctx.stroke(sf);ctx.globalAlpha=.25;ctx.strokeStyle=`rgb(${th.faint})`;ctx.stroke(sb);}
   if(!mini&&!faint)M0.order.forEach(h=>{if(t<h.fire||t>=h.land+.4)return;const u=glEio(glSeg(t,h.fire,h.land)),s=glEo(glSeg(t,h.land,h.land+.4)),pts=h.arc.pts.map(proj),pf=new Path2D(),pb=new Path2D(),hd=glStroke(pts,u,pf,pb);
     ctx.lineWidth=2.2;ctx.globalAlpha=.9*(1-s);ctx.strokeStyle=`rgb(${th.ink})`;ctx.stroke(pf);ctx.lineWidth=1;ctx.globalAlpha=.45;ctx.strokeStyle=`rgb(${th.faint})`;ctx.stroke(pb);
     if(s>0){const sf=new Path2D(),sb=new Path2D();glStroke(pts,1,sf,sb);ctx.lineWidth=1.4;ctx.globalAlpha=.6*s;ctx.strokeStyle=`rgb(${th.ink})`;ctx.stroke(sf);}
     if(u<1)heads.push(hd);});
   /* hubs (the mini globe draws them before its stores, small) */
   const hubs=()=>{m.hubXY=[];
-    M0.order.forEach((h,k)=>{if(t<h.land&&!mini)return;const q=proj(h.p);if(!q[2])return;const pop=mini?1:glEob(glSeg(t,h.land,h.land+.3),1.7),r=mini?Math.max(.9,8*Math.sqrt(h.share)):faint?Math.max(1.3,1.6+9*Math.sqrt(h.share))*pop:Math.max(0,(2.2*sc+34*Math.sqrt(h.share)*hsc)*pop);
+    M0.order.forEach((h,k)=>{if(t<h.land&&!mini)return;const q=proj(h.p);if(!q[2])return;const pop=mini?1:glEob(glSeg(t,h.land,h.land+.3),1.7),r=mini?Math.max(.9,8*Math.sqrt(h.share)):faint?(1.5+6*Math.sqrt(h.share))*pop:Math.max(0,(2.2*sc+34*Math.sqrt(h.share)*hsc)*pop);
+      if(faint&&M0.top5.has(h)){ctx.globalAlpha=.22;ctx.fillStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(q[0],q[1],r*2.6+2,0,GL_TAU);ctx.fill();}
       if(h.share>0&&!mini&&!faint){ctx.globalAlpha=th.ga;ctx.fillStyle=th.glow+"1)";ctx.beginPath();ctx.arc(q[0],q[1],r*2.1+3,0,GL_TAU);ctx.fill();}
       ctx.globalAlpha=mini&&!(m.hiHub&&m.hiHub.has(h))?.55:1;ctx.fillStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(q[0],q[1],Math.max(mini?.9:1.6,r),0,GL_TAU);ctx.fill();
       if(m.hover===k){ctx.globalAlpha=1;ctx.lineWidth=2;ctx.strokeStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(q[0],q[1],Math.max(1.6,r)+5,0,GL_TAU);ctx.stroke();}
@@ -2224,12 +2237,21 @@ function glDraw(m,t,idleT){
   if(!mini)hubs();
   heads.forEach(hd=>{ctx.globalAlpha=.7;ctx.fillStyle=`rgb(${th.faint})`;ctx.beginPath();ctx.arc(hd[0],hd[1],7,0,GL_TAU);ctx.fill();ctx.globalAlpha=1;ctx.fillStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(hd[0],hd[1],3.2,0,GL_TAU);ctx.fill();});
   /* the heart at New York: disc, glow, the Chargeflow mark */
-  const hq=proj(GL_NY);if(hq[2]){const HR=mini?6:faint?Math.max(8,16*sc):Math.max(14,30*sc),gr=HR*2.1,x=hq[0],y=hq[1];
+  const hq=proj(GL_NY);
+  /* backdrop: New York is a hub point like the others, slightly brighter, with a soft glow; no badge */
+  if(faint&&hq[2]){const g3=ctx.createRadialGradient(hq[0],hq[1],0,hq[0],hq[1],14);g3.addColorStop(0,`rgba(${th.ink},.45)`);g3.addColorStop(1,`rgba(${th.ink},0)`);ctx.globalAlpha=1;ctx.fillStyle=g3;ctx.beginPath();ctx.arc(hq[0],hq[1],14,0,GL_TAU);ctx.fill();
+    ctx.fillStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(hq[0],hq[1],3.6,0,GL_TAU);ctx.fill();}
+  else if(hq[2]){const HR=mini?6:Math.max(14,30*sc),gr=HR*2.1,x=hq[0],y=hq[1];
     const g2=ctx.createRadialGradient(x,y,HR*.8,x,y,gr);g2.addColorStop(0,`rgba(${th.ink},0.22)`);g2.addColorStop(1,`rgba(${th.ink},0)`);ctx.globalAlpha=1;ctx.fillStyle=g2;ctx.beginPath();ctx.arc(x,y,gr,0,GL_TAU);ctx.fill();
     if(t<1.2&&!mini&&!faint){const ph=glSeg(t,0,1.2);ctx.lineWidth=2;ctx.strokeStyle=`rgba(${th.ink},${.5*(1-ph)})`;ctx.beginPath();ctx.arc(x,y,HR+6+50*glEo(ph),0,GL_TAU);ctx.stroke();}
     ctx.fillStyle=th.heart;ctx.beginPath();ctx.arc(x,y,HR,0,GL_TAU);ctx.fill();if(!GLmark)GLmark=new Path2D(GL_MARK);
     const MS=.55*2*HR/42.59;ctx.save();ctx.translate(x,y);ctx.scale(MS,MS);ctx.translate(-42.59/2,-34.224/2);ctx.fillStyle=th.mark;ctx.fill(GLmark,"evenodd");ctx.restore();}
   ctx.globalAlpha=1;
+  /* backdrop keep-out: the globe is erased, with a soft edge, behind the header's text and controls, so it never lowers their contrast */
+  if(m.keep){const cr=m.cv.getBoundingClientRect();ctx.save();ctx.globalCompositeOperation="destination-out";ctx.shadowColor="#000";ctx.shadowBlur=18;ctx.shadowOffsetX=1e4;ctx.fillStyle="#000";
+    document.querySelectorAll(m.keep).forEach(e=>{if(!e.getClientRects().length)return;const rg=document.createRange();rg.selectNodeContents(e);[...rg.getClientRects()].forEach(b=>{if(!b.width||!b.height)return;
+      const x=b.left-cr.left-8,y=b.top-cr.top-6;if(x>W||y>H||x+b.width+16<0||y+b.height+12<0)return;ctx.fillRect(x-1e4,y,b.width+16,b.height+12);});});
+    ctx.restore();}
 }
 /* film's strokeRun: continuous runs split front and back of the globe, up to u of the arc */
 function glStroke(pts,uEnd,pf,pb){const n=pts.length-1,last=uEnd*n,m=Math.floor(last);let prev=null,run=null;
@@ -2291,28 +2313,51 @@ const glSub=M0=>{const asof=M0&&M0.asof?dShort(M0.asof):"";return`${M0?`Top ten 
    only, never in the Finance view; the still under reduced motion. */
 const GL_BD="partneros.globe.backdrop";
 const glBdOn=()=>{try{return localStorage.getItem(GL_BD)!=="off";}catch(e){return true;}};
+/* Placement. New York (and the Chargeflow mark) lands in the clear space of the header: right of the week tiles, left of the
+   page edge, below the as-of chip and Customize. The view is turned so New York sits near the middle of the visible sphere, with
+   land around it; the sphere is sized to the window and bleeds off the right. The box spans the header band only. */
+const GL_BDLON=-66,GL_BDPHI=36;
 function glBdPlace(m){
   const box=$("gl-bd"),mi=document.querySelector(".main-in");if(!box||!mi)return;
-  const r=mi.getBoundingClientRect(),vw=document.documentElement.clientWidth,D=Math.min(880,Math.max(700,Math.round(vw*.6))),S=Math.round(D*.8);
-  box.style.top=-Math.round(r.top+window.scrollY)+"px";box.style.right=-Math.max(0,Math.round(vw-r.right))+"px";box.style.width=S+"px";box.style.height=S+"px";
-  if(m)m.D=D;
+  const r=mi.getBoundingClientRect(),vw=document.documentElement.clientWidth,sy=window.scrollY,D=Math.min(760,Math.max(600,Math.round(vw*.44)));
+  const ns=[...document.querySelectorAll("#p-overview .hero-ns .hero-n")].filter(e=>e.getClientRects().length).pop(),hr=document.querySelector("#p-overview .hero-r"),nr=ns?ns.getBoundingClientRect():null,cr=hr&&hr.getClientRects().length?hr.getBoundingClientRect():null;
+  const nb=document.querySelector("#p-overview>.ovb:not([data-b=hero]):not(.off)"),bandB=nb?nb.getBoundingClientRect().top+sy:r.top+sy+260;
+  /* target in page coordinates: centred between the tiles' right edge and the content's right edge, at the tiles' middle;
+     never above the header controls' bottom edge */
+  let tx=nr?(nr.right+r.right)/2:r.right-r.width*.25,ty=nr?(cr?(cr.bottom+nr.bottom)/2:nr.top+nr.height/2)+sy:r.top+sy+160;
+  if(cr)ty=Math.max(ty,cr.bottom+sy+34);
+  /* the mark must land in clear space: try the spot above, then a few others; with none clear, the backdrop is not drawn */
+  const mkS=Math.min(48,Math.max(36,D*.06)),obst=[...document.querySelectorAll("#p-overview .hero h2,#p-overview .hero .hl,#p-overview .hero .pill,#ov-cust,#p-overview .hero .pchip,#p-overview .hero-n,#p-overview .hero-acts")].filter(e=>e.getClientRects().length).map(e=>e.getBoundingClientRect());
+  const clear=(x,y)=>x+mkS/2+120<=vw&&y+mkS/2+12<bandB&&!obst.some(o=>o.right+14>x-mkS/2&&o.left-14<x+mkS/2&&o.bottom+sy+14>y-mkS/2&&o.top+sy-14<y+mkS/2);
+  const cands=[[tx,ty]];if(nr)cands.push([tx,nr.top+sy+nr.height/2]);
+  const pick=cands.find(([x,y])=>clear(x,y));GL.bdClear=!!pick;if(pick){tx=pick[0];ty=pick[1];}
+  const left=Math.round(r.left),top=0,boxW=vw-left,boxH=Math.round(bandB+10);
+  box.style.top=-Math.round(r.top+sy)+"px";box.style.left="0px";box.style.right="auto";box.style.width=boxW+"px";box.style.height=boxH+"px";
+  box.style.setProperty("--gl-fa",Math.max(60,Math.round(bandB-30))+"px");box.style.setProperty("--gl-fb",Math.round(bandB+10)+"px");
+  const bx=tx-left,by=ty-top,mk=Math.round(Math.min(48,Math.max(36,D*.06)));
+  /* the left fade starts at the sphere's left edge and is gone a third of the way in, so the rim stays visible */
+  const q=glXf(glViewL(GL_BDLON,GL_BDPHI),GL_NY),R=D/2,cx=bx-R*q[0],cy=by+R*q[1];
+  box.style.setProperty("--gl-la",Math.max(0,Math.round(cx-R-8))+"px");box.style.setProperty("--gl-lb",Math.max(0,Math.round(cx-R+D*.3))+"px");
+  const mark=$("gl-bd-mark");if(mark){mark.style.left=Math.round(bx-mk/2)+"px";mark.style.top=Math.round(by-mk/2)+"px";mark.style.width=mark.style.height=mk+"px";}
+  if(m){m.D=D;m.G={R,cx,cy};}
 }
 function renderGlobe(){
   const el=$("gl-bd");if(!el)return;
   glUnmount(GL.hero);GL.hero=null;
-  /* below 860 px the sphere would sit behind the greeting and the date line, so it is not drawn there */
-  GL.bdFit=document.documentElement.clientWidth>=860;
+  /* below 1140 px the header has no clear space for the mark at New York, so the backdrop is not drawn there */
+  GL.bdFit=document.documentElement.clientWidth>=1140;
   if(VP.p==="finance"||!glBdOn()||!GL.bdFit){el.hidden=true;return;}
   const M0=glModel();if(!M0){el.hidden=true;return;}
-  el.hidden=false;glBdPlace();
+  el.hidden=false;const pre={};glBdPlace(pre);if(!GL.bdClear){el.hidden=true;return;}
   let done=false;try{done=sessionStorage.getItem(GL_SS)==="done";}catch(e){}
+  {const mk=$("gl-bd-mark");if(mk)mk.classList.toggle("intro",!done&&!GL.heroT0);}
   if(!GL.heroT0){GL.heroT0=performance.now()-(done?60000:0);if(!done){try{sessionStorage.setItem(GL_SS,"done");}catch(e){}}}
-  let m=null;m=glMount($("gl-bd-cv"),el,{t0:GL.heroT0,observe:true,faint:true,rock:false,lon:-24,speed:GL_INTRO/3,fps:30,stillOnSlow:true,min:120,
-    geo:(W,H)=>{const D=m&&m.D||Math.round(W/.8);/* the New York heart lands in the header band, right of the greeting; the sphere follows and bleeds off the right edge */
-      const q=glXf(glViewL(-24),GL_NY),R=D/2,hx=W-D*.5,hy=Math.min(150,D*.17);return{R,cx:hx-R*q[0],cy:hy+R*q[1]};}});
+  let m=pre;m=glMount($("gl-bd-cv"),el,{D:pre.D,G:pre.G,t0:GL.heroT0,observe:true,faint:true,rock:false,lon:GL_BDLON,phi:GL_BDPHI,speed:GL_INTRO/3,fps:30,stillOnSlow:true,min:120,
+    keep:"#p-overview .hero h2,#p-overview .hero .hl,#ov-meta .pill,#ov-cust,#p-overview .hero .pchip",
+    geo:()=>m.G});
   GL.hero=m;glBdPlace(m);m.cache.key=null;glSize(m);
 }
-window.addEventListener("resize",()=>{const fit=document.documentElement.clientWidth>=860;if(fit!==GL.bdFit){renderGlobe();return;}if(GL.hero){glBdPlace(GL.hero);glSize(GL.hero);}},{passive:true});
+window.addEventListener("resize",()=>{const fit=document.documentElement.clientWidth>=1140;if(fit!==GL.bdFit){renderGlobe();return;}if(GL.hero){const was=GL.bdClear;glBdPlace(GL.hero);if(GL.bdClear!==was){renderGlobe();return;}glSize(GL.hero);}else if(fit&&GL.bdFit&&!GL.bdClear&&VP.p!=="finance"&&glBdOn())renderGlobe();},{passive:true});
 /* a theme change redraws every mount (the land layer is cached per theme) */
 function glRetheme(){GL.mounts.forEach(m=>{m.cache.key=null;if(m.still||!m.raf){const now=performance.now();glDraw(m,m.still||m.slowStill?m.tFinal:Math.min(glT(m,now),m.tFinal),m.still?0:(now-m.t0)/1000);}});}
 try{new MutationObserver(glRetheme).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});const mq=matchMedia("(prefers-color-scheme: dark)");if(mq.addEventListener)mq.addEventListener("change",glRetheme);}catch(e){}
