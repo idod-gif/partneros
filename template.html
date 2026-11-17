@@ -2147,6 +2147,7 @@ function glMul(A,B){const M=[[0,0,0],[0,0,0],[0,0,0]];for(let i=0;i<3;i++)for(le
 const GL_PHI=28,GL_ROLL=-12,GL_MID=-38,GL_ROCK=14,GL_PERIOD=60,GL_NY=glUnit(-74.01,40.71);
 function glViewL(lonDeg,phiDeg){const lam=lonDeg*GL_D2R,phi=(phiDeg!=null?phiDeg:GL_PHI)*GL_D2R,rr=GL_ROLL*GL_D2R,c=Math.cos(lam),s=Math.sin(lam),cp=Math.cos(phi),sp=Math.sin(phi),cr=Math.cos(rr),sr=Math.sin(rr);
   return glMul([[cr,-sr,0],[sr,cr,0],[0,0,1]],glMul([[1,0,0],[0,cp,-sp],[0,sp,cp]],[[c,0,-s],[0,1,0],[s,0,c]]));}
+function glAxisRot(u,a){const c=Math.cos(a),s=Math.sin(a),k=1-c,[x,y,z]=u;return[[c+x*x*k,x*y*k-z*s,x*z*k+y*s],[y*x*k+z*s,c+y*y*k,y*z*k-x*s],[z*x*k-y*s,z*y*k+x*s,c+z*z*k]];}
 const glXf=(M,p)=>[M[0][0]*p[0]+M[0][1]*p[1]+M[0][2]*p[2],M[1][0]*p[0]+M[1][1]*p[1]+M[1][2]*p[2],M[2][0]*p[0]+M[2][1]*p[1]+M[2][2]*p[2]];
 const glLonAt=t=>GL_MID-GL_ROCK*Math.cos(GL_TAU*t/GL_PERIOD);
 const glC01=x=>x<0?0:x>1?1:x,glSeg=(t,a,b)=>glC01((t-a)/(b-a)),glEo=x=>1-Math.pow(1-x,3),glEio=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;
@@ -2222,7 +2223,7 @@ const glLonOf=p=>Math.atan2(p[0],p[2])/GL_D2R;
 function glDraw(m,t,idleT){
   const M0=GL.model,ctx=m.ctx;if(!M0||!ctx)return;
   const W=m.w,H=m.h,mini=!!m.mini,faint=!!m.faint,G=m.geo?m.geo(W,H):null,R=G?G.R:Math.round(Math.min(W*.46,H*(mini?.46:.44))*4)/4,cx=G?G.cx:Math.round(W*(m.cxF||.52)*4)/4,cy=G?G.cy:Math.round(H*.5*4)/4,sc=R/340,hsc=mini?.5:Math.min(Math.max(sc,.55),1.12),th=glTheme();
-  const lon=m.lon!=null?m.lon:glLonAt(idleT),lq=Math.round(lon/m.q)*m.q,M=glViewL(lq,m.phi),VK=lq.toFixed(2)+"|"+R+"|"+cx+"|"+cy+"|"+(th.dark?1:0);
+  const lon=m.lon!=null?m.lon:glLonAt(idleT),lq=Math.round(lon/m.q)*m.q,sa=m.spinAng||0,M=sa?glMul(glViewL(lq,m.phi),glAxisRot(GL_NY,sa)):glViewL(lq,m.phi),VK=lq.toFixed(2)+"|"+sa.toFixed(5)+"|"+R+"|"+cx+"|"+cy+"|"+(th.dark?1:0);
   ctx.setTransform(m.dpr,0,0,m.dpr,0,0);ctx.clearRect(0,0,W,H);ctx.lineCap="round";ctx.lineJoin="round";
   const proj=p=>{const q=glXf(M,p);return[cx+R*q[0],cy-R*q[1],q[2]>0||q[0]*q[0]+q[1]*q[1]>1];};
   /* glow and rim */
@@ -2230,7 +2231,7 @@ function glDraw(m,t,idleT){
   ctx.fillStyle=gl;ctx.beginPath();ctx.arc(cx,cy,R*1.3,0,GL_TAU);ctx.fill();
   if(faint){/* the backdrop's limb: a soft inner glow and a hairline rim, so the cropped sphere still reads as round */
     const lg=ctx.createRadialGradient(cx,cy,R*.9,cx,cy,R);lg.addColorStop(0,`rgba(${th.ink},0)`);lg.addColorStop(1,`rgba(${th.ink},${th.dark?.16:.12})`);ctx.fillStyle=lg;ctx.beginPath();ctx.arc(cx,cy,R,0,GL_TAU);ctx.fill();
-    ctx.lineWidth=1;ctx.strokeStyle=`rgba(${th.ink},.55)`;ctx.beginPath();ctx.arc(cx,cy,R,0,GL_TAU);ctx.stroke();}
+    }
   else{ctx.lineWidth=mini?1:1.5;ctx.strokeStyle=th.rim;ctx.beginPath();ctx.arc(cx,cy,R,0,GL_TAU);ctx.stroke();}
   /* land dots and settled arcs: one cached layer per view and mount (the mini globe keeps land only) */
   /* faint (the backdrop): the cache holds the land only, drawn once per size and theme; arcs are drawn live during the intro */
@@ -2238,19 +2239,26 @@ function glDraw(m,t,idleT){
   if(cache.key!==dkey){
     let c=cache.c;if(!c){c=cache.c=document.createElement("canvas");}
     c.width=Math.ceil(W*m.dpr);c.height=Math.ceil(H*m.dpr);const g=c.getContext("2d");g.setTransform(m.dpr,0,0,m.dpr,0,0);g.clearRect(0,0,W,H);
-    const E=glEarth(),NB=6,paths=[],back=new Path2D();for(let b=0;b<NB;b++)paths.push(new Path2D());
+    const E=glEarth(),NB=faint?10:6,paths=[],back=new Path2D();for(let b=0;b<NB;b++)paths.push(new Path2D());const RB=72,rimL=faint?new Float32Array(RB):null;
     const rf=mini?.75:Math.max(1,2.2*R/300),rb=mini?.5:Math.max(.7,1.4*R/300);
     for(let i=0;i<E.n;i++){const x=M[0][0]*E.PX[i]+M[0][1]*E.PY[i]+M[0][2]*E.PZ[i],y=M[1][0]*E.PX[i]+M[1][1]*E.PY[i]+M[1][2]*E.PZ[i],z=M[2][0]*E.PX[i]+M[2][1]*E.PY[i]+M[2][2]*E.PZ[i];
       const sx=cx+R*x,sy=cy-R*y;if(z<=0){if(!mini){back.moveTo(sx+rb,sy);back.arc(sx,sy,rb,0,GL_TAU);}continue;}
+      if(faint){if(z<.3){const ab=Math.floor(((Math.atan2(y,x)+GL_TAU)%GL_TAU)/GL_TAU*RB);rimL[ab]=1;}if(sx<-4||sx>W+4||sy<-4||sy>H+4)continue;}
       const bk=Math.min(NB-1,Math.floor(z*NB));paths[bk].moveTo(sx+rf,sy);paths[bk].arc(sx,sy,rf,0,GL_TAU);}
+    cache.rim=rimL;
     g.globalAlpha=th.back;g.fillStyle=`rgb(${th.faint})`;g.fill(back);g.fillStyle=`rgb(${th.land})`;
-    for(let b=0;b<NB;b++){g.globalAlpha=.35+.55*(b+.5)/NB;g.fill(paths[b]);}
+    /* backdrop: dots fade towards the limb, so land rotating over the edge dissolves instead of popping */
+    for(let b=0;b<NB;b++){const zc=(b+.5)/NB;g.globalAlpha=(.35+.55*zc)*(faint?glC01(zc/.25):1);g.fill(paths[b]);}
     if(!mini&&!faint){const sf=new Path2D(),sb=new Path2D();
       M0.order.forEach(h=>{if(t<h.land+.4)return;glStroke(h.arc.pts.map(proj),1,sf,sb);});
       g.lineWidth=1.4*Math.max(.85,hsc);g.globalAlpha=th.dark?.55:.6;g.strokeStyle=`rgb(${th.ink})`;g.stroke(sf);
       g.lineWidth=1;g.globalAlpha=th.dark?.3:.45;g.strokeStyle=`rgb(${th.faint})`;g.stroke(sb);}
     cache.key=dkey;}
   ctx.globalAlpha=1;ctx.setTransform(1,0,0,1,0,0);ctx.drawImage(cache.c,0,0);ctx.setTransform(m.dpr,0,0,m.dpr,0,0);
+  /* backdrop rim: a hairline only where land is near the limb (smoothed over neighbouring sectors), so the line never floats alone */
+  if(faint&&cache.rim){const rb=cache.rim,n=rb.length;ctx.lineWidth=1;ctx.strokeStyle=`rgb(${th.ink})`;
+    for(let i=0;i<n;i++){let v=0;for(let k=-3;k<=3;k++)v=Math.max(v,rb[(i+k+n)%n]*(1-Math.abs(k)/4));if(v<.02)continue;
+      ctx.globalAlpha=.55*v;const a0=-(i+1)/n*GL_TAU,a1=-i/n*GL_TAU;ctx.beginPath();ctx.arc(cx,cy,R,a0,a1);ctx.stroke();}}
   /* arcs in flight: a bright line drawing on from the parent, with a head */
   const heads=[];
   /* backdrop arcs: every long arc out of New York, and about half of the short branches, as hairlines */
@@ -2262,7 +2270,7 @@ function glDraw(m,t,idleT){
     if(u<1)heads.push(hd);});
   /* hubs (the mini globe draws them before its stores, small) */
   const hubs=()=>{m.hubXY=[];
-    M0.order.forEach((h,k)=>{if(t<h.land&&!mini)return;const q=proj(h.p);if(!q[2])return;const pop=mini?1:glEob(glSeg(t,h.land,h.land+.3),1.7),r=mini?Math.max(.9,8*Math.sqrt(h.share)):faint?(1.5+6*Math.sqrt(h.share))*pop:Math.max(0,(2.2*sc+34*Math.sqrt(h.share)*hsc)*pop);
+    M0.order.forEach((h,k)=>{if(t<h.land&&!mini)return;const q=proj(h.p);if(!q[2]||faint&&(q[0]<-20||q[0]>W+20||q[1]<-20||q[1]>H+20))return;const pop=mini?1:glEob(glSeg(t,h.land,h.land+.3),1.7),r=mini?Math.max(.9,8*Math.sqrt(h.share)):faint?(1.5+6*Math.sqrt(h.share))*pop:Math.max(0,(2.2*sc+34*Math.sqrt(h.share)*hsc)*pop);
       if(faint&&M0.top5.has(h)){ctx.globalAlpha=.22;ctx.fillStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(q[0],q[1],r*2.6+2,0,GL_TAU);ctx.fill();}
       if(h.share>0&&!mini&&!faint){ctx.globalAlpha=th.ga;ctx.fillStyle=th.glow+"1)";ctx.beginPath();ctx.arc(q[0],q[1],r*2.1+3,0,GL_TAU);ctx.fill();}
       ctx.globalAlpha=mini&&!(m.hiHub&&m.hiHub.has(h))?.55:1;ctx.fillStyle=`rgb(${th.ink})`;ctx.beginPath();ctx.arc(q[0],q[1],Math.max(mini?.9:1.6,r),0,GL_TAU);ctx.fill();
@@ -2305,17 +2313,20 @@ function glDraw(m,t,idleT){
     const MS=.55*2*HR/42.59;ctx.save();ctx.translate(x,y);ctx.scale(MS,MS);ctx.translate(-42.59/2,-34.224/2);ctx.fillStyle=th.mark;ctx.fill(GLmark,"evenodd");ctx.restore();}
   ctx.globalAlpha=1;
   /* backdrop keep-out: the globe is erased, with a soft edge, behind the header's text and controls, so it never lowers their contrast */
-  if(m.keep){const cr=m.cv.getBoundingClientRect(),mi=document.querySelector(".main-in"),mr=mi.getBoundingClientRect();const core=[];ctx.save();ctx.globalCompositeOperation="destination-out";ctx.shadowColor="#000";ctx.shadowBlur=18;ctx.shadowOffsetX=1e4;ctx.fillStyle="#000";
-    document.querySelectorAll(m.keep).forEach(e=>{if(!e.getClientRects().length)return;const er=e.getBoundingClientRect(),o=glOff(e,mi),sx=er.left-(mr.left+o.x),sy=er.top-(mr.top+o.y);
-      const rg=document.createRange();rg.selectNodeContents(e);[...rg.getClientRects()].forEach(b=>{if(!b.width||!b.height)return;
-      const x=b.left-sx-cr.left-8,y=b.top-sy-cr.top-6;if(x>W||y>H||x+b.width+16<0||y+b.height+12<0)return;ctx.fillRect(x-1e4,y,b.width+16,b.height+12);core.push([x+4,y+3,b.width+8,b.height+6]);});});
-    ctx.shadowColor="transparent";core.forEach(r=>ctx.fillRect(r[0],r[1],r[2],r[3]));
-    ctx.restore();}
+  if(m.keep){if(!m.keepR)glKeepCalc(m);const core=[];ctx.save();ctx.globalCompositeOperation="destination-out";ctx.shadowColor="#000";ctx.shadowBlur=18;ctx.shadowOffsetX=1e4;ctx.fillStyle="#000";
+    m.keepR.forEach(([x,y,w,h])=>{if(x>W||y>H||x+w<0||y+h<0)return;ctx.fillRect(x-1e4,y,w,h);core.push([x+4,y+3,w-8,h-6]);});
+    ctx.shadowColor="transparent";core.forEach(r=>ctx.fillRect(r[0],r[1],r[2],r[3]));ctx.restore();}
 }
 /* a part of an arc, from u0 to u1, front side only (the hover wave's streak) */
 function glStrokeRange(pts,u0,u1,p){const n=pts.length-1,a=u0*n,b=u1*n,at=v=>{const i=Math.min(n-1,Math.floor(v)),f=v-i;return[pts[i][0]+(pts[i+1][0]-pts[i][0])*f,pts[i][1]+(pts[i+1][1]-pts[i][1])*f,pts[i][2]&&pts[i+1][2]];};
   let started=false;const step=v=>{const q=at(v);if(!q[2]){started=false;return;}if(!started){p.moveTo(q[0],q[1]);started=true;}else p.lineTo(q[0],q[1]);};
   step(a);for(let s=Math.ceil(a);s<b;s++)step(s);step(b);}
+/* the keep-out rectangles in canvas coordinates, from layout positions (unaffected by the page's enter animation); recomputed on
+   placement, resize and Customize, not every frame */
+function glKeepCalc(m){const cr=m.cv.getBoundingClientRect(),mi=document.querySelector(".main-in"),mr=mi.getBoundingClientRect(),out=[];
+  document.querySelectorAll(m.keep).forEach(e=>{if(!e.getClientRects().length)return;const er=e.getBoundingClientRect(),o=glOff(e,mi),sx=er.left-(mr.left+o.x),sy=er.top-(mr.top+o.y);
+    const rg=document.createRange();rg.selectNodeContents(e);[...rg.getClientRects()].forEach(b=>{if(!b.width||!b.height)return;out.push([b.left-sx-cr.left-8,b.top-sy-cr.top-6,b.width+16,b.height+12]);});});
+  m.keepR=out;}
 /* film's strokeRun: continuous runs split front and back of the globe, up to u of the arc */
 function glStroke(pts,uEnd,pf,pb){const n=pts.length-1,last=uEnd*n,m=Math.floor(last);let prev=null,run=null;
   for(let s=0;s<=Math.min(n,m+1);s++){let cur=pts[s];if(s>m){const f=last-m,a0=pts[m];cur=[a0[0]+(cur[0]-a0[0])*f,a0[1]+(cur[1]-a0[1])*f,cur[2]];}
@@ -2342,13 +2353,18 @@ const glWaveOn=m=>!!m.wave&&m.el-m.wave.t0<1.4&&(m.wave.end==null||m.el-m.wave.e
 function glFrame(m,now){
   m.raf=0;if(!m.on||!GL.vis||!m.seen){m.lastNow=0;glMarkSync(m);return;}
   /* the backdrop holds still while the guided tour is open, and resumes after it */
-  if(m===GL.hero&&typeof TOUR!=="undefined"&&TOUR.open){m.lastNow=0;m.pt=setTimeout(()=>{m.pt=0;glKick(m);},400);return;}
+  if(m===GL.hero&&((typeof TOUR!=="undefined"&&TOUR.open)||GLF.el||GLK.el)){m.lastNow=0;m.pt=setTimeout(()=>{m.pt=0;glKick(m);},400);return;}
+  if(m.fps&&m.lastNow&&now-m.lastNow<1000/m.fps-2){m.raf=requestAnimationFrame(n=>glFrame(m,n));return;}
   const dt=m.lastNow?Math.min(.05,Math.max(0,(now-m.lastNow)/1000)):0;m.lastNow=now;m.el+=dt;
+  /* the backdrop's rock starts after the intro, easing in over 4 s */
+  if(m.spin){const te=m.el-m.tFinal/m.speed;m.spinAng=te>0?GL_SPIN_AMP*Math.sin(GL_TAU*te/GL_SPIN_PER)*glEio(glC01(te/4)):0;}
   const t=glT(m),a=performance.now();glDraw(m,Math.min(t,m.tFinal),m.el);const ms=performance.now()-a;m.frames++;GL.frames=(GL.frames||0)+1;
   glMarkSync(m);
   m.ft.push(ms);if(m.ft.length>60)m.ft.shift();
   /* slow frames: the backdrop jumps to its still; others thin the unlit store dots, redraw the land in coarser steps, then drop to 1x */
-  if(m.stillOnSlow&&m.ft.length>=10&&m.ft.slice(-10).reduce((x,y)=>x+y,0)/10>14){m.el=Math.max(m.el,m.tFinal/m.speed+1);m.wave=null;glDraw(m,m.tFinal,m.el);m.slowStill=true;m.lastNow=0;glMarkSync(m);return;}
+  if(m.stillOnSlow&&m.ft.length>=20){const av=m.ft.slice(-20).reduce((x,y)=>x+y,0)/20;
+    if(av>8&&!m.fps){m.fps=30;m.ft.length=0;}
+    else if(av>14){m.el=Math.max(m.el,m.tFinal/m.speed+1);m.wave=null;m.spin=false;m.spinAng=0;glDraw(m,m.tFinal,m.el);m.slowStill=true;m.lastNow=0;glMarkSync(m);return;}}
   if(m.ft.length===60){const avg=m.ft.reduce((x,y)=>x+y,0)/60;if(avg>14){m.ft.length=0;if(m.budget>.25||m.q<.4){m.budget=Math.max(.25,m.budget*.7);m.q=Math.min(.4,m.q*2);}else if(m.dprCap>1){m.dprCap=1;glSize(m);}}}
   if(!m.rock&&t>m.tFinal&&!glWaveOn(m)){ /* a mount that does not rotate stops once its animation (and any hover wave) is over */
     if(m.wave){m.wave=null;glDraw(m,m.tFinal,m.el);}m.lastNow=0;return;}
@@ -2357,7 +2373,7 @@ function glFrame(m,now){
 function glKick(m){if(!m||m.raf||m.pt||!m.on)return;if(m.still){glDraw(m,m.tFinal,m.el);glMarkSync(m);return;}if(!GL.vis||!m.seen){glMarkSync(m);return;}m.raf=requestAnimationFrame(n=>glFrame(m,n));}
 const glRedraw=m=>{if(!m||!m.on)return;if(m.still||!m.raf)glDraw(m,m.still?m.tFinal:Math.min(glT(m),m.tFinal),m.el);};
 function glSize(m){const b=m.box;if(!b||!m.cv||!m.on)return;const r=b.getBoundingClientRect(),w=Math.max(m.min,Math.round(r.width)),h=Math.max(m.min,Math.round(r.height));m.dpr=Math.min(m.dprCap,window.devicePixelRatio||1);
-  if(w!==m.w||h!==m.h||m.cv.width!==Math.round(w*m.dpr)){m.w=w;m.h=h;m.cv.width=Math.round(w*m.dpr);m.cv.height=Math.round(h*m.dpr);m.cv.style.width=w+"px";m.cv.style.height=h+"px";m.cache.key=null;}
+  if(w!==m.w||h!==m.h||m.cv.width!==Math.round(w*m.dpr)){m.w=w;m.h=h;m.keepR=null;m.cv.width=Math.round(w*m.dpr);m.cv.height=Math.round(h*m.dpr);m.cv.style.width=w+"px";m.cv.style.height=h+"px";m.cache.key=null;}
   glRedraw(m);}
 /* ---- the Chargeflow mark, a DOM element above each globe so it reads first and beats like a heart (CSS only: transform and opacity).
    The canvas places it at New York each drawn frame; the beat starts once the arcs leave New York, and pauses with the mount. */
@@ -2365,7 +2381,7 @@ const GL_MK_SVG='<svg viewBox="-4 -4 50.6 42.2" aria-hidden="true"><path fill="c
 const glMarkHTML=(id,cls,tag)=>`<${tag||"span"} class="gl-mk ${cls||""}" id="${id}"${tag==="button"?' type="button"':' aria-hidden="true"'}><span class="gl-mk-l"><span class="gl-mk-b">${GL_MK_SVG}</span></span></${tag||"span"}>`;
 function glMarkAt(m,hq,HR){const e=m.markEl;if(!e||!HR)return;const s=Math.round(HR*2);
   if(s!==m.mkS){m.mkS=s;e.style.setProperty("--s",s+"px");e.style.setProperty("--hit",Math.max(m.hit||0,s)+"px");}
-  e.style.transform=`translate(${(hq[0]).toFixed(1)}px,${(hq[1]).toFixed(1)}px)`;e.style.visibility=hq[2]?"visible":"hidden";}
+  const tf=`translate(${(hq[0]).toFixed(2)}px,${(hq[1]).toFixed(2)}px)`;if(tf!==m.mkTf){m.mkTf=tf;e.style.transform=tf;}const vis=hq[2]?"visible":"hidden";if(vis!==m.mkVis){m.mkVis=vis;e.style.visibility=vis;}}
 function glMarkSync(m){const e=m&&m.markEl;if(!e)return;const ready=!m.still&&!glRM()&&(glT(m)>=.5||m.slowStill);
   if(ready&&!m.beatOn){m.beatOn=true;e.classList.add(m.beatOnce?"once":"beat");}
   e.classList.toggle("paused",!(GL.vis&&m.seen&&m.on));}
@@ -2396,7 +2412,9 @@ const glBdOn=()=>{try{return localStorage.getItem(GL_BD)!=="off";}catch(e){retur
 /* Placement. New York (and the Chargeflow mark) lands in the clear space of the header: right of the week tiles, left of the
    page edge, below the as-of chip and Customize. The view is turned so New York sits near the middle of the visible sphere, with
    land around it; the sphere is sized to the window and bleeds off the right. The box spans the header band only. */
-const GL_BDLON=-66,GL_BDPHI=36,GL_BDMIN=1140;
+/* build 24: view centre 30 deg W (the Americas reach the left rim, Europe and Africa on the right, New York left of centre); a slow rock
+   about the axis through New York, so New York and the mark stay fixed while the sphere swivels: +-7 deg over 50 s */
+const GL_BDLON=-30,GL_BDPHI=36,GL_BDMIN=1140,GL_SPIN_AMP=7*Math.PI/180,GL_SPIN_PER=50;
 /* layout position of an element inside .main-in, ignoring transforms (the page's enter animation moves things by 8 px for 0.6 s) */
 function glOff(e,root){let x=0,y=0,n=e;while(n&&n!==root){x+=n.offsetLeft;y+=n.offsetTop;n=n.offsetParent;}return{x,y,w:e.offsetWidth,h:e.offsetHeight,r:x+e.offsetWidth,b:y+e.offsetHeight};}
 const GL_KEEP="#p-overview .hero h2,#p-overview .hero .hl,#ov-meta .pill,#ov-cust,#p-overview .hero .pchip,#ov-reset,.ov-bdsw,#ov-cnote,#p-overview .hero-eyes .heye,#p-overview>.ovb[data-b=hero]>.ovb-bar";
@@ -2404,8 +2422,8 @@ function glBdPlace(m){
   const box=$("gl-bd"),mi=document.querySelector(".main-in"),mk=$("gl-bd-mark");if(!box||!mi)return;
   /* while Customize is open the backdrop keeps its place and size (also across a switch off and on) */
   if(document.body.classList.contains("ov-edit")&&GL.bdLast){const L=GL.bdLast;Object.assign(box.style,L.box);for(const k in L.vars)box.style.setProperty(k,L.vars[k]);if(mk)Object.assign(mk.style,L.mk);const tp=$("gl-bd-tip");if(tp)Object.assign(tp.style,L.tip);
-    GL.bdClear=true;if(m){m.D=L.D;m.G=L.G;m.mkR=L.mkR;}return;}
-  const r=mi.getBoundingClientRect(),miTop=r.top+window.scrollY,vw=document.documentElement.clientWidth,D=Math.min(760,Math.max(600,Math.round(vw*.44)));
+    GL.bdClear=true;if(m){m.D=L.D;m.G=L.G;m.mkR=L.mkR;m.keepR=null;}return;}
+  const r=mi.getBoundingClientRect(),miTop=r.top+window.scrollY,vw=document.documentElement.clientWidth,D=Math.min(650,Math.max(520,Math.round(vw*.375)));
   const ns=[...document.querySelectorAll("#p-overview .hero-ns .hero-n")].filter(e=>e.getClientRects().length).pop(),hr=document.querySelector("#p-overview .hero-r");
   const nr=ns?glOff(ns,mi):null,cr=hr&&hr.getClientRects().length?glOff(hr,mi):null,nb=document.querySelector("#p-overview>.ovb:not([data-b=hero]):not(.off)");
   const bandB=nb?glOff(nb,mi).y:260,miW=mi.offsetWidth;
@@ -2426,7 +2444,7 @@ function glBdPlace(m){
   box.style.setProperty("--gl-la",Math.max(0,Math.round(cx-R-8))+"px");box.style.setProperty("--gl-lb",Math.max(0,Math.round(cx-R+D*.3))+"px");
   if(mk){mk.style.top=-Math.round(miTop)+"px";mk.style.left="0px";}
   const tip=$("gl-bd-tip");if(tip){tip.style.right=Math.round(miW-tx-mkS/2)+"px";tip.style.top=Math.round(ty+half+4)+"px";}
-  if(m){m.D=D;m.G={R,cx,cy};m.mkR=mkS/2;}
+  if(m){m.D=D;m.G={R,cx,cy};m.mkR=mkS/2;m.keepR=null;}
   if(GL.bdClear){const tp=$("gl-bd-tip");GL.bdLast={D,G:{R,cx,cy},mkR:mkS/2,box:{top:box.style.top,left:"0px",right:"auto",width:box.style.width,height:box.style.height},
     vars:{"--gl-fa":box.style.getPropertyValue("--gl-fa"),"--gl-fb":box.style.getPropertyValue("--gl-fb"),"--gl-la":box.style.getPropertyValue("--gl-la"),"--gl-lb":box.style.getPropertyValue("--gl-lb")},
     mk:mk?{top:mk.style.top,left:mk.style.left}:{},tip:tp?{right:tp.style.right,top:tp.style.top}:{}};}
@@ -2450,7 +2468,7 @@ function renderGlobe(fade){
   const el0=done?(GL.bdEl!=null?GL.bdEl:60):0;
   if(fade){el.classList.add("gl-out");if(mk)mk.classList.add("gl-out");}
   if(mk)mk.hidden=false;
-  let m=pre;m=glMount($("gl-bd-cv"),el,{D:pre.D,G:pre.G,mkR:pre.mkR,el:el0,observe:true,faint:true,rock:false,lon:GL_BDLON,phi:GL_BDPHI,speed:GL_INTRO/3,stillOnSlow:true,min:120,
+  let m=pre;m=glMount($("gl-bd-cv"),el,{D:pre.D,G:pre.G,mkR:pre.mkR,el:el0,observe:true,faint:true,rock:!glRM(),spin:!glRM(),lon:GL_BDLON,phi:GL_BDPHI,speed:GL_INTRO/3,stillOnSlow:true,min:120,
     markEl:mk,hit:56,keep:GL_KEEP,geo:()=>m.G,onSeen:()=>glAmb()});
   GL.hero=m;glBdPlace(m);m.cache.key=null;glSize(m);glMarkSync(m);
   if(fade)glBdFade(true);else glAmb();
@@ -2499,7 +2517,7 @@ function glFullOpen(o){
   try{$("gl-full-x").focus();}catch(e){}
 }
 function glFullClose(restore){
-  if(!GLF.el)return;glUnmount(GLF.m);GLF.m=null;GLF.el.remove();GLF.el=null;
+  if(!GLF.el)return;glUnmount(GLF.m);GLF.m=null;GLF.el.remove();GLF.el=null;setTimeout(()=>glKick(GL.hero),0);
   try{if(String(location.hash)==="#globe")history.replaceState(null,"",location.pathname+location.search+"#"+(ST.sec||"overview"));}catch(e){}
   const inv=GLF.inv;GLF.inv=null;if(restore!==false){try{window.scrollTo(0,GLF.sy);if(inv&&inv.focus&&document.contains(inv))inv.focus();}catch(e){}}
 }
@@ -2530,7 +2548,7 @@ function glTakeover(){
 }
 function glTakeEnd(now){
   if(!GLK.el)return;GLK.timers.forEach(clearTimeout);GLK.timers=[];const el=GLK.el;GLK.el=null;
-  const fin=()=>{glUnmount(GLK.m);GLK.m=null;el.remove();if(GLK.bd&&GL.hero){glBdFade(true);GLK.bd=false;}try{window.scrollTo(0,GLK.sy);const mn=$("main");if(mn)mn.scrollTop=GLK.ms;const inv=GLK.inv;if(inv&&inv.focus&&document.contains(inv))inv.focus({preventScroll:true});}catch(e){}GLK.inv=null;};
+  const fin=()=>{glUnmount(GLK.m);GLK.m=null;el.remove();setTimeout(()=>glKick(GL.hero),0);if(GLK.bd&&GL.hero){glBdFade(true);GLK.bd=false;}try{window.scrollTo(0,GLK.sy);const mn=$("main");if(mn)mn.scrollTop=GLK.ms;const inv=GLK.inv;if(inv&&inv.focus&&document.contains(inv))inv.focus({preventScroll:true});}catch(e){}GLK.inv=null;};
   if(now){fin();return;}el.classList.remove("on");setTimeout(fin,450);
 }
 ["keydown","pointerdown","wheel","touchstart"].forEach(ev=>window.addEventListener(ev,e=>{if(!GLK.el)return;e.preventDefault();e.stopImmediatePropagation();glTakeEnd(false);},{capture:true,passive:false}));
@@ -2576,7 +2594,7 @@ function glEggsReady(){
 }
 window.addEventListener("hashchange",()=>{if(String(location.hash)==="#globe"&&GL.ready&&VP.p!=="finance")glFullOpen();});
 document.addEventListener("visibilitychange",()=>{GL.vis=!document.hidden;GL.mounts.forEach(m=>{glMarkSync(m);if(GL.vis)glKick(m);});});
-if(GL_TEST)window.__glTest={GL,GLF,GLK,GLT,glModel,glEarth,glDraw,glFullOpen,glTakeover,glToastCheck,GL_SEEN};
+if(GL_TEST)window.__glTest={GL,GLF,GLK,GLT,glModel,glEarth,glDraw,glFullOpen,glTakeover,glToastCheck,GL_SEEN,glViewL,glXf,GL_NY};
 
 function renderOverview(){
   renderTitle();renderOvLeads();
@@ -8219,7 +8237,7 @@ function ovHeroBind(){
   document.querySelectorAll("#ov-hero .heye").forEach(b=>b.onclick=()=>{const L=ovLayout(),k=b.dataset.hs,i=L.hero.hide.indexOf(k);
     if(i<0)L.hero.hide.push(k);else L.hero.hide.splice(i,1);ovCommit(L);ovApply();ovLive(`${HERO_L[k]} ${i<0?"hidden":"shown"}`);});
   ovApply();
-  if(GL.hero)requestAnimationFrame(()=>{if(GL.hero){glBdPlace(GL.hero);glRedraw(GL.hero);}});
+  if(GL.hero)requestAnimationFrame(()=>{if(GL.hero){glBdPlace(GL.hero);GL.hero.keepR=null;glRedraw(GL.hero);}});
 }
 /* build 23: Escape closes Customize when nothing above it is open */
 document.addEventListener("keydown",e=>{if(e.key!=="Escape"||e.defaultPrevented||!OVS.edit||OVS.grab)return;if((typeof PAL!=="undefined"&&PAL.open)||GLF.el||GLK.el)return;
