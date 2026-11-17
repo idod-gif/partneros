@@ -2335,6 +2335,7 @@ function glStroke(pts,uEnd,pf,pb){const n=pts.length-1,last=uEnd*n,m=Math.floor(
 /* ---- mounts and the loop. A mount is one canvas with its own clock, size, cache, hover and frame budget; every mount runs its
    own requestAnimationFrame loop only while it is mounted, on screen and in a visible tab. Reduced motion: one still frame. */
 const glRM=()=>{try{return matchMedia("(prefers-reduced-motion: reduce)").matches;}catch(e){return false;}};
+/* test hooks (window.__glTest, __lb, __fin, __rv, __rvChart, __rvLabels) exist only on file:// previews, never on the served page */
 const GL_TEST=(()=>{try{return location.protocol==="file:";}catch(e){return false;}})();
 /* build 23: the clock. Each mount keeps its own elapsed time (m.el, seconds) that advances only on frames actually drawn, by at most
    50 ms a frame: hidden tab, another page, scrolled away or the tour open, and the intro waits where it stopped; it starts on the first
@@ -6702,7 +6703,7 @@ function renderLB(){
   dbKpis(L,c);lbEarnPaid(L,c);lbTrend(L,c);lbProd(L,c);lbPayTable(L);lbTop(L,c);
   if(ST.dbopen)lbDrawer();
   host.querySelectorAll(".card-sub").forEach(x=>{x.title=x.dataset.full||x.textContent;});
-  window.__lb=c;
+  if(GL_TEST)window.__lb=c;
 }
 /* charts only, at the current width (the rail toggle draws them at the final column width; tables and tiles do not depend on it) */
 function lbCharts(){const L=lbGet(),host=$("lb-wrap");if(!L||!host||!host.querySelector("#lb-ep")){renderLB();return;}
@@ -7086,7 +7087,7 @@ function renderFinance(){
   if(RL){$("fin-rail").innerHTML=[tile("Stripe",fin$(RL.stripe),"Collected, all time","v4 ledger workbook, Collected tab, Stripe"),tile("Shopify before fees",fin$(RL.shopify_gross),"Shopify Billing payouts, gross","v4 ledger workbook, Shopify payouts tab"),tile("Shopify's cut",fin$(RL.shopify_fees),"Shopify's fees","v4 ledger workbook, Shopify payouts tab"),tile("Shopify after fees",fin$(RL.shopify_net),`Received; with Stripe, ${fin$(RL.stripe+RL.shopify_net)} after Shopify's cut`,"v4 ledger workbook, Shopify payouts tab")].join("");$("fin-rail").className="tiles fin5";
     const sb=$("fin-rail").closest("section").querySelector(".card-sub");if(sb)sb.textContent="All referred merchants, all time, per billing rail, from the v4 ledger workbook (Nov 9, 2026).";}
   else $("fin-rail").innerHTML=at&&at.AT?[tile("Stripe",fin$(at.tot.stripe),"Paid invoices, all time","ledger, lifetime per store"),tile("Shopify",fin$(at.tot.shopify),`Billed, not gross: fees not netted${sh?`; to ${esc(sh)}`:""}`,"ledger, Shopify Billing lifetime per store"),tile("Both rails",fin$(at.tot.stripe+at.tot.shopify),"All referred stores in the snapshot","sum of the two")].join(""):"";
-  window.__fin={cut:T.cut,net:T.net,rev:T.rev,comm:T.comm,due:T.due,paid:T.paid,key:FIN.q,rows:R.length,sum:R.reduce((a,r)=>({rev:a.rev+r.rev,due:a.due+r.due,paid:a.paid+r.paid}),{rev:0,due:0,paid:0})};
+  if(GL_TEST)window.__fin={cut:T.cut,net:T.net,rev:T.rev,comm:T.comm,due:T.due,paid:T.paid,key:FIN.q,rows:R.length,sum:R.reduce((a,r)=>({rev:a.rev+r.rev,due:a.due+r.due,paid:a.paid+r.paid}),{rev:0,due:0,paid:0})};
 }
 
 /* ==== build 12 (2026-11-15): Revenue v2. One model feeds the hero, the KPI tiles, the merged chart and the breakdown table, so their
@@ -7525,8 +7526,8 @@ function rvDraw(L,M){
   if(fc){lg.unshift(["Revenue",LBC.earned,"ln"]);lg.push(["Forecast, base",LBC.fc,"ln dash"]);if(fc.low)lg.push(["Forecast, low to high","color-mix(in srgb,var(--muted-foreground) 18%,transparent)"]);}
   if(B.some(b=>b.part))lg.push([RVS.view==="q"?"Part of a quarter (hatched or hollow)":"Partial month (hatched or hollow)","transparent","ring"]);
   $("rv-lg").innerHTML=lg.length?lbLg(lg):"";
-  window.__rvChart={keys:B.map(b=>b.k),totals:D.T.slice(),series:S.map(x=>x.k),values:D.V.map(a=>a.slice())};
-  window.__rvLabels={mode:lay?`${lay.rot?"rotated":lay.rows>1?"staggered":"horizontal"} ${lay.fs}px`:"none",wide,plotW:W,boxW:BW,N,
+  if(GL_TEST)window.__rvChart={keys:B.map(b=>b.k),totals:D.T.slice(),series:S.map(x=>x.k),values:D.V.map(a=>a.slice())};
+  if(GL_TEST)window.__rvLabels={mode:lay?`${lay.rot?"rotated":lay.rows>1?"staggered":"horizontal"} ${lay.fs}px`:"none",wide,plotW:W,boxW:BW,N,
     labels:(lay?lay.labels:[]).map(l=>({i:l.i,kind:l.kind,text:l.text,v:l.v,poly:l.poly})),segs:segL.map(l=>({i:l.i,j:l.j,text:l.text,v:l.v,poly:l.poly}))};
 }
 /* monotone cubic through the points (no overshoot above or below the data) */
@@ -7666,7 +7667,7 @@ function rvControls(L,M){
 function rvRender(){
   const L=lbGet();if(!L||!RVhost||!$("rv-hero"))return;
   {const rt=RVhost.querySelector(".rv-root"),ok=!!flIndex();if(rt)rt.classList.toggle("no-led",!ok);
-    if(!ok){$("rv-finl").hidden=false;$("rv-finl-msg").textContent=FINL_ST==="loading"?"Loading the Finance ledger series.":"The Finance ledger series is not loaded, so the explorer shows no figures. It reads snapshots/ledger from the PartnerOS database; the Revenue page's own figures are unaffected.";window.__rv={finl:FINL_ST};return;}
+    if(!ok){$("rv-finl").hidden=false;$("rv-finl-msg").textContent=FINL_ST==="loading"?"Loading the Finance ledger series.":"The Finance ledger series is not loaded, so the explorer shows no figures. It reads snapshots/ledger from the PartnerOS database; the Revenue page's own figures are unaffected.";if(GL_TEST)window.__rv={finl:FINL_ST};return;}
     $("rv-finl").hidden=true;}
   const M=rvModel(L);rvNorm(M);{const rt=RVhost.querySelector(".rv-root");if(rt)rt.classList.toggle("has-led",!!M.X);}
   if(RVS.sel){const p=RVS.sel.prev;if(!M.MU.includes(p.from)||!M.MU.includes(p.to))RVS.sel=null;}
@@ -7687,7 +7688,7 @@ function rvRender(){
   else{sb.hidden=true;sb.innerHTML="";}
   $("rv-ctl-sub").textContent=`${rvRangeL(RVS.from,RVS.to,RVS.view)}, ${RVS.partner?rvPN(L,RVS.partner):"all partners"}, ${rvPL(RVS.product).toLowerCase()}, ${rvNetL()} revenue, ${rvMeasL(M)}${M.X?`. ${M.X.src.label||"Finance ledger"}${M.X.src.asof?", as of "+dShort(M.X.src.asof):""}`:""}`;
   let nnCk=null;if(RVS.nn&&c.all){const k=rvCoh(),sum=f=>c.all.per.filter(f).reduce((a,x)=>a+x.rev,0);nnCk={all:c.all.total,nn:c.total,before:sum(x=>x.r.fp&&x.r.fp<k.from),after:sum(x=>x.r.fp&&x.r.fp>k.to),nofp:sum(x=>!x.r.fp),rows:RVtabN};}
-  window.__rv={hero:c.total,cut:c.cut,table:tt,nn:nnCk,prod:c.prod,merchRev:c.per.filter(x=>RV_PK.some(k=>Math.abs(x.pr[k])>0.005)).length,rows:M.rows.length,notInPos:M.notInPos,ledger:M.X?{matched:M.matched,unmatched:M.unmatched,meas:M.meas,first:M.MU[0],last:M.MU[M.MU.length-1]}:null,sel:RVS.sel?{bk:RVS.sel.bk,seg:RVS.sel.seg,label:RVS.sel.label}:null,state:{from:RVS.from,to:RVS.to,view:RVS.view,partner:RVS.partner,product:RVS.product,gm:RVS.gm,mode:RVS.mode,stackBy:RVS.stackBy}};
+  if(GL_TEST)window.__rv={hero:c.total,cut:c.cut,table:tt,nn:nnCk,prod:c.prod,merchRev:c.per.filter(x=>RV_PK.some(k=>Math.abs(x.pr[k])>0.005)).length,rows:M.rows.length,notInPos:M.notInPos,ledger:M.X?{matched:M.matched,unmatched:M.unmatched,meas:M.meas,first:M.MU[0],last:M.MU[M.MU.length-1]}:null,sel:RVS.sel?{bk:RVS.sel.bk,seg:RVS.sel.seg,label:RVS.sel.label}:null,state:{from:RVS.from,to:RVS.to,view:RVS.view,partner:RVS.partner,product:RVS.product,gm:RVS.gm,mode:RVS.mode,stackBy:RVS.stackBy}};
 }
 function rvOnChange(e){
   const id=e.target.id,v=e.target.value,L=lbGet();if(!L)return;const M=rvModel(L);
